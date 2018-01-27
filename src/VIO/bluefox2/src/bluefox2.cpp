@@ -142,6 +142,7 @@ void Bluefox2::Configure(Bluefox2DynConfig &config) {
   // Dark Current Filter
   SetDcfm(config.dcfm);
   // Pixel Clock
+  ROS_INFO(">>>>>>>>>>>>>>>>>> CPC = %d", config.cpc);
   SetCpc(config.cpc);
   // Trigger Mode
   SetCtm(config.ctm);

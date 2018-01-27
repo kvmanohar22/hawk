@@ -14,13 +14,14 @@
     <arg name="calib_url" default="file://${ROS_HOME}/camera_info/$(arg camera_name).yaml"/>
     <arg name="fps" default="$(arg rate)"/>
 
-    <arg name="idpf" default="0"/>
+    <arg name="idpf" default="2"/>
     <arg name="aec" default="false"/>
     <arg name="expose_us" default="15000"/>
     <arg name="agc" default="true"/>
     <arg name="gain_db" default="0.0"/>
     <arg name="cbm" default="0"/>
     <arg name="dcfm" default="0"/>
+    <arg name="cpc" default="40000"/>
     <arg name="hdr" default="false"/>
     <arg name="wbp" default="-1"/>
     <arg name="request" default="0"/>
@@ -51,6 +52,7 @@
         <param name="gain_db" type="double" value="$(arg gain_db)"/>
         <param name="cbm" type="int" value="$(arg cbm)"/>
         <param name="ctm" type="int" value="$(arg ctm)"/>
+        <param name="cpc" type="int" value="$(arg cpc)"/>
         <param name="cts" type="int" value="$(arg cts)"/>
         <param name="dcfm" type="int" value="$(arg dcfm)"/>
         <param name="hdr" type="bool" value="$(arg hdr)"/>

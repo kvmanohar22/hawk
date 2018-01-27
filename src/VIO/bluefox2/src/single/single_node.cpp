@@ -81,12 +81,13 @@ void SingleNode::Acquire() {
     // a new video frame was captured
     // check if we need to skip it if one trigger packet was lost
     if (pkt.triggerCounter == nextTriggerCounter) {
-	fifoRead(pkt);
+	      fifoRead(pkt);
         const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
         const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-	if (nextTriggerCounter % 500 == 0)
+	      if (nextTriggerCounter % 500 == 0) {
             ROS_INFO("Published image...");
+        }
      } else {
        ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
         nextTriggerCounter, pkt.triggerCounter);

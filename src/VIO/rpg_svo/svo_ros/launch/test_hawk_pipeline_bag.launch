@@ -3,7 +3,7 @@
   <arg name="bagfile" value="$(find bluefox2)/../../../bags/bag0.bag"/>
 
   <!-- start svo hawk pipeline -->
-  <include file="$(find svo_ros)/launch/load_svo_hawk.launch"/>
+  <include file="$(find svo_ros)/launch/load_svo.launch"/>
 
   <!-- start rviz -->
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />

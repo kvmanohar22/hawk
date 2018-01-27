@@ -39,7 +39,6 @@ FIND_PACKAGE(catkin REQUIRED COMPONENTS
 )
 
 # Add plain cmake packages 
-SET(OpenCV_DIR "/home/hawk/Downloads/opencv-2.4.13.5/build")
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)
@@ -82,8 +81,8 @@ TARGET_LINK_LIBRARIES(vo svo_visualizer)
 # ADD_EXECUTABLE(benchmark src/benchmark_node.cpp)
 # TARGET_LINK_LIBRARIES(benchmark svo_visualizer)
 
-# ADD_EXECUTABLE(feature_detection src/test_feature_detection.cpp)
-# TARGET_LINK_LIBRARIES(feature_detection svo_visualizer)
+ADD_EXECUTABLE(feature_detection src/test_feature_detection.cpp)
+TARGET_LINK_LIBRARIES(feature_detection svo_visualizer)
 
 # ADD_EXECUTABLE(initialization src/test_initialization.cpp)
 # TARGET_LINK_LIBRARIES(initialization svo_visualizer)

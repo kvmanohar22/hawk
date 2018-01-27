@@ -47,7 +47,6 @@ ENDIF()
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 # Add plain cmake packages 
-SET(OpenCV_DIR "/home/hawk/Downloads/opencv-2.4.13.5/build") 
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)
@@ -131,8 +130,8 @@ IF(SVO_BUILD_TESTS)
   ADD_EXECUTABLE(test_matcher test/test_matcher.cpp)
   TARGET_LINK_LIBRARIES(test_matcher svo)
 
-  ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
-  TARGET_LINK_LIBRARIES(test_feature_detection svo)
+  # ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
+  # TARGET_LINK_LIBRARIES(test_feature_detection svo)
 
   ADD_EXECUTABLE(test_depth_filter test/test_depth_filter.cpp)
   TARGET_LINK_LIBRARIES(test_depth_filter svo)

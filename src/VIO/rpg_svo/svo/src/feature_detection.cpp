@@ -117,6 +117,7 @@ void FastDetector::detect(
   resetGrid();
 }
 
+/*
 ///canny edge detection
 CannyEdgeDetector::CannyEdgeDetector(
     const int img_width,
@@ -337,17 +338,16 @@ float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr,
     memset(map, 1, mapstep);
     memset(map + mapstep*(size.height + 1), 1, mapstep);
 
-    /* sector numbers
-    (Top-Left Origin)
+    // * sector numbers
+    // (Top-Left Origin)
 
-    1   2   3
-    *  *  *
-    * * *
-    0*******0
-    * * *
-    *  *  *
-    3   2   1
-    */
+    // 1   2   3
+    // *  *  *
+    // * * *
+    // 0*******0
+    // * * *
+    // *  *  *
+    // 3   2   1
 
 #define CANNY_PUSH(d)    *(d) = (uchar)2, *stack_top++ = (d)
 #define CANNY_POP(d)     (d) = *--stack_top
@@ -556,7 +556,7 @@ float CannyEdgeDetector::Canny3(InputArray image, OutputArray _edges,
         &c_dx, &c_dy,
         apertureSize + (L2gradient ? CV_CANNY_L2_GRADIENT : 0));
 }
-
+*/
 } // namespace feature_detection
 } // namespace svo
 

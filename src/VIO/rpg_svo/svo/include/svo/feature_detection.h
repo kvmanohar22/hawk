@@ -105,7 +105,7 @@ public:
       const double detection_threshold,
       Features& fts);
 };
-
+/*
 ///Canny Edge detector from open cv
 class CannyEdgeDetector : public AbstractDetector
 {
@@ -149,7 +149,7 @@ public:
   
 };
 typedef boost::shared_ptr<CannyEdgeDetector> CannyEdgeDetectorPtr;
-
+*/
 
 } // namespace feature_detection
 } // namespace svo

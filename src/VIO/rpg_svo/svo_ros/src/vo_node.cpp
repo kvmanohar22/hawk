@@ -67,6 +67,8 @@ public:
   SE3 T_px4w_b0_; //!< This is pose of body when VIO was initialized (world is the one init. by px4)
   SE3 T_w_b0_; //!< This is first pose of imu in gravity aligned frame from VIO
   bool lock_local_pose_; //!< Set this to true to lock estimate received from px4
+  ros::Time vo_start_time_;
+  bool first_msg_;
 
   VoNode(ros::NodeHandle& nh);
   ~VoNode();
@@ -101,9 +103,10 @@ VoNode::VoNode(ros::NodeHandle& nh) :
   rate_(300),
   inertial_init_done_(false),
   nh_(nh),
-  publish_pose_estimates_(false),
+  publish_pose_estimates_(true),
   start_vo_(vk::getParam<bool>("/hawk/svo/start_vo", true)),
-  lock_local_pose_(false)
+  lock_local_pose_(false),
+  first_msg_(true)
 {
   // Create Camera
   if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
@@ -126,10 +129,10 @@ VoNode::VoNode(ros::NodeHandle& nh) :
 
   // create publishers and services
   mavros_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
-    "mavros/vision_pose/pose", 10);
+    "/mavros/vision_pose/pose", 10);
   start_vo_server_ = nh_.advertiseService("start_vo", &VoNode::startVoServer, this);
   local_pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(
-    "mavros/local_position/pose", 1, &VoNode::localPoseCb, this);
+    "/mavros/local_position/pose", 1, &VoNode::localPoseCb, this);
 
   // Init VO and start
   std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
@@ -176,9 +179,9 @@ void VoNode::publishPose(const FramePtr& frame)
   const Quaterniond q = T_px4w_b.unit_quaternion(); 
 
   // FIXME: Need to set frame_id in header? 
+  ros::Time stamp; stamp.fromSec(frame->timestamp_); 
   geometry_msgs::PoseStamped pose;
   pose.header.seq = frame->id_;
-  ros::Time stamp; stamp.fromSec(frame->timestamp_); 
   pose.header.stamp = stamp;
   pose.pose.position.x = t.x();
   pose.pose.position.y = t.y();
@@ -249,6 +252,11 @@ void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
+  if(first_msg_)
+  {
+    vo_start_time_ = msg->header.stamp;
+    first_msg_ = false; 
+  } 
   cv::Mat img;
   try {
     img = cv_bridge::toCvShare(msg, "mono8")->image;
@@ -256,6 +264,11 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
+  
+  if(!start_vo_)
+    return;
+  if((msg->header.stamp-vo_start_time_).toSec() < 5.0)
+    return;
 
   // Initialize gravity vector first
   if(!inertial_init_done_)
@@ -283,6 +296,11 @@ void VoNode::imgStereoCb(
     const sensor_msgs::ImageConstPtr& l_msg,
     const sensor_msgs::ImageConstPtr& r_msg)
 {
+  if(first_msg_)
+  {
+    vo_start_time_ = l_msg->header.stamp;
+    first_msg_ = false; 
+  } 
   cv::Mat l_img, r_img;
   try {
     l_img = cv_bridge::toCvShare(l_msg, "mono8")->image;
@@ -295,6 +313,11 @@ void VoNode::imgStereoCb(
     ROS_ERROR("cv_bridge exception right message: %s", e.what());
   }
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
+  
+  if(!start_vo_)
+    return;
+  if((l_msg->header.stamp-vo_start_time_).toSec() < 5.0)
+    return;
 
   // Initialize gravity vector first
   if(!inertial_init_done_)
@@ -357,6 +380,7 @@ int main(int argc, char **argv)
     vo_node.inertial_init_done_ = true;
     vo_node.vo_->prior_pose_set_ = true;
   }
+  vo_node.vo_start_time_ = ros::Time::now();
 
   if(vo_node.start_vo_)
     vo_node.vo_->start();
@@ -374,7 +398,7 @@ int main(int argc, char **argv)
       }
       else
         SVO_WARN_STREAM_THROTTLE(1.0, "Start VO not set.");
-      vo_node.rate_.sleep();
+      // vo_node.rate_.sleep();
     }
   }
 

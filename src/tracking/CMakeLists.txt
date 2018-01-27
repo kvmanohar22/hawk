@@ -6,6 +6,9 @@ add_compile_options(-std=c++14)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros_msgs
+  sensor_msgs
+  rospy
+  cv_bridge
   roscpp
   std_msgs
   tf2
@@ -13,13 +16,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 catkin_package(
-  INCLUDE_DIRS include
   LIBRARIES offboard
-  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs tf2 tf2_ros
+  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs tf2 tf2_ros rospy sensor_msgs cv_bridge
 )
 
 include_directories(
-  include
   ${catkin_INCLUDE_DIRS}
 )
 

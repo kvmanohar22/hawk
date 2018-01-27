@@ -63,7 +63,7 @@
     </node>
 
     <node pkg="rosbag" type="record" name="rosbag_imu_cam"
-           args="record -o /home/hawk/ /hawk/camera_0/image_raw /hawk/camera_0/camera_info /mavros/imu/data_raw /mavros/cam_imu_sync/cam_imu_stamp"
+           args="record -o /home/$(env USER)/ /hawk/camera_0/image_raw /hawk/camera_0/camera_info /mavros/imu/data_raw /mavros/cam_imu_sync/cam_imu_stamp"
            if="$(arg record_cameras)">
     </node>
 

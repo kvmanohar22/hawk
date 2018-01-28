@@ -6,17 +6,19 @@
     <!-- Start mavros -->
     <include file="$(find mavros)/launch/px4.launch">
         <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+        <param name="conn/timesync_rate" value="10.0"/> 
+        <param name="conn/system_time_rate" value="1.0"/> 
     </include>
 
     <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/single_node.launch">
-        <arg name="record_cameras" value="false"/>
+        <arg name="record_cameras" value="true"/>
         <arg name="device" value="$(arg device)"/>
         <arg name="expose_us" value="$(arg expose_us)"/>
         <arg name="view" value="$(arg view)"/>
         <arg name="rate" value="50"/>
         <arg name="request" value="100"/>
-        <arg name="gain_db" value="1.0"/>
+        <arg name="gain_db" value="12.0"/>
         <arg name="hdr" value="true"/>
         <arg name="mm" value="3"/>
         <arg name="aec" value="false"/>

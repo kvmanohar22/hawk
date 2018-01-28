@@ -173,7 +173,10 @@ void VoNode::publishPose(const FramePtr& frame)
   const SE3 T_w_b =  frame->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
 
   // transform into the px4's world frame
-  const SE3 T_px4w_b = T_px4w_b0_ * T_w_b0_.inverse() * T_w_b;
+ 
+  // DO not use barometer! 
+  // const SE3 T_px4w_b = T_px4w_b0_ * T_w_b0_.inverse() * T_w_b;
+  const SE3 T_px4w_b = T_w_b;
 
   const Vector3d t = T_px4w_b.translation();
   const Quaterniond q = T_px4w_b.unit_quaternion(); 

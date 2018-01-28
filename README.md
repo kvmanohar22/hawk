@@ -4,6 +4,7 @@
 - [Setup](#setup)
 - [Usage](#usage)
 - [Naming conventions](#conventions)
+- [Launch files](#launch)
 - [FAQ](#faq)
 
 <a name="setup"></a>
@@ -76,6 +77,40 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
 ```bash
 roslaunch bluefox2 single_node.launch
 ``` 
+
+<a name="launch"></a>
+## Launch files
+- Launch a single camera node
+  - ```bash
+      roslaunch bluefox2 single_node.launch
+    ```
+  - The images will be published on the topic `/hawk/camera_0/image_raw`
+
+- Launch camera node with hardware triggering enabled
+  - ```bash
+      roslaunch bluefox2 test_hardware_triggering.launch
+    ```
+  - Trigger interval has to be specified in QGC
+  - Exposure time and other camera specific parameters have to be specified in the launch file
+
+- Visualize camera data from a bagfile
+  - ```bash
+      roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile
+    ```
+  - `bag_path` has to be absolute
+
+- Run svo from a bagfile
+  - ```bash
+      roslaunch svo_ros test_hawk_pipeline_bag.launch bag_path:=/path/to/bag
+    ```
+  - `bag_path` has to be absolute
+
+- Run svo from live camera
+  - ```bash
+      roslaunch svo_ros test_hawk_pipeline_live.launch
+    ```
+  - Change the exposure in the above launch file
+
 
 <a name="faq"></a>
 ## FAQ

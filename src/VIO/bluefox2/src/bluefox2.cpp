@@ -110,13 +110,13 @@ bool Bluefox2::GrabImage(sensor_msgs::Image &image_msg) {
     encoding = PixelFormatToEncoding(request_->imagePixelFormat.read());
   }
  
-  ros::Time start_reading=ros::Time::now();
+  // ros::Time start_reading=ros::Time::now();
   sensor_msgs::fillImage(image_msg, encoding, request_->imageHeight.read(),
                          request_->imageWidth.read(),
                          request_->imageLinePitch.read(),
                          request_->imageData.read());
 
-  ROS_INFO_STREAM(">>>>>>>>>>> Filling time = " << (ros::Time::now()-start_reading).toSec()*1e3 << " ms");
+  // ROS_INFO_STREAM(">>>>>>>>>>> Filling time = " << (ros::Time::now()-start_reading).toSec()*1e3 << " ms");
   // Release capture request
   fi_->imageRequestUnlock(request_nr);
   return true;

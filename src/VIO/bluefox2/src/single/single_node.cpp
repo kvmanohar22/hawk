@@ -87,7 +87,7 @@ void SingleNode::Acquire() {
         const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
         ros::Time begin=ros::Time::now();
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-        ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
+        // ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
 	      // if (nextTriggerCounter % 500 == 0) {
         // ROS_INFO("Published image, nextTriggerCounter = %d \t |write-read| = %d", nextTriggerCounter, fifoWritePos-fifoReadPos);
         // }

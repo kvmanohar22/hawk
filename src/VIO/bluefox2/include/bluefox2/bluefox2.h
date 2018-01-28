@@ -54,7 +54,7 @@ class Bluefox2 {
   void FillCaptureQueue(int &n) const;
   void RequestImages(int n) const;
 
-  int timeout_ms_{0};
+  int timeout_ms_{200};
   std::string serial_;
   Bluefox2DynConfig config_;
   mvIMPACT::acquire::Request *request_{nullptr};

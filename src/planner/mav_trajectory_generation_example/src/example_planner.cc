@@ -11,7 +11,9 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private)
     rate_(20),
     current_velocity_(Eigen::Vector3d::Zero()),
     current_pose_(Eigen::Affine3d::Identity()),
-    current_pose_set_(false) {
+    current_pose_set_(false),
+    intermediate_pose_separation_(3.0 )
+ {
 
   // Load params
   if (!nh_.getParam(ros::this_node::getName() + "/max_v", max_v_)){
@@ -120,8 +122,6 @@ void ExamplePlanner::addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coar
     Eigen::Vector3d wpa = coarse_waypoints[i - 1];
     Eigen::Vector3d wpb = coarse_waypoints[i];
     double dist = (wpa - wpb).norm();
-
-    nh_private_.getParam("intermediate_pose_separation", intermediate_pose_separation_);
 
     // Minimum tolerance between points set to avoid subsequent numerical errors
     // in trajectory optimization.

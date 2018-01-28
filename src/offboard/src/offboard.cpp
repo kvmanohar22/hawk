@@ -57,6 +57,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
     ros::spinOnce();
     rate_.sleep();
   }
+  ROS_WARN_STREAM("Home set...");
 }
 
 Offboard::~Offboard() {
@@ -197,13 +198,12 @@ void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg)
       return;
     if (home_alt_count_ == 0) {
       home_alt_amsl_set_ = true;
-      ROS_INFO_STREAM("Home altitude AMSL acquired. Detaching from the topic");
+      ROS_INFO_STREAM("Home altitude AMSL acquired. Detaching from the topic = " << home_alt_amsl_);
       alt_amsl_sub_.shutdown();  // TODO: ok?
     }
     --home_alt_count_; 
   }
 }
-
 
 bool Offboard::switch_mode(std::string& target_mode) {
   mavros_msgs::SetMode new_mode;

@@ -1,5 +1,8 @@
 #include <mav_trajectory_generation_example/example_planner.h>
 
+#include <thread>
+#include <chrono>
+
 ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
     nh_(nh),
     max_v_(2.0),
@@ -75,6 +78,8 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   // Start = current position
   // end = desired position and velocity
   mav_trajectory_generation::Vertex start(dimension), end(dimension);
+
+  std::this_thread::sleep_for(std::chrono::seconds(20));
 
   // wait until the current pose is set
   while (true) {

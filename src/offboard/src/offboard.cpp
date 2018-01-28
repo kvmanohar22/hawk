@@ -278,7 +278,7 @@ bool Offboard::engage_offboard() {
   while (ros::ok() && offboard_enabled_) {
     local_pos_pub_.publish(pose); 
    
-    if (ros::Time::now() - current_time > ros::Duration(10))
+    if (ros::Time::now() - current_time > ros::Duration(20))
       break;
 
     ros::spinOnce();
@@ -296,6 +296,13 @@ bool Offboard::engage_offboard() {
 bool Offboard::engage_offboard_trajectory() {
   // arm
   arm(); 
+
+  // takeoff to certain altitude
+  takeoff(5.0);
+  while (ros::ok()) { // ensure we have reached required altitude
+    if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
+      break;
+  }
 
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 

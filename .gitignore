@@ -1,4 +1,5 @@
 build/**
 devel/**
 .catkin_workspace
+src/offboard/compile_commands.json
 

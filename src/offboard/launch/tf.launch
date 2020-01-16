@@ -1,0 +1,9 @@
+<launch>
+
+  <!-- WARNING: Order is important -->
+
+  <!-- Run transforms in this way. Change the name for each of the transforms -->
+  <!-- The following computes [child -> world] transformation -->
+  <node pkg="offboard" type="tf_broadcaster" name="tf_broadcaster" args="world child 1 0 0 0 0 0"></node> 
+
+</launch>

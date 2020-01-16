@@ -8,12 +8,14 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   roscpp
   std_msgs
+  tf2
+  tf2_ros
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES offboard
-  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs
+  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs tf2 tf2_ros
 )
 
 include_directories(
@@ -25,3 +27,5 @@ add_library(${PROJECT_NAME}
   src/offboard.cpp
 )
 
+add_executable(tf_broadcaster src/tf_broadcaster.cpp)
+target_link_libraries(tf_broadcaster ${catkin_LIBRARIES} ${PROJECT_NAME})

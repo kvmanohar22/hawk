@@ -1,6 +1,6 @@
 #include "offboard/global.h"
 
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
 
   ros::Rate rate(100);
 
-  tf2_ros::TransformBroadcaster broadcaster;
+  static tf2_ros::StaticTransformBroadcaster broadcaster;
   geometry_msgs::TransformStamped tf_stamped;
 
   tf_stamped.header.stamp = ros::Time::now();
@@ -37,10 +37,7 @@ int main(int argc, char** argv) {
   tf_stamped.transform.rotation.z = quat.z();
   tf_stamped.transform.rotation.w = quat.w();
 
-  while(ros::ok()) {
-    tf_stamped.header.stamp = ros::Time::now();
-    broadcaster.sendTransform(tf_stamped); 
-    rate.sleep(); 
-  }
+  ROS_INFO_STREAM("Publishing" << argv[1] << " to " << argv[2] << " tranformation");
+  broadcaster.sendTransform(tf_stamped); 
+  ros::spin();
 }
-

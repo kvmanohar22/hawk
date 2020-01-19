@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node name="mode_manager" pkg="mode_manager" type="mode_manager_node" output="screen"/>
+</launch>

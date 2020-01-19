@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node name="decision_maker" pkg="local_planner" type="decision_maker_node" output="screen"/>
+</launch>

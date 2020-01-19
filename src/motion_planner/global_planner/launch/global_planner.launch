@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node name="global_planner" pkg="global_planner" type="global_planner_node" output="screen"/>
+</launch>

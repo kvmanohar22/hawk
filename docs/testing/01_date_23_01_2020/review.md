@@ -30,3 +30,18 @@
 1. Refer this to tune the PID parameters: [https://docs.px4.io/master/en/config_mc/pid_tuning_guide_multicopter.html](https://docs.px4.io/master/en/config_mc/pid_tuning_guide_multicopter.html)
 2. When Actuator Controls FFT are as expected refer this guide to increase threshold frequencies. [https://docs.px4.io/master/en/config_mc/racer_setup.html#filters](https://docs.px4.io/master/en/config_mc/racer_setup.html#filters)
 3. Vibration isolation refer here: [https://docs.px4.io/master/en/assembly/vibration_isolation.html](https://docs.px4.io/master/en/assembly/vibration_isolation.html)
+
+## Questions
+- [ ] Frame change + same settings. Does this change the vehicle behaviour?
+- [ ] By changing the frame what are the parameters that are changed?
+- [ ] How are the PWM values affected when ESC calibration is done?
+- [ ] Does ESC support PWM protocol? if not, how to configure one shot protocol? More broadly, how is the autopilot interpreting PWM values (literal meaning, some protocol invoked, etc)
+- [ ] What are the effects of changing some parameters (RCX_DZ, MPC_TKO_SPEED, MPC_LAND_SPEED, MPC_Z_VEL_MAX_UP, MPC_Z_VEL_MAX_DN etc)
+- [ ] Perform PID tuning
+- [ ] Test all the modes that were planned
+- [ ] Check if all failsafes are working as expected.
+- [ ] Order an 8+ channel RX
+- [ ] Test mission mode + orbital mode
+- [ ] Companion board setup
+- [ ] **Next:** Trajectory generation -> SITL -> HITL -> Field testing
+

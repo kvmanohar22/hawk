@@ -9,4 +9,6 @@
   2. How can this be minimized?
   3. This is addressed in the above paper.
   4. Also checkout the trajectory helpers.
+8. Waypoint navigator for publishing trajectories and visualizing
+  [https://github.com/ethz-asl/waypoint_navigator](https://github.com/ethz-asl/waypoint_navigator)
 

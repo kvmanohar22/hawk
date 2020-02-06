@@ -11,4 +11,6 @@
   4. Also checkout the trajectory helpers.
 8. Waypoint navigator for publishing trajectories and visualizing
   [https://github.com/ethz-asl/waypoint_navigator](https://github.com/ethz-asl/waypoint_navigator)
+9. Polynomial trajectory generation designed specifically for rotor wing MAVs.
+  [https://github.com/ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation)
 

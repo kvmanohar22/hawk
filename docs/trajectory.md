@@ -5,7 +5,7 @@
 
 After going through above repository it is clear how the whole planning module lays out. The following is the ROS graph view of the communications when run in simulation
 
-![](../imgsmav_trajectory_generation.svg)
+![](../imgs/mav_trajectory_generation.svg)
 
 Following is a brief documentation from what I understood but our final implementation could be debatable
 1. There are three sub-modules within planner namely;

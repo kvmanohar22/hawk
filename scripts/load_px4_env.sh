@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/zsh
 
 px4_dir=/home/${USER}/src/Firmware
 

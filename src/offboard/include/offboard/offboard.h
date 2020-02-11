@@ -14,6 +14,8 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/State.h>
 
+#include <boost/thread.hpp>
+
 namespace hawk {
 
 class Offboard {
@@ -35,6 +37,7 @@ public:
   void mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg);
 
   /// relative altitude
+  void watch_rel_alt_thread();
   void mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg); 
 
 private:
@@ -54,10 +57,11 @@ private:
   bool                      home_set_;           /// true when home position is set
   mavros_msgs::HomePosition home_;               /// home position of quad 
 
-
   ros::Rate                 rate_;               /// rate at which the points are to be published
   ros::Time                 last_request_time_;  /// last request time
   ros::Duration             request_interval_;   /// Time gap between requests to autopilot
+
+  boost::thread*            watch_alt_thread_;   /// Thread to constantly monitor (rel) altitude
 };
 
 } // namespace hawk

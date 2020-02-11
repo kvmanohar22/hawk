@@ -33,13 +33,16 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   reset_home();
 
-  while (ros::ok()) {
+  while (ros::ok() && !home_set_) {
     ros::spinOnce();
     rate_.sleep();
   }
 }
 
 Offboard::~Offboard() {
+  ROS_INFO_STREAM("Altitude thread stop invoked..."); 
+  watch_alt_thread_->join();
+  delete watch_alt_thread_;
 }
 
 void Offboard::reset_home() {
@@ -47,7 +50,7 @@ void Offboard::reset_home() {
   home_.geo.altitude  = 0;
   home_.geo.latitude  = 0;
   home_.geo.longitude = 0;
-  ROS_INFO_STREAM("Home reset");
+  ROS_INFO_STREAM("Home reset...");
 }
 
 void Offboard::mavros_state_cb(const mavros_msgs::State::ConstPtr& msg) {
@@ -56,14 +59,15 @@ void Offboard::mavros_state_cb(const mavros_msgs::State::ConstPtr& msg) {
 
 void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg) {
   home_ = *msg;
-  if (!home_set_) 
-    ROS_INFO_STREAM("Home lock acquired...");
+  if (!home_set_) {
+    ROS_INFO_STREAM("Home lock acquired:\t" << home_.geo.latitude << " " << home_.geo.longitude << " " << home_.geo.altitude);
+  }
   home_set_ = true;
 }
 
 bool Offboard::arm() {
   if(!home_set_) {
-    ROS_ERROR_STREAM("Cannot arm. home position not set!");
+    ROS_ERROR_STREAM("Cannot arm. home position not set...");
     return false;
   }
 
@@ -76,47 +80,58 @@ bool Offboard::arm() {
   arm_srv.request.value = true;
   last_request_time_ = ros::Time::now(); 
   if(arming_client_.call(arm_srv) && arm_srv.response.success) {
-    ROS_INFO_STREAM("Vehicle armed");
+    ROS_INFO_STREAM("Vehicle armed...");
     return true;
   } else {
-    ROS_INFO_STREAM("Vehicle not armed");
+    ROS_INFO_STREAM("Vehicle not armed...");
     return false;
   }
 }
 
 bool Offboard::takeoff() {
   if(!home_set_) {
-    ROS_ERROR_STREAM("Cannot takoff. No GPS fix!");
+    ROS_ERROR_STREAM("Cannot takoff. No GPS fix...");
     return false;
   }
 
   mavros_msgs::CommandTOL takeoff_srv;
-  takeoff_srv.request.altitude = home_.geo.altitude; 
-  takeoff_srv.request.latitude = home_.geo.latitude; 
-  takeoff_srv.request.longitude = home_.geo.longitude; 
+  takeoff_srv.request.altitude = home_.geo.altitude;
+  takeoff_srv.request.latitude = home_.geo.latitude;
+  takeoff_srv.request.longitude = home_.geo.longitude;
+
+  // start the thread to monitor altitude
+  ROS_INFO_STREAM("Altitude thread started..."); 
+  watch_alt_thread_ = new boost::thread(boost::bind(&Offboard::watch_rel_alt_thread, this));
 
   if(takeoff_client_.call(takeoff_srv) && takeoff_srv.response.success) {
-    ROS_INFO_STREAM("Takeoff in progress");
+    ROS_INFO_STREAM("Takeoff in progress...\t Altitude = " << takeoff_srv.request.altitude);
     return true;
   } else {
-    ROS_WARN_STREAM("Takeoff request rejected");
+    ROS_WARN_STREAM("Takeoff request rejected...");
     return false;
   }
 }
 
 bool Offboard::land() {
   if(!home_set_) {
-    ROS_ERROR_STREAM("Cannot land. No GPS fix!");
+    ROS_ERROR_STREAM("Cannot land. No GPS fix...");
     return false;
   }
 
   mavros_msgs::CommandTOL land_srv;
   if(land_client_.call(land_srv) && land_srv.response.success) {
-    ROS_INFO_STREAM("Landing in progress");
+    ROS_INFO_STREAM("Landing in progress...");
     return true;
   } else {
-    ROS_WARN_STREAM("Landing request rejected");
+    ROS_WARN_STREAM("Landing request rejected...");
     return false; 
+  }
+}
+
+void Offboard::watch_rel_alt_thread() {
+  while (ros::ok()) {
+    ros::spinOnce();
+    rate_.sleep();
   }
 }
 

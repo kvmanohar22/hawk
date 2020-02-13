@@ -9,8 +9,9 @@ Offboard::Offboard(ros::NodeHandle& nh)
     last_request_time_(ros::Time::now()),
     request_interval_(ros::Duration(5.0)),
     offboard_enabled_(false),
-    home_alt_amsl_set_(false)
-{
+    home_alt_amsl_set_(false),
+    home_alt_count_(50)
+  {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
      "mavros/state", 10, &Offboard::mavros_state_cb, this); 
@@ -164,7 +165,9 @@ void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg)
     home_alt_amsl_ = msg->amsl;
     if (home_alt_amsl_ != home_alt_amsl_)
       return;
-    home_alt_amsl_set_ = true;
+    if (home_alt_count_ == 0)
+      home_alt_amsl_set_ = true;
+    --home_alt_count_; 
   }
 }
 

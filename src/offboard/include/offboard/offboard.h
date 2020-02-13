@@ -80,6 +80,7 @@ private:
   mavros_msgs::HomePosition home_;               /// home position of quad 
   float                     home_alt_amsl_;      /// AMSL altitude of home position
   bool                      home_alt_amsl_set_;  /// Is this parameter set?     
+  size_t                    home_alt_count_;     /// #measurements before stopping
 
   ros::Rate                 rate_;               /// rate at which the points are to be published
   ros::Time                 last_request_time_;  /// last request time

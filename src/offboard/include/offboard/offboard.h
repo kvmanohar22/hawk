@@ -1,12 +1,15 @@
 #ifndef _HAWK_OFFBOARD_H_
 #define _HAWK_OFFBOARD_H_
 
-#include "ros/ros.h"
+#include <ros/ros.h>
 
 #include <std_msgs/Float64.h>
 
 #include <geometry_msgs/PoseStamped.h>
 
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+
+#include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/HomePosition.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/CommandTOL.h>
@@ -25,7 +28,7 @@ public:
 
   /// basic functionalities
   bool arm();
-  bool takeoff();
+  bool takeoff(double rel_altitude=5);
   bool land();
 
   void reset_home();
@@ -40,6 +43,20 @@ public:
   void watch_rel_alt_thread();
   void mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg); 
 
+  // setpoints from sampler to be routed to autopilot
+  void offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
+
+  /// change autopilot mode
+  bool switch_mode(std::string& target_mode);
+
+  /// engage offboard mode
+  bool engage_offboard();
+
+  /// TODO: move this out of here
+  bool MultiDOFJointTrajectory_to_posvel(
+      const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& src,
+      mavros_msgs::PositionTarget& target);
+
 private:
   ros::NodeHandle nh_;
  
@@ -51,8 +68,10 @@ private:
   ros::Subscriber           rel_alt_sub_;        /// Relative altitude subscriber
   ros::Subscriber           home_sub_;           /// Home position subscriber
   ros::Subscriber           state_sub_;          /// updates the current state of the quad
+  ros::Subscriber           setpoints_sub_;      /// pos+vel setpoints from sampler
   ros::Publisher            local_pos_pub_;      /// Publishes local position setpoints
-  
+  ros::Publisher            local_pos_vel_pub_;  /// Publishes local position+velocity setpoints
+
   mavros_msgs::State        current_state_;      /// current state of the quad
   bool                      home_set_;           /// true when home position is set
   mavros_msgs::HomePosition home_;               /// home position of quad 
@@ -62,6 +81,8 @@ private:
   ros::Duration             request_interval_;   /// Time gap between requests to autopilot
 
   boost::thread*            watch_alt_thread_;   /// Thread to constantly monitor (rel) altitude
+
+  bool                      offboard_enabled_;   /// is offboard enabled?
 };
 
 } // namespace hawk

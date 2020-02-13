@@ -1,7 +1,17 @@
 build/**
 devel/**
+logs/**
 .catkin_workspace
 src/offboard/compile_commands.json
 scripts/frames*
 misc/**
+.catkin_tools
+
+src/.rosinstall**
+src/eigen_**
+src/glog_**
+src/mav_comm
+src/nlopt
+src/yaml_cpp_catkin
+src/catkin_simple
 

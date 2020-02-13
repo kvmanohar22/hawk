@@ -13,6 +13,7 @@
 #include <mavros_msgs/HomePosition.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/Altitude.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/State.h>
@@ -42,6 +43,7 @@ public:
   /// relative altitude
   void watch_rel_alt_thread();
   void mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg); 
+  void mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg); 
 
   // setpoints from sampler to be routed to autopilot
   void offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
@@ -65,7 +67,8 @@ private:
   ros::ServiceClient        takeoff_client_;
   ros::ServiceClient        land_client_;
 
-  ros::Subscriber           rel_alt_sub_;        /// Relative altitude subscriber
+  ros::Subscriber           alt_rel_sub_;        /// Relative altitude subscriber
+  ros::Subscriber           alt_amsl_sub_;       /// AMSL altitude subscriber
   ros::Subscriber           home_sub_;           /// Home position subscriber
   ros::Subscriber           state_sub_;          /// updates the current state of the quad
   ros::Subscriber           setpoints_sub_;      /// pos+vel setpoints from sampler
@@ -75,6 +78,8 @@ private:
   mavros_msgs::State        current_state_;      /// current state of the quad
   bool                      home_set_;           /// true when home position is set
   mavros_msgs::HomePosition home_;               /// home position of quad 
+  float                     home_alt_amsl_;      /// AMSL altitude of home position
+  bool                      home_alt_amsl_set_;  /// Is this parameter set?     
 
   ros::Rate                 rate_;               /// rate at which the points are to be published
   ros::Time                 last_request_time_;  /// last request time

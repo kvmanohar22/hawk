@@ -8,15 +8,18 @@ Offboard::Offboard(ros::NodeHandle& nh)
     home_set_(false),
     last_request_time_(ros::Time::now()),
     request_interval_(ros::Duration(5.0)),
-    offboard_enabled_(false)
+    offboard_enabled_(false),
+    home_alt_amsl_set_(false)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
      "mavros/state", 10, &Offboard::mavros_state_cb, this); 
   home_sub_ = nh_.subscribe<mavros_msgs::HomePosition>(
       "mavros/home_position/home", 10, &Offboard::mavros_set_home_cb, this);
-  rel_alt_sub_ = nh_.subscribe<std_msgs::Float64>(
+  alt_rel_sub_ = nh_.subscribe<std_msgs::Float64>(
       "mavros/global_position/rel_alt", 1, &Offboard::mavros_rel_altitude_cb, this);
+  alt_amsl_sub_ = nh_.subscribe<mavros_msgs::Altitude>(
+      "mavros/altitude", 1, &Offboard::mavros_amsl_altitude_cb, this);
   setpoints_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>(
       "hawk/trajectory_setpoints", 10, &Offboard::offboard_cb, this);
 
@@ -38,7 +41,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   reset_home();
 
-  while (ros::ok() && !home_set_) {
+  while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
     ros::spinOnce();
     rate_.sleep();
   }
@@ -112,7 +115,7 @@ bool Offboard::takeoff(double rel_altitude) {
   }
 
   mavros_msgs::CommandTOL takeoff_srv;
-  takeoff_srv.request.altitude = home_.geo.altitude;
+  takeoff_srv.request.altitude = home_alt_amsl_ + 3.0;
   takeoff_srv.request.latitude = home_.geo.latitude;
   takeoff_srv.request.longitude = home_.geo.longitude;
 
@@ -155,6 +158,16 @@ void Offboard::watch_rel_alt_thread() {
 void Offboard::mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg) {
   ROS_INFO_STREAM("Relative Altitude = " << msg->data << " m");
 }
+
+void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg) {
+  if (!home_alt_amsl_set_) {
+    home_alt_amsl_ = msg->amsl;
+    if (home_alt_amsl_ != home_alt_amsl_)
+      return;
+    home_alt_amsl_set_ = true;
+  }
+}
+
 
 bool Offboard::switch_mode(std::string& target_mode) {
   mavros_msgs::SetMode new_mode;

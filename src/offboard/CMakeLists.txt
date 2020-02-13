@@ -27,8 +27,5 @@ add_library(${PROJECT_NAME}
   src/offboard.cpp
 )
 
-add_executable(tf_broadcaster src/tf_broadcaster.cpp)
-target_link_libraries(tf_broadcaster ${catkin_LIBRARIES} ${PROJECT_NAME})
-
-add_executable(test_offboard_basic src/test_offboard_basic.cpp)
+add_executable(test_offboard_basic test/test_offboard_basic.cpp)
 target_link_libraries(test_offboard_basic ${catkin_LIBRARIES} ${PROJECT_NAME})

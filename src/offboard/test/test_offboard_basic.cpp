@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
   if (!offboard.takeoff()) {
     ros::shutdown();
   }
-  std::this_thread::sleep_for(std::chrono::seconds(500));
+  std::this_thread::sleep_for(std::chrono::seconds(50));
 
   // land
   if (!offboard.land()) {

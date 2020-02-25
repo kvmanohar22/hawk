@@ -1,7 +1,8 @@
 # Hawk
 
 ## Setup
-- Clone
+
+#### Clone
 
 ```bash
 cd ~
@@ -10,7 +11,8 @@ cd hawk_ws
 git clone git@github.com:kvmanohar22/hawk.git
 ```
 
-- Install dependencies
+#### Install dependencies
+
 All the ros dependencies can be installed using `wstool`. Just execute the following command;
 
 ```bash
@@ -18,11 +20,17 @@ cd src
 wstool update -j8
 ```
 
-- Build
+#### Build
 
 ```bash
-cd <workspace root>
+cd ~/hawk_ws
 catkin build
+```
+Change `.zsh` to whatever shell you are using.
+
+```bash
+echo "source devel/setup.zsh" >> ~/.zshrc
+source ~/.zshrc
 ```
 
 ## Usage

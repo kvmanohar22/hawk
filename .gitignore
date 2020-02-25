@@ -7,7 +7,6 @@ scripts/frames*
 misc/**
 .catkin_tools
 
-src/.rosinstall**
 src/eigen_**
 src/glog_**
 src/mav_comm

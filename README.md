@@ -64,7 +64,7 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
 
 ### Camera conventions
 - Camera 1 node: `/hawk/camera_0_mv_26807563`
-- Camera 2 node: `/hawk/camera_0_mv_26807580`
+- Camera 2 node: `/hawk/camera_1_mv_26807580`
 
 `26807563` and `26807580` are serial numbers of cameras. This helps in starting up the mvBlueFox Acquire drivers in the background.
 

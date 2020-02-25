@@ -4,13 +4,13 @@
     <arg name="num_cameras"/>
 
     <!-- Camera Settings -->
-    <arg name="camera0" default="25000804"/>
-    <arg name="camera0_camera_name" default="mv_$(arg camera0)"/>
+    <arg name="camera0" default="26807563"/>
+    <arg name="camera0_camera_name" default="camera_0_mv_$(arg camera0)"/>
     <arg name="camera0_calib_url"
     	default="file://${ROS_HOME}/camera_info/$(arg camera0_camera_name).yaml"/>
 
-    <arg name="camera1" default="25000851"/>
-    <arg name="camera1_camera_name" default="mv_$(arg camera1)"/>
+    <arg name="camera1" default="26807580"/>
+    <arg name="camera1_camera_name" default="camera_1_mv_$(arg camera1)"/>
     <arg name="camera1_calib_url"
     	default="file://${ROS_HOME}/camera_info/$(arg camera1_camera_name).yaml"/>
 
@@ -37,7 +37,7 @@
     <arg name="output" default="screen"/>
 
     <!-- Node -->
-    <node pkg="bluefox2" type="bluefox2_multi_node" name="$(arg camera)" output="$(arg output)">
+    <node pkg="bluefox2" type="bluefox2_multi_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
     	  <param name="num_cameras" type="int" value="$(arg num_cameras)"/>
         <param name="camera0/camera_name" type="string" value="$(arg camera0_camera_name)"/>
         <param name="camera0/identifier" type="string" value="$(arg camera0)"/>

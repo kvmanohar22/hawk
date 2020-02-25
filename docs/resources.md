@@ -13,4 +13,5 @@
   [https://github.com/ethz-asl/waypoint_navigator](https://github.com/ethz-asl/waypoint_navigator)
 9. Polynomial trajectory generation designed specifically for rotor wing MAVs.
   [https://github.com/ethz-asl/mav_trajectory_generation](https://github.com/ethz-asl/mav_trajectory_generation)
+10. Aggressive quadcopter planning, estimation and controls: [link](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7762111)
 

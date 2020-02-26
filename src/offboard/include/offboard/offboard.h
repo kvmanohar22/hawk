@@ -96,6 +96,10 @@ private:
   boost::thread*            watch_alt_thread_;   /// Thread to constantly monitor (rel) altitude
 
   bool                      offboard_enabled_;   /// is offboard enabled?
+
+  ros::Time                 last_alt_print_;     /// Last time alt was printed
+  ros::Duration             print_interval_;     /// Time gap between requests to autopilot
+
 };
 
 } // namespace hawk

@@ -154,6 +154,8 @@ void Offboard::watch_rel_alt_thread() {
   alt_rel_sub_ = nh_.subscribe<std_msgs::Float64>(
       "mavros/global_position/rel_alt", 1, &Offboard::mavros_rel_altitude_cb, this);
 
+  last_alt_print_ = ros::Time::now();
+  print_interval_ = ros::Duration(2);
   while (ros::ok()) {
     ros::spinOnce();
     rate_.sleep();
@@ -161,8 +163,11 @@ void Offboard::watch_rel_alt_thread() {
 }
 
 void Offboard::mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg) {
-  cur_rel_alt_ = msg->data; 
-  ROS_INFO_STREAM("Relative Altitude = " << msg->data << " m");
+  cur_rel_alt_ = msg->data;
+  if (ros::Time::now() - last_alt_print_ > print_interval_) {
+    ROS_INFO_STREAM("Relative Altitude = " << msg->data << " m");
+    last_alt_print_ = ros::Time::now();
+  }
 }
 
 void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg) {

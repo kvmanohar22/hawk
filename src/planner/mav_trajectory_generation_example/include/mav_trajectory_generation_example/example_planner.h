@@ -6,6 +6,8 @@
 #include <Eigen/Dense>
 #include <nav_msgs/Odometry.h>
 #include <eigen_conversions/eigen_msg.h>
+#include <mavros_msgs/CommandBool.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <mav_trajectory_generation_ros/ros_conversions.h>
@@ -15,6 +17,8 @@ class ExamplePlanner {
   ExamplePlanner(ros::NodeHandle& nh);
 
   void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
+
+  void hawkPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose);
 
   void setMaxSpeed(double max_v);
 
@@ -38,15 +42,17 @@ class ExamplePlanner {
   ros::Publisher pub_trajectory_;
   ros::Subscriber sub_odom_;
 
+  ros::ServiceClient start_publishing_trajectory_client_;
+
   ros::NodeHandle& nh_;
   Eigen::Affine3d current_pose_;
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;
+
   double max_v_; // m/s
   double max_a_; // m/s^2
   double max_ang_v_;
   double max_ang_a_;
-
 };
 
 #endif // MAV_TRAJECTORY_GENERATION_EXAMPLE_PLANNER_H

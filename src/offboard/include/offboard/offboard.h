@@ -56,6 +56,10 @@ public:
   /// set param
   bool setparam(mavros_msgs::ParamSet param);
 
+  /// engage with trajectory
+  bool engage_trajectory(mavros_msgs::CommandBool::Request& req,
+      mavros_msgs::CommandBool::Response& res);
+
   /// engage offboard mode
   bool engage_offboard();
 
@@ -66,7 +70,10 @@ public:
 
 private:
   ros::NodeHandle nh_;
- 
+
+  ros::ServiceServer        trajectory_server_;  /// Publishes the trajectory
+  bool                      start_trajectory_;   /// once offboard is ready, trajectory gets published
+
   ros::ServiceClient        arming_client_; 
   ros::ServiceClient        set_mode_client_;
   ros::ServiceClient        takeoff_client_;

@@ -10,7 +10,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
     request_interval_(ros::Duration(5.0)),
     offboard_enabled_(false),
     home_alt_amsl_set_(false),
-    home_alt_count_(50)
+    home_alt_count_(50),
+    start_trajectory_(false)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
@@ -41,6 +42,9 @@ Offboard::Offboard(ros::NodeHandle& nh)
       "mavros/cmd/land");
   param_set_client_ = nh_.serviceClient<mavros_msgs::ParamSet>(
      "mavros/param/set"); 
+
+  // service servers
+  trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this); 
 
   reset_home();
 
@@ -74,6 +78,13 @@ void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg) 
     ROS_INFO_STREAM("Home lock acquired:\t" << home_.geo.latitude << " " << home_.geo.longitude << " " << home_.geo.altitude);
   }
   home_set_ = true;
+}
+
+bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
+    mavros_msgs::CommandBool::Response& res)
+{
+  res.result = start_trajectory_;
+  return true;
 }
 
 void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {

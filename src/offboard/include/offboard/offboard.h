@@ -13,12 +13,14 @@
 #include <mavros_msgs/HomePosition.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/ParamSet.h>
 #include <mavros_msgs/Altitude.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/State.h>
 
 #include <boost/thread.hpp>
+#include <thread>
 
 namespace hawk {
 
@@ -51,6 +53,9 @@ public:
   /// change autopilot mode
   bool switch_mode(std::string& target_mode);
 
+  /// set param
+  bool setparam(mavros_msgs::ParamSet param);
+
   /// engage offboard mode
   bool engage_offboard();
 
@@ -66,6 +71,7 @@ private:
   ros::ServiceClient        set_mode_client_;
   ros::ServiceClient        takeoff_client_;
   ros::ServiceClient        land_client_;
+  ros::ServiceClient        param_set_client_;
 
   ros::Subscriber           alt_rel_sub_;        /// Relative altitude subscriber
   ros::Subscriber           alt_amsl_sub_;       /// AMSL altitude subscriber
@@ -81,6 +87,7 @@ private:
   float                     home_alt_amsl_;      /// AMSL altitude of home position
   bool                      home_alt_amsl_set_;  /// Is this parameter set?     
   size_t                    home_alt_count_;     /// #measurements before stopping
+  double                    cur_rel_alt_;        /// current relative altitude of quad
 
   ros::Rate                 rate_;               /// rate at which the points are to be published
   ros::Time                 last_request_time_;  /// last request time

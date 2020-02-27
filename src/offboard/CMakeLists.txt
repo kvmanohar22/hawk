@@ -32,3 +32,6 @@ target_link_libraries(test_offboard_basic ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 add_executable(test_offboard_trajectory test/test_offboard_trajectory.cpp)
 target_link_libraries(test_offboard_trajectory ${catkin_LIBRARIES} ${PROJECT_NAME})
+
+add_executable(test_offboard_field_testing test/test_offboard_field_testing.cpp)
+target_link_libraries(test_offboard_field_testing ${catkin_LIBRARIES} ${PROJECT_NAME})

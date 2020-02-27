@@ -23,7 +23,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   
   /// TODO: make this local 
   setpoints_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>(
-      "hawk/trajectory_setpoints", 10, &Offboard::offboard_cb, this);
+      "setpoints_position", 10, &Offboard::offboard_cb, this);
 
   // publishers
   local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
@@ -88,13 +88,13 @@ bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
 }
 
 void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
-  // TODO: will this be an overhead? 
-  if (offboard_enabled_) {
+  if (offboard_enabled_ && start_trajectory_) {
     mavros_msgs::PositionTarget target;
     MultiDOFJointTrajectory_to_posvel(msg, target);
+    ROS_WARN_STREAM_ONCE("Started publising pos+vel setpoints"); 
     local_pos_vel_pub_.publish(target); 
   } else {
-    ROS_WARN_STREAM("Offboard not enabled but receiving setpoints from sampler");
+    ROS_WARN_STREAM_ONCE("Offboard not enabled but receiving setpoints from sampler");
   }
 }
 
@@ -166,7 +166,7 @@ void Offboard::watch_rel_alt_thread() {
       "mavros/global_position/rel_alt", 1, &Offboard::mavros_rel_altitude_cb, this);
 
   last_alt_print_ = ros::Time::now();
-  print_interval_ = ros::Duration(2);
+  print_interval_ = ros::Duration(5);
   while (ros::ok()) {
     ros::spinOnce();
     rate_.sleep();
@@ -292,5 +292,40 @@ bool Offboard::engage_offboard() {
   return true;
 }
 
-} // namespace hawk
+bool Offboard::engage_offboard_field() {
+  // arm
+  arm(); 
+  
+  // hold there for sometime
+  ROS_INFO_STREAM("Publishing some initial points..."); 
+  geometry_msgs::PoseStamped pose;
+  pose.pose.position.x = 0;
+  pose.pose.position.y = 0;
+  pose.pose.position.z = 5;
+  for (size_t i=100; ros::ok() && i > 0; --i) {
+    local_pos_pub_.publish(pose); 
+    ros::spinOnce();
+    rate_.sleep(); 
+  }
 
+  while (ros::ok()) {
+    ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
+    if (current_state_.mode == "OFFBOARD") {
+      offboard_enabled_ = true;
+      start_trajectory_ = true;
+      ROS_WARN_STREAM("OFFBOARD switch detected...");
+      break;
+    }
+    rate_.sleep();
+  }
+
+  while (ros::ok() && offboard_enabled_) {
+    ros::spinOnce();
+    rate_.sleep();
+  }
+  offboard_enabled_ = false;
+
+  return true;
+}
+
+} // namespace hawk

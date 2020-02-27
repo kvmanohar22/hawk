@@ -63,6 +63,9 @@ public:
   /// engage offboard mode
   bool engage_offboard();
 
+  /// engage offboard mode
+  bool engage_offboard_field();
+
   /// TODO: move this out of here
   bool MultiDOFJointTrajectory_to_posvel(
       const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& src,

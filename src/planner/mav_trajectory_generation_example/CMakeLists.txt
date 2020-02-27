@@ -15,11 +15,6 @@ cs_add_executable(trajectory_generation_example
         src/example_planner_node.cc
 )
 
-cs_add_executable(trajectory_generation_6dof_example
-        src/example_planner_6dof.cc
-        src/example_planner_6dof_node.cc
-)
-
 ##########
 # EXPORT #
 ##########

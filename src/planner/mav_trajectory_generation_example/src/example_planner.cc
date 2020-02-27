@@ -139,11 +139,16 @@ bool ExamplePlanner::publishTrajectory(const mav_trajectory_generation::Trajecto
   pub_markers_.publish(markers);
   mavros_msgs::CommandBool start_trajectory;
   start_trajectory.request.value = true;
+  ros::Time current_time = ros::Time::now();
+  ROS_INFO_STREAM("Pubished markers...");
 
   // we wait until we get the node from offboard node
   while (ros::ok()) {
-    if(start_publishing_trajectory_client_.call(start_trajectory) && start_trajectory.response.success) {
-      break;
+    if (ros::Time::now() - current_time > ros::Duration(0.5)) {
+      if(start_publishing_trajectory_client_.call(start_trajectory) && start_trajectory.response.success) {
+        break;
+      }
+      current_time = ros::Time::now();
     }
   }
 

@@ -32,7 +32,7 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
   nh_private_.param("dt", dt_, dt_);
 
   command_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-      mav_msgs::default_topics::COMMAND_TRAJECTORY, 1);
+      "setpoints_position", 1);
   trajectory_sub_ = nh_.subscribe(
       "path_segments", 10, &TrajectorySamplerNode::pathSegmentsCallback, this);
   trajectory4D_sub_ = nh_.subscribe(

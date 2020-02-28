@@ -60,11 +60,11 @@ public:
   bool engage_trajectory(mavros_msgs::CommandBool::Request& req,
       mavros_msgs::CommandBool::Response& res);
 
-  /// engage offboard mode
+  /// engage offboard mode [arm, takeoff, positional setpoints, land]
   bool engage_offboard();
 
-  /// engage offboard mode
-  bool engage_offboard_field();
+  /// engage offboard mode [arm, takeoff, pos+vel setpoints from trajectory node]
+  bool engage_offboard_trajectory();
 
   /// TODO: move this out of here
   bool MultiDOFJointTrajectory_to_posvel(

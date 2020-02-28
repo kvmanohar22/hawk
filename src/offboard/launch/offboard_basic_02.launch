@@ -5,15 +5,15 @@
   </include>
 
   <!-- Offboard node to communicate with autopilot -->
-  <node pkg="offboard" type="test_offboard_trajectory" name="offboard" output="screen" />
+  <node pkg="offboard" type="test_offboard_basic_02" name="offboard" output="screen" ns="hawk"/>
 
   <!-- Trajectory planner -->
-  <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example" output="screen">
+  <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example" output="screen" ns="hawk">
       <rosparam command="load" file="$(find mav_trajectory_generation_example)/cfg/hawk_params.yaml"/>
   </node>
 
   <!-- Trajectory sampler -->
-  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
+  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen" ns="hawk">
       <remap from="path_segments_4D" to="trajectory"/>
   </node>
 

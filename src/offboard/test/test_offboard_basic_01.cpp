@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   }
   ROS_INFO_STREAM("Dis-engaging offboard mode...");
 
-  ros::spin();
+  ros::shutdown();
 
   return 0;
 }

@@ -46,10 +46,14 @@ Offboard::Offboard(ros::NodeHandle& nh)
   // service servers
   trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this); 
 
+  // wait for sometime for mavros to print all initial load
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  ROS_INFO_STREAM("--------------------");
+
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
-    ROS_WARN_STREAM("Waiting for home to be set...");
+    ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }
@@ -236,30 +240,31 @@ bool Offboard::setparam(mavros_msgs::ParamSet param) {
 }
 
 bool Offboard::engage_offboard() {
-  // TODO: remove this when not in SITL
-  mavros_msgs::ParamSet param_set;
-  mavros_msgs::ParamValue param_val; 
-  param_val.integer = 0;
-  param_set.request.param_id = "NAV_RCL_ACT";
-  param_set.request.value = param_val; 
-  setparam(param_set);
+  // // TODO: remove this when not in SITL
+  // mavros_msgs::ParamSet param_set;
+  // mavros_msgs::ParamValue param_val; 
+  // param_val.integer = 0;
+  // param_set.request.param_id = "NAV_RCL_ACT";
+  // param_set.request.value = param_val; 
+  // setparam(param_set);
 
   // arm
   arm(); 
   
-  // takeoff to certain altitude
-  takeoff(5.0);
-  while (ros::ok()) { // ensure we have reached required altitude
-    if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
-      break;
-  }
+  // // takeoff to certain altitude
+  // takeoff(5.0);
+  // while (ros::ok()) { // ensure we have reached required altitude
+  //   if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
+  //     break;
+  // }
 
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;
   pose.pose.position.x = 0;
   pose.pose.position.y = 0;
-  pose.pose.position.z = cur_rel_alt_;
+  pose.pose.position.z = 2;
+  // pose.pose.position.z = cur_rel_alt_;
   for (size_t i=100; ros::ok() && i > 0; --i) {
     local_pos_pub_.publish(pose); 
     ros::spinOnce();
@@ -273,7 +278,7 @@ bool Offboard::engage_offboard() {
     return false; 
   }
   offboard_enabled_ = true;
-  pose.pose.position.x = 5; 
+  // pose.pose.position.x = 5; 
   ros::Time current_time = ros::Time::now(); 
   while (ros::ok() && offboard_enabled_) {
     local_pos_pub_.publish(pose); 
@@ -285,7 +290,7 @@ bool Offboard::engage_offboard() {
     rate_.sleep();
   }
   offboard_enabled_ = false;
-  ROS_WARN_STREAM("Offboard mode completed...switching to position mode");
+  ROS_WARN_STREAM("Offboard mode completed...falling back to previous mode");
 
   // land 
   land();
@@ -296,7 +301,7 @@ bool Offboard::engage_offboard() {
 bool Offboard::engage_offboard_field() {
   // arm
   arm(); 
-  
+
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;

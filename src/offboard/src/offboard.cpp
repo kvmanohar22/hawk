@@ -49,6 +49,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
+    ROS_WARN_STREAM("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }

@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
   // define set point
   Eigen::Vector3d position, velocity;
-  position << 5.0, 0.0, 5.0;
+  position << 0.0, 5.0, 5.0;
   velocity << 0.0, 0.0, 0.0;
 
   mav_trajectory_generation::Trajectory trajectory;

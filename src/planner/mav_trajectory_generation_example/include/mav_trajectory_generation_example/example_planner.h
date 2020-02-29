@@ -49,6 +49,8 @@ class ExamplePlanner {
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;
 
+  ros::Rate rate_;
+
   double max_v_; // m/s
   double max_a_; // m/s^2
   double max_ang_v_;

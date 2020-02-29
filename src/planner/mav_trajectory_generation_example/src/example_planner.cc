@@ -6,7 +6,8 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
     max_a_(2.0),
     rate_(20),
     current_velocity_(Eigen::Vector3d::Zero()),
-    current_pose_(Eigen::Affine3d::Identity()) {
+    current_pose_(Eigen::Affine3d::Identity()),
+    current_pose_set_(false) {
 
   // Load params
   if (!nh_.getParam(ros::this_node::getName() + "/max_v", max_v_)){
@@ -46,6 +47,7 @@ void ExamplePlanner::hawkPoseCallback(const geometry_msgs::PoseStamped::ConstPtr
 
   // store current position in our planner
   tf::poseMsgToEigen(pose->pose, current_pose_);
+  current_pose_set_ = true;
 }
 
 // Method to set maximum speed.
@@ -74,6 +76,15 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   // end = desired position and velocity
   mav_trajectory_generation::Vertex start(dimension), end(dimension);
 
+  // wait until the current pose is set
+  while (true) {
+    if (current_pose_set_) {
+      ROS_WARN_STREAM("[planner] Current pose set...Planning trajectory");
+      break;
+    }
+    ros::spinOnce();
+    rate_.sleep();
+  }
 
   /******* Configure start point *******/
   // set start point constraints to current position and set all derivatives to zero

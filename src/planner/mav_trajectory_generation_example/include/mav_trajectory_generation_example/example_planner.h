@@ -50,6 +50,7 @@ class ExamplePlanner {
   Eigen::Vector3d current_angular_velocity_;
 
   ros::Rate rate_;
+  bool current_pose_set_;
 
   double max_v_; // m/s
   double max_a_; // m/s^2

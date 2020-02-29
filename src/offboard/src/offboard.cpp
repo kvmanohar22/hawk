@@ -323,6 +323,8 @@ bool Offboard::engage_offboard_trajectory() {
     rate_.sleep();
   }
 
+  arm();
+
   while (ros::ok() && offboard_enabled_) {
     ros::spinOnce();
     rate_.sleep();

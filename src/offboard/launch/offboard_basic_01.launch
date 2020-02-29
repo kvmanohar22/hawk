@@ -1,16 +1,19 @@
 <launch>
-  <include file="$(find px4)/launch/mavros_posix_sitl.launch"/>
+  <!-- Start mavros -->
+  <include file="$(find mavros)/launch/px4.launch">
+    <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+  </include>
 
   <!-- Offboard node to communicate with autopilot -->
-  <node pkg="offboard" type="test_offboard_field_testing" name="offboard" output="screen" ns="hawk"/>
+  <node pkg="offboard" type="test_offboard_basic_01" name="offboard" output="screen" />
 
   <!-- Trajectory planner -->
-  <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example" output="screen" ns="hawk">
+  <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example" output="screen">
       <rosparam command="load" file="$(find mav_trajectory_generation_example)/cfg/hawk_params.yaml"/>
   </node>
 
   <!-- Trajectory sampler -->
-  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen" ns="hawk">
+  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
       <remap from="path_segments_4D" to="trajectory"/>
   </node>
 

@@ -46,9 +46,14 @@ Offboard::Offboard(ros::NodeHandle& nh)
   // service servers
   trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this); 
 
+  // wait for sometime for mavros to print all initial load
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+  ROS_INFO_STREAM("--------------------");
+
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
+    ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }
@@ -235,14 +240,6 @@ bool Offboard::setparam(mavros_msgs::ParamSet param) {
 }
 
 bool Offboard::engage_offboard() {
-  // TODO: remove this when not in SITL
-  mavros_msgs::ParamSet param_set;
-  mavros_msgs::ParamValue param_val; 
-  param_val.integer = 0;
-  param_set.request.param_id = "NAV_RCL_ACT";
-  param_set.request.value = param_val; 
-  setparam(param_set);
-
   // arm
   arm(); 
   
@@ -284,7 +281,7 @@ bool Offboard::engage_offboard() {
     rate_.sleep();
   }
   offboard_enabled_ = false;
-  ROS_WARN_STREAM("Offboard mode completed...switching to position mode");
+  ROS_WARN_STREAM("Offboard mode completed...falling back to previous mode");
 
   // land 
   land();
@@ -292,10 +289,10 @@ bool Offboard::engage_offboard() {
   return true;
 }
 
-bool Offboard::engage_offboard_field() {
+bool Offboard::engage_offboard_trajectory() {
   // arm
   arm(); 
-  
+
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;

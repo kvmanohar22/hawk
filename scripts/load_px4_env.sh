@@ -1,6 +1,6 @@
-#! /bin/bash
+#!/bin/bash
 
-px4_dir=/home/${USER}/Firmware
+px4_dir=${HAWK_PX4_FIRMWARE}
 
 source ${px4_dir}/Tools/setup_gazebo.bash ${px4_dir} ${px4_dir}/build/px4_sitl_default
 

@@ -45,9 +45,7 @@ void ExamplePlanner::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
 void ExamplePlanner::hawkPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
 
   // store current position in our planner
-  ROS_INFO_STREAM("[planner] Current pose acquired...");
   tf::poseMsgToEigen(pose->pose, current_pose_);
-
 }
 
 // Method to set maximum speed.

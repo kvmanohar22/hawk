@@ -94,6 +94,7 @@ bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
 }
 
 void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
+  curr_seq_id_ = msg->header.seq;
   if (offboard_enabled_ && start_trajectory_) {
     mavros_msgs::PositionTarget target;
     MultiDOFJointTrajectory_to_posvel(msg, target);
@@ -103,6 +104,7 @@ void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPt
   } else {
     ROS_WARN_STREAM_ONCE("Offboard not enabled but receiving setpoints from sampler");
   }
+  last_seq_id_ = curr_seq_id_;
 }
 
 bool Offboard::arm() {

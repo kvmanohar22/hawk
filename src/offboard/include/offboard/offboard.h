@@ -110,6 +110,8 @@ private:
   ros::Time                 last_alt_print_;     /// Last time alt was printed
   ros::Duration             print_interval_;     /// Time gap between requests to autopilot
 
+  size_t                    last_seq_id_;        /// Last sequence id from trajectory
+  size_t                    curr_seq_id_;        /// Current sequence id from trajectory
 };
 
 } // namespace hawk

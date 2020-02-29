@@ -53,7 +53,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
-    ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
+    ROS_WARN_STREAM("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }
@@ -307,12 +307,15 @@ bool Offboard::engage_offboard_trajectory() {
 
   while (ros::ok()) {
     ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
+    local_pos_pub_.publish(pose); 
     if (current_state_.mode == "OFFBOARD") {
       offboard_enabled_ = true;
       start_trajectory_ = true;
       ROS_WARN_STREAM("OFFBOARD switch detected...");
       break;
     }
+    ros::spinOnce();
+
     rate_.sleep();
   }
 

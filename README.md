@@ -19,14 +19,18 @@ git clone git@github.com:kvmanohar22/hawk.git
 
 #### Install dependencies
 
-All the ros dependencies can be installed using `wstool`. Just execute the following command;
+- Ubuntu setup
+  - Set the environment variable `HAWK_PX4_FIRMWARE` to the source of `px4/Firmware` in `scripts/load_px4_firmware`.
+  - Copy the file `99-pixhawk.rules` to the following directory `/etc/udev/rules.d/`.
+
+- All the ros dependencies can be installed using `wstool`. Just execute the following command;
 
 ```bash
 cd src
 wstool update -j8
 ```
 
-Install MatrixVision driver
+- Install MatrixVision driver
 
 ```bash
 ./src/VIO/bluefox2/install/install.bash

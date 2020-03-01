@@ -14,9 +14,11 @@
     local-name: nlopt
     uri: https://github.com/ethz-asl/nlopt.git
 - git:
-    local-name: planner
-    uri: git@github.com:ethz-asl/mav_trajectory_generation.git
+    local-name: yaml_cpp_catkin
+    uri: https://github.com/ethz-asl/yaml_cpp_catkin.git
 - git:
     local-name: VIO/camera_base
-    uri: git@github.com:KumarRobotics/camera_base.git
-
+    uri: https://github.com/KumarRobotics/camera_base.git
+- git:
+    local-name: catkin_simple
+    uri: https://github.com/catkin/catkin_simple.git

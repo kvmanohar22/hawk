@@ -19,4 +19,5 @@
 - Nice tutorials on different use cases are available here: [link](https://www.matrix-vision.com/manuals/mvBlueFOX/UseCases_page_0.html) including multi-camera usage at the same time.
 - Some APIs [link](https://www.matrix-vision.com/manuals/mvBlueFOX/page_mvIMPACT_Acquire_SDK.html)
 - Just FYI: CMOS sensors with rolling shutter [here](https://www.matrix-vision.com/tl_files/mv11/Glossary/art_rolling_shutter_en.pdf)
+- Check this document for hardware triggering: [link](https://docs.px4.io/v1.9.0/en/peripherals/camera.html#camera-trigger)
  

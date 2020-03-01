@@ -60,6 +60,10 @@ public:
   bool engage_trajectory(mavros_msgs::CommandBool::Request& req,
       mavros_msgs::CommandBool::Response& res);
 
+  /// set the current pose and plan the trajectory from the current pose
+  bool set_curr_pose_planner(mavros_msgs::CommandBool::Request& req,
+      mavros_msgs::CommandBool::Response& res);
+
   /// engage offboard mode [arm, takeoff, positional setpoints, land]
   bool engage_offboard();
 
@@ -75,6 +79,8 @@ private:
   ros::NodeHandle nh_;
 
   ros::ServiceServer        trajectory_server_;  /// Publishes the trajectory
+  ros::ServiceServer        curr_pose_server_;   /// Set the current pose in planner
+  bool                      set_current_pose_;   /// if `True`, planner starts planning from current pose
   bool                      start_trajectory_;   /// once offboard is ready, trajectory gets published
 
   ros::ServiceClient        arming_client_; 

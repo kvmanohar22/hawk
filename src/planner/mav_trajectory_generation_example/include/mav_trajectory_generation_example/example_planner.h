@@ -37,12 +37,16 @@ class ExamplePlanner {
                       
   bool publishTrajectory(const mav_trajectory_generation::Trajectory& trajectory);
 
+  // Before planning the trajectory, this waits which current pose to use for planning
+  void engage_planner();
+
  private:
   ros::Publisher pub_markers_;
   ros::Publisher pub_trajectory_;
   ros::Subscriber sub_odom_;
 
   ros::ServiceClient start_publishing_trajectory_client_;
+  ros::ServiceClient set_current_pose_client_;
 
   ros::NodeHandle& nh_;
   Eigen::Affine3d current_pose_;

@@ -78,7 +78,7 @@ void ExamplePlanner::setMaxSpeed(const double max_v) {
 }
 
 bool ExamplePlanner::load_path_from_file(
-  vector<Eigen::Vector3d>& coarse_waypoints)
+  std::vector<Eigen::Vector3d>& coarse_waypoints)
 {
   std::vector<double> easting;
   std::vector<double> northing;
@@ -96,7 +96,7 @@ bool ExamplePlanner::load_path_from_file(
     ROS_ERROR_STREAM("Error: path parameter arrays are not the same size");
   }
 
-  coarse_waypoints_.clear();
+  coarse_waypoints.clear();
   // Add (x,y,z) co-ordinates from file to path.
   for (size_t i = 0; i < easting.size(); i++) {
     Eigen::Vector3d cwp;
@@ -105,10 +105,10 @@ bool ExamplePlanner::load_path_from_file(
     cwp(1) = northing[i];
     cwp(2) = height[i];
 
-    coarse_waypoints_.push_back(cwp);
+    coarse_waypoints.push_back(cwp);
   }
 
-  ROS_INFO_STREAM("Path loaded from file. Total number of waypoints = " << coarse_waypoints_.size());
+  ROS_INFO_STREAM("Path loaded from file. Total number of waypoints = " << coarse_waypoints.size());
 
   return true;
 }
@@ -185,7 +185,7 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   return true;
 }
 
-bool ExamplePlanner::planTrajectory(const vector<Eigen::VectorXd>& setpoints_pos,
+bool ExamplePlanner::planTrajectory(const std::vector<Eigen::Vector3d>& setpoints_pos,
                                     mav_trajectory_generation::Trajectory* trajectory)
 {
 

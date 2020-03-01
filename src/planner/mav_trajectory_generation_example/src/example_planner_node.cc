@@ -22,8 +22,8 @@ int main(int argc, char** argv) {
 
   ros::init(argc, argv, "simple_planner");
 
-  ros::NodeHandle n;
-  ExamplePlanner planner(n);
+  ros::NodeHandle nh, nh_private;
+  ExamplePlanner planner(nh, nh_private);
   ROS_WARN_STREAM("SLEEPING FOR 5s TO WAIT FOR CLEAR CONSOLE");
   ros::Duration(5.0).sleep();
   ROS_WARN_STREAM("WARNING: CONSOLE INPUT/OUTPUT ONLY FOR DEMONSTRATION!");

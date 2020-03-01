@@ -2,6 +2,7 @@
 #define MAV_TRAJECTORY_GENERATION_EXAMPLE_PLANNER_H
 
 #include <iostream>
+#include <vector>
 #include <ros/ros.h>
 #include <Eigen/Dense>
 #include <nav_msgs/Odometry.h>
@@ -14,7 +15,7 @@
 
 class ExamplePlanner {
  public:
-  ExamplePlanner(ros::NodeHandle& nh);
+  ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private);
 
   void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
 
@@ -28,7 +29,7 @@ class ExamplePlanner {
                       const Eigen::VectorXd& goal_vel,
                       mav_trajectory_generation::Trajectory* trajectory);
 
-  bool planTrajectory(const vector<Eigen::VectorXd>& setpoints_pos,
+  bool planTrajectory(const std::vector<Eigen::Vector3d>& setpoints_pos,
                       mav_trajectory_generation::Trajectory* trajectory);
                       
   bool planTrajectory(const Eigen::VectorXd& goal_pos,
@@ -43,7 +44,7 @@ class ExamplePlanner {
   // Before planning the trajectory, this waits which current pose to use for planning
   void engage_planner();
 
-  bool load_path_from_file(vector<Eigen::Vector3d>& coarse_waypoints);
+  bool load_path_from_file(std::vector<Eigen::Vector3d>& coarse_waypoints);
 
  private:
   ros::Publisher pub_markers_;

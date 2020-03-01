@@ -4,7 +4,7 @@ namespace hawk {
 
 Offboard::Offboard(ros::NodeHandle& nh)
   : nh_(nh),
-    rate_(100.0),
+    rate_(120.0),
     home_set_(false),
     last_request_time_(ros::Time::now()),
     request_interval_(ros::Duration(5.0)),
@@ -29,7 +29,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
       "mavros/setpoint_position/local", 10);
   local_pos_vel_pub_ = nh_.advertise<mavros_msgs::PositionTarget>(
-      "mavros/setpoint_raw/local", 10);
+      "mavros/setpoint_raw/local", 10, true);
 
   // service clients
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
@@ -53,10 +53,11 @@ Offboard::Offboard(ros::NodeHandle& nh)
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
-    ROS_WARN_STREAM("Waiting for home to be set...");
+    ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }
+  ROS_WARN_STREAM("Home set...");
 }
 
 Offboard::~Offboard() {
@@ -88,19 +89,23 @@ void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg) 
 bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
     mavros_msgs::CommandBool::Response& res)
 {
-  res.result = start_trajectory_;
+  res.success = start_trajectory_;
+  ROS_WARN_STREAM("Service callback start trajectory = " << static_cast<bool>(res.success));
   return true;
 }
 
 void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
+  curr_seq_id_ = msg->header.seq;
   if (offboard_enabled_ && start_trajectory_) {
     mavros_msgs::PositionTarget target;
     MultiDOFJointTrajectory_to_posvel(msg, target);
     ROS_WARN_STREAM_ONCE("Started publising pos+vel setpoints"); 
-    local_pos_vel_pub_.publish(target); 
+    local_pos_vel_pub_.publish(target);
+    ROS_WARN_STREAM("[offboard] pos+vel setpoints TS = " << ros::Time::now().toSec()); 
   } else {
     ROS_WARN_STREAM_ONCE("Offboard not enabled but receiving setpoints from sampler");
   }
+  last_seq_id_ = curr_seq_id_;
 }
 
 bool Offboard::arm() {
@@ -193,13 +198,12 @@ void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg)
       return;
     if (home_alt_count_ == 0) {
       home_alt_amsl_set_ = true;
-      ROS_INFO_STREAM("Home altitude AMSL acquired. Detaching from the topic");
+      ROS_INFO_STREAM("Home altitude AMSL acquired. Detaching from the topic = " << home_alt_amsl_);
       alt_amsl_sub_.shutdown();  // TODO: ok?
     }
     --home_alt_count_; 
   }
 }
-
 
 bool Offboard::switch_mode(std::string& target_mode) {
   mavros_msgs::SetMode new_mode;
@@ -274,7 +278,7 @@ bool Offboard::engage_offboard() {
   while (ros::ok() && offboard_enabled_) {
     local_pos_pub_.publish(pose); 
    
-    if (ros::Time::now() - current_time > ros::Duration(10))
+    if (ros::Time::now() - current_time > ros::Duration(20))
       break;
 
     ros::spinOnce();
@@ -293,6 +297,13 @@ bool Offboard::engage_offboard_trajectory() {
   // arm
   arm(); 
 
+  // takeoff to certain altitude
+  takeoff(5.0);
+  while (ros::ok()) { // ensure we have reached required altitude
+    if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
+      break;
+  }
+
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;
@@ -307,7 +318,8 @@ bool Offboard::engage_offboard_trajectory() {
 
   while (ros::ok()) {
     ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
-    local_pos_pub_.publish(pose); 
+    local_pos_pub_.publish(pose);
+    ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
     if (current_state_.mode == "OFFBOARD") {
       offboard_enabled_ = true;
       start_trajectory_ = true;
@@ -315,9 +327,10 @@ bool Offboard::engage_offboard_trajectory() {
       break;
     }
     ros::spinOnce();
-
     rate_.sleep();
   }
+
+  arm();
 
   while (ros::ok() && offboard_enabled_) {
     ros::spinOnce();

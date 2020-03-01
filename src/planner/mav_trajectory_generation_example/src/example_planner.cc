@@ -1,11 +1,16 @@
 #include <mav_trajectory_generation_example/example_planner.h>
 
+#include <thread>
+#include <chrono>
+
 ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
     nh_(nh),
     max_v_(2.0),
     max_a_(2.0),
+    rate_(20),
     current_velocity_(Eigen::Vector3d::Zero()),
-    current_pose_(Eigen::Affine3d::Identity()) {
+    current_pose_(Eigen::Affine3d::Identity()),
+    current_pose_set_(false) {
 
   // Load params
   if (!nh_.getParam(ros::this_node::getName() + "/max_v", max_v_)){
@@ -21,10 +26,10 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
 
   pub_trajectory_ =
       nh.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory",
-                                                              0);
+                                                              0, true);
   // service clients
   start_publishing_trajectory_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
-      "/hawk/engage_planner");
+      "/engage_planner");
 
   // subscriber for Odometry
   sub_odom_ =
@@ -45,7 +50,7 @@ void ExamplePlanner::hawkPoseCallback(const geometry_msgs::PoseStamped::ConstPtr
 
   // store current position in our planner
   tf::poseMsgToEigen(pose->pose, current_pose_);
-
+  current_pose_set_ = true;
 }
 
 // Method to set maximum speed.
@@ -74,6 +79,17 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   // end = desired position and velocity
   mav_trajectory_generation::Vertex start(dimension), end(dimension);
 
+  std::this_thread::sleep_for(std::chrono::seconds(20));
+
+  // wait until the current pose is set
+  while (true) {
+    if (current_pose_set_) {
+      ROS_WARN_STREAM("[planner] Current pose set...Planning trajectory");
+      break;
+    }
+    ros::spinOnce();
+    rate_.sleep();
+  }
 
   /******* Configure start point *******/
   // set start point constraints to current position and set all derivatives to zero
@@ -139,18 +155,18 @@ bool ExamplePlanner::publishTrajectory(const mav_trajectory_generation::Trajecto
   pub_markers_.publish(markers);
   mavros_msgs::CommandBool start_trajectory;
   start_trajectory.request.value = true;
-  ros::Time current_time = ros::Time::now();
   ROS_INFO_STREAM("Pubished markers...");
 
   // we wait until we get the node from offboard node
   while (ros::ok()) {
-    if (ros::Time::now() - current_time > ros::Duration(0.5)) {
-      if(start_publishing_trajectory_client_.call(start_trajectory) && start_trajectory.response.success) {
-        break;
-      }
-      current_time = ros::Time::now();
+    ROS_INFO_STREAM("[planner] Trajectory publish request...");
+    if(start_publishing_trajectory_client_.call(start_trajectory) && start_trajectory.response.success) {
+      break;
     }
+    ros::spinOnce();
+    rate_.sleep();
   }
+  ROS_WARN_STREAM("[planner] Publishing the trajectory...");
 
   // send trajectory to be executed on UAV
   mav_planning_msgs::PolynomialTrajectory4D msg;
@@ -158,6 +174,8 @@ bool ExamplePlanner::publishTrajectory(const mav_trajectory_generation::Trajecto
                                                                  &msg);
   msg.header.frame_id = "world";
   pub_trajectory_.publish(msg);
+
+  ros::spin();
 
   return true;
 }

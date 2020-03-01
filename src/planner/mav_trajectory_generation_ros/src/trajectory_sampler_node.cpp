@@ -27,8 +27,8 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
       publish_whole_trajectory_(false),
       dt_(0.01),
       current_sample_time_(0.0) {
-  nh_private_.param("publish_whole_trajectory", publish_whole_trajectory_,
-                    publish_whole_trajectory_);
+//  nh_private_.param("publish_whole_trajectory", publish_whole_trajectory_,
+//                    publish_whole_trajectory_);
   nh_private_.param("dt", dt_, dt_);
 
   command_pub_ = nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
@@ -124,6 +124,7 @@ void TrajectorySamplerNode::commandTimerCallback(const ros::TimerEvent&) {
     if (!success) {
       publish_timer_.stop();
     }
+    ROS_INFO_STREAM("[sampler] Sampling at t = " << current_sample_time_ << " / " << trajectory_.getMaxTime() << " sec" << " TS = " << ros::Time::now().toSec());
     mav_msgs::msgMultiDofJointTrajectoryFromEigen(trajectory_point, &msg);
     msg.points[0].time_from_start = ros::Duration(current_sample_time_);
     command_pub_.publish(msg);

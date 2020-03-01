@@ -12,7 +12,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
     home_alt_amsl_set_(false),
     home_alt_count_(50),
     start_trajectory_(false),
-    set_current_pose_(false)
+    set_current_pose_(false),
+    local_pose_set_(false)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
@@ -21,7 +22,9 @@ Offboard::Offboard(ros::NodeHandle& nh)
       "mavros/home_position/home", 10, &Offboard::mavros_set_home_cb, this);
   alt_amsl_sub_ = nh_.subscribe<mavros_msgs::Altitude>(
       "mavros/altitude", 1, &Offboard::mavros_amsl_altitude_cb, this);
-  
+  local_pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(
+      "mavros/local_position/pose", 1, &Offboard::local_pose_cb, this);
+
   /// TODO: make this local 
   setpoints_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>(
       "setpoints_position", 10, &Offboard::offboard_cb, this);
@@ -54,7 +57,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   reset_home();
 
-  while (ros::ok() && !(home_set_ && home_alt_amsl_set_)) {
+  while (ros::ok() && !(home_set_ && home_alt_amsl_set_ && local_pose_set_)) {
     ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
@@ -86,6 +89,19 @@ void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg) 
     ROS_INFO_STREAM("Home lock acquired:\t" << home_.geo.latitude << " " << home_.geo.longitude << " " << home_.geo.altitude);
   }
   home_set_ = true;
+}
+
+void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg) {
+  tf::Quaternion q(msg->pose.pose.orientation.x,
+    msg->pose.pose.orientation.y,
+    msg->pose.pose.orientation.z,
+    msg->pose.pose.orientation.w);
+  tf::Matrix3x3 m(q);
+  double R, P, Y;
+  m.getRPY(R, P, Y);
+  initial_yaw_ = Y;
+  ROS_INFO_STREAM("Local pose is set, yaw = " << initial_yaw_);
+  local_pose_set_ = true; 
 }
 
 bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
@@ -155,6 +171,7 @@ bool Offboard::takeoff(double rel_altitude) {
   takeoff_srv.request.altitude = home_alt_amsl_ + rel_altitude;
   takeoff_srv.request.latitude = home_.geo.latitude;
   takeoff_srv.request.longitude = home_.geo.longitude;
+  takeoff_srv.request.yaw = initial_yaw_;
 
   // start the thread to monitor altitude
   ROS_INFO_STREAM("Altitude thread started..."); 

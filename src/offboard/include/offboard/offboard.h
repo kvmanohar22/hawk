@@ -19,6 +19,8 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/State.h>
 
+#include <tf/transform_datatypes.h>
+
 #include <boost/thread.hpp>
 #include <thread>
 
@@ -47,8 +49,11 @@ public:
   void mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg); 
   void mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg); 
 
-  // setpoints from sampler to be routed to autopilot
+  /// setpoints from sampler to be routed to autopilot
   void offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg);
+
+  /// pose of autopilot callback
+  void local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg);
 
   /// change autopilot mode
   bool switch_mode(std::string& target_mode);
@@ -89,6 +94,7 @@ private:
   ros::ServiceClient        land_client_;
   ros::ServiceClient        param_set_client_;
 
+  ros::Subscriber           local_pose_sub_;     /// Local pose of autopilot
   ros::Subscriber           alt_rel_sub_;        /// Relative altitude subscriber
   ros::Subscriber           alt_amsl_sub_;       /// AMSL altitude subscriber
   ros::Subscriber           home_sub_;           /// Home position subscriber
@@ -112,6 +118,8 @@ private:
   boost::thread*            watch_alt_thread_;   /// Thread to constantly monitor (rel) altitude
 
   bool                      offboard_enabled_;   /// is offboard enabled?
+  bool                      local_pose_set_;     /// Is the local pose of autopilot set?
+  double                    initial_yaw_;        /// Initial yaw of autopilot             
 
   ros::Time                 last_alt_print_;     /// Last time alt was printed
   ros::Duration             print_interval_;     /// Time gap between requests to autopilot

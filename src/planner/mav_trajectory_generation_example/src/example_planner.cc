@@ -30,6 +30,8 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
   // service clients
   start_publishing_trajectory_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
       "/engage_planner");
+  set_current_pose_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
+      "/set_curr_pose");
 
   // subscriber for Odometry
   sub_odom_ =
@@ -46,11 +48,27 @@ void ExamplePlanner::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
   tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
 }
 
+void ExamplePlanner::engage_planner() {
+  mavros_msgs::CommandBool set_curr_pose;
+  set_curr_pose.request.value = true;
+
+  // we wait until we get the node from offboard node
+  while (ros::ok()) {
+    ROS_INFO_STREAM_ONCE("[planner] Current pose set request...");
+    if(set_current_pose_client_.call(set_curr_pose) && set_curr_pose.response.success) {
+      break;
+    }
+    ros::spinOnce();
+    rate_.sleep();
+  }
+  ROS_WARN_STREAM("[planner] Current pose is set, planning the trajectory... = " << current_pose_.transpose());
+  current_pose_set_ = true;
+}
+
 void ExamplePlanner::hawkPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
 
   // store current position in our planner
   tf::poseMsgToEigen(pose->pose, current_pose_);
-  current_pose_set_ = true;
 }
 
 // Method to set maximum speed.
@@ -62,7 +80,8 @@ void ExamplePlanner::setMaxSpeed(const double max_v) {
 // we neglect attitude here for simplicity
 bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
                                     const Eigen::VectorXd& goal_vel,
-                                    mav_trajectory_generation::Trajectory* trajectory) {
+                                    mav_trajectory_generation::Trajectory* trajectory)
+{
 
   // 3 Dimensional trajectory => through carteisan space, no orientation
   const int dimension = 3;
@@ -78,18 +97,6 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   // Start = current position
   // end = desired position and velocity
   mav_trajectory_generation::Vertex start(dimension), end(dimension);
-
-  std::this_thread::sleep_for(std::chrono::seconds(20));
-
-  // wait until the current pose is set
-  while (true) {
-    if (current_pose_set_) {
-      ROS_WARN_STREAM("[planner] Current pose set...Planning trajectory");
-      break;
-    }
-    ros::spinOnce();
-    rate_.sleep();
-  }
 
   /******* Configure start point *******/
   // set start point constraints to current position and set all derivatives to zero

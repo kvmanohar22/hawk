@@ -28,6 +28,9 @@ int main(int argc, char** argv) {
   ros::Duration(5.0).sleep();
   ROS_WARN_STREAM("WARNING: CONSOLE INPUT/OUTPUT ONLY FOR DEMONSTRATION!");
 
+  // wait for the home to be set
+  planner.engage_planner();
+
   // define set point
   Eigen::Vector3d position, velocity;
   position << 0.0, 5.0, 5.0;

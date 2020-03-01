@@ -11,7 +11,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
     offboard_enabled_(false),
     home_alt_amsl_set_(false),
     home_alt_count_(50),
-    start_trajectory_(false)
+    start_trajectory_(false),
+    set_current_pose_(false)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
@@ -44,7 +45,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
      "mavros/param/set"); 
 
   // service servers
-  trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this); 
+  trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this);
+  curr_pose_server_  = nh_.advertiseService("set_curr_pose", &Offboard::set_curr_pose_planner, this);
 
   // wait for sometime for mavros to print all initial load
   std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -90,7 +92,19 @@ bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
     mavros_msgs::CommandBool::Response& res)
 {
   res.success = start_trajectory_;
-  ROS_WARN_STREAM("Service callback start trajectory = " << static_cast<bool>(res.success));
+  if (start_trajectory_) {
+    ROS_WARN_STREAM("[Service callback] Publishing trajectory from planner");
+  }
+  return true;
+}
+
+bool Offboard::set_curr_pose_planner(mavros_msgs::CommandBool::Request& req,
+    mavros_msgs::CommandBool::Response& res)
+{
+  res.success = set_current_pose_;
+  if (set_current_pose_) {
+    ROS_WARN_STREAM("[Service callback] Current pose used as start of trajectory");
+  }
   return true;
 }
 
@@ -299,11 +313,22 @@ bool Offboard::engage_offboard_trajectory() {
 
   // takeoff to certain altitude
   takeoff(5.0);
-  while (ros::ok()) { // ensure we have reached required altitude
-    if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
-      break;
-  }
 
+  // ensure we have reached required altitude
+  // TODO: This is dangerous behaviour. Callbacks are not cnosidered
+  ros::Duration(5).sleep();
+
+/* TODO: Not sure this is correct way to do it?
+  
+  while (ros::ok()) { 
+    if (std::abs(cur_rel_alt_ - 5.0) < 0.5) {
+      break;
+    }
+
+    ros::spinOnce();
+    rate_.sleep();
+  }
+*/
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;
@@ -315,6 +340,9 @@ bool Offboard::engage_offboard_trajectory() {
     ros::spinOnce();
     rate_.sleep(); 
   }
+
+  // set the pose at this location to be the starting point for trajectory planning
+  set_current_pose_ = true;
 
   while (ros::ok()) {
     ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
@@ -330,6 +358,7 @@ bool Offboard::engage_offboard_trajectory() {
     rate_.sleep();
   }
 
+  // arm if not already armed or disarmed by autopilot
   arm();
 
   while (ros::ok() && offboard_enabled_) {

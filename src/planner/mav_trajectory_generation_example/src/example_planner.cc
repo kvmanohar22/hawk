@@ -108,9 +108,41 @@ bool ExamplePlanner::load_path_from_file(
     coarse_waypoints.push_back(cwp);
   }
 
+  addIntermediateWaypoints(coarse_waypoints);
+
   ROS_INFO_STREAM("Path loaded from file. Total number of waypoints = " << coarse_waypoints.size());
 
   return true;
+}
+
+void ExamplePlanner::addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coarse_waypoints) {
+  for (size_t i = 1; i < coarse_waypoints.size(); ++i) {
+    Eigen::Vector3d wpa = coarse_waypoints[i - 1];
+    Eigen::Vector3d wpb = coarse_waypoints[i];
+    double dist = (wpa.position_W - wpb.position_W).norm();
+
+    nh_private_.getParam("intermediate_pose_separation", intermediate_pose_separation_);
+
+    // Minimum tolerance between points set to avoid subsequent numerical errors
+    // in trajectory optimization.
+    while (dist > intermediate_pose_separation_) {
+      Eigen::Vector3d iwp;
+      iwp.position_W.x() = wpa.position_W.x() +
+                           (intermediate_pose_separation_ / dist) *
+                               (wpb.position_W.x() - wpa.position_W.x());
+      iwp.position_W.y() = wpa.position_W.y() +
+                           (intermediate_pose_separation_ / dist) *
+                               (wpb.position_W.y() - wpa.position_W.y());
+      iwp.position_W.z() = wpa.position_W.z() +
+                           (intermediate_pose_separation_ / dist) *
+                               (wpb.position_W.z() - wpa.position_W.z());
+      iwp.orientation_W_B = wpb.orientation_W_B;
+      coarse_waypoints.insert(coarse_waypoints.begin() + i, iwp);
+      wpa = iwp;
+      dist = (wpa.position_W - wpb.position_W).norm();
+      i++;
+    }
+  }
 }
 
 // Plans a trajectory from the current position to the a goal position and velocity

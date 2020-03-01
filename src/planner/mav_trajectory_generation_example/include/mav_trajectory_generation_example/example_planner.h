@@ -46,6 +46,8 @@ class ExamplePlanner {
 
   bool load_path_from_file(std::vector<Eigen::Vector3d>& coarse_waypoints);
 
+  void addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coarse_waypoints);
+
  private:
   ros::Publisher pub_markers_;
   ros::Publisher pub_trajectory_;
@@ -67,6 +69,7 @@ class ExamplePlanner {
   double max_a_; // m/s^2
   double max_ang_v_;
   double max_ang_a_;
+  double intermediate_pose_separation_;
 };
 
 #endif // MAV_TRAJECTORY_GENERATION_EXAMPLE_PLANNER_H

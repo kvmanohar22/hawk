@@ -22,7 +22,7 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
 
   // create publisher for RVIZ markers
   pub_markers_ =
-      nh.advertise<visualization_msgs::MarkerArray>("trajectory_markers", 0);
+      nh.advertise<visualization_msgs::MarkerArray>("trajectory_markers", 0, true);
 
   pub_trajectory_ =
       nh.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory",
@@ -61,7 +61,7 @@ void ExamplePlanner::engage_planner() {
     ros::spinOnce();
     rate_.sleep();
   }
-  ROS_WARN_STREAM("[planner] Current pose is set, planning the trajectory... = " << current_pose_.transpose());
+  ROS_WARN_STREAM("[planner] Current pose is set, planning the trajectory... = " << current_pose_.translation().transpose());
   current_pose_set_ = true;
 }
 
@@ -151,8 +151,8 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
 bool ExamplePlanner::publishTrajectory(const mav_trajectory_generation::Trajectory& trajectory) {
   // send trajectory as markers to display them in RVIZ
   visualization_msgs::MarkerArray markers;
-  double distance =
-      0.2; // Distance by which to seperate additional markers. Set 0.0 to disable.
+  // double distance = 0.2; // Distance by which to seperate additional markers. Set 0.0 to disable.
+  double distance = 0.0;
   std::string frame_id = "world";
 
   mav_trajectory_generation::drawMavTrajectory(trajectory,
@@ -160,13 +160,13 @@ bool ExamplePlanner::publishTrajectory(const mav_trajectory_generation::Trajecto
                                                frame_id,
                                                &markers);
   pub_markers_.publish(markers);
+  ROS_INFO_STREAM("Pubished markers...");
+  
+  // we wait until we get nod from offboard node
   mavros_msgs::CommandBool start_trajectory;
   start_trajectory.request.value = true;
-  ROS_INFO_STREAM("Pubished markers...");
-
-  // we wait until we get the node from offboard node
   while (ros::ok()) {
-    ROS_INFO_STREAM("[planner] Trajectory publish request...");
+    ROS_INFO_STREAM_ONCE("[planner] Trajectory publish request...");
     if(start_publishing_trajectory_client_.call(start_trajectory) && start_trajectory.response.success) {
       break;
     }

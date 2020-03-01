@@ -15,6 +15,11 @@ cs_add_executable(trajectory_generation_example
         src/example_planner_node.cc
 )
 
+cs_add_executable(trajectory_generation_example_from_path
+        src/example_planner.cc
+        src/example_from_path.cpp
+)
+
 ##########
 # EXPORT #
 ##########

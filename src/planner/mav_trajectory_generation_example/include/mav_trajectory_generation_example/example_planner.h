@@ -27,6 +27,9 @@ class ExamplePlanner {
   bool planTrajectory(const Eigen::VectorXd& goal_pos,
                       const Eigen::VectorXd& goal_vel,
                       mav_trajectory_generation::Trajectory* trajectory);
+
+  bool planTrajectory(const vector<Eigen::VectorXd>& setpoints_pos,
+                      mav_trajectory_generation::Trajectory* trajectory);
                       
   bool planTrajectory(const Eigen::VectorXd& goal_pos,
                       const Eigen::VectorXd& goal_vel,
@@ -40,6 +43,8 @@ class ExamplePlanner {
   // Before planning the trajectory, this waits which current pose to use for planning
   void engage_planner();
 
+  bool load_path_from_file(vector<Eigen::Vector3d>& coarse_waypoints);
+
  private:
   ros::Publisher pub_markers_;
   ros::Publisher pub_trajectory_;
@@ -49,6 +54,7 @@ class ExamplePlanner {
   ros::ServiceClient set_current_pose_client_;
 
   ros::NodeHandle& nh_;
+  ros::NodeHandle  nh_private_;
   Eigen::Affine3d current_pose_;
   Eigen::Vector3d current_velocity_;
   Eigen::Vector3d current_angular_velocity_;

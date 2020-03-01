@@ -3,8 +3,9 @@
 #include <thread>
 #include <chrono>
 
-ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh) :
+ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private) :
     nh_(nh),
+    nh_private_(nh_private),
     max_v_(2.0),
     max_a_(2.0),
     rate_(20),
@@ -76,6 +77,42 @@ void ExamplePlanner::setMaxSpeed(const double max_v) {
   max_v_ = max_v;
 }
 
+bool ExamplePlanner::load_path_from_file(
+  vector<Eigen::Vector3d>& coarse_waypoints)
+{
+  std::vector<double> easting;
+  std::vector<double> northing;
+  std::vector<double> height;
+  std::vector<double> heading;
+
+  // Load individual vectors
+  nh_private_.getParam("easting", easting);
+  nh_private_.getParam("northing", northing);
+  nh_private_.getParam("height", height);
+
+  // Check for valid trajectory inputs.
+  if (!(easting.size() == northing.size() &&
+        northing.size() == height.size())) {
+    ROS_ERROR_STREAM("Error: path parameter arrays are not the same size");
+  }
+
+  coarse_waypoints_.clear();
+  // Add (x,y,z) co-ordinates from file to path.
+  for (size_t i = 0; i < easting.size(); i++) {
+    Eigen::Vector3d cwp;
+
+    cwp(0) = easting[i];
+    cwp(1) = northing[i];
+    cwp(2) = height[i];
+
+    coarse_waypoints_.push_back(cwp);
+  }
+
+  ROS_INFO_STREAM("Path loaded from file. Total number of waypoints = " << coarse_waypoints_.size());
+
+  return true;
+}
+
 // Plans a trajectory from the current position to the a goal position and velocity
 // we neglect attitude here for simplicity
 bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
@@ -119,6 +156,80 @@ bool ExamplePlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
   // set start point's velocity to be constrained to current velocity
   end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
                     goal_vel);
+
+  // add waypoint to list
+  vertices.push_back(end);
+
+  // setimate initial segment times
+  std::vector<double> segment_times;
+  segment_times = estimateSegmentTimes(vertices, max_v_, max_a_);
+
+  // Set up polynomial solver with default params
+  mav_trajectory_generation::NonlinearOptimizationParameters parameters;
+
+  // set up optimization problem
+  const int N = 10;
+  mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
+  opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
+
+  // constrain velocity and acceleration
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, max_v_);
+  opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, max_a_);
+
+  // solve trajectory
+  opt.optimize();
+
+  // get trajectory as polynomial parameters
+  opt.getTrajectory(&(*trajectory));
+
+  return true;
+}
+
+bool ExamplePlanner::planTrajectory(const vector<Eigen::VectorXd>& setpoints_pos,
+                                    mav_trajectory_generation::Trajectory* trajectory)
+{
+
+  // 3 Dimensional trajectory => through carteisan space, no orientation
+  const int dimension = 3;
+
+  // Array for all waypoints and their constrains
+  mav_trajectory_generation::Vertex::Vector vertices;
+
+  // Optimze up to 4th order derivative (SNAP)
+  const int derivative_to_optimize =
+      mav_trajectory_generation::derivative_order::SNAP;
+
+  mav_trajectory_generation::Vertex start(dimension), end(dimension);
+
+  /******* Configure start point *******/
+  // set start point constraints to current position and set all derivatives to zero
+  start.makeStartOrEnd(current_pose_.translation(),
+                       derivative_to_optimize);
+
+  // set start point's velocity to be constrained to current velocity
+  start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                      current_velocity_);
+
+  // add waypoint to list
+  vertices.push_back(start);
+
+  /******* Configure intermediate setpoints *******/
+  for (size_t i=0; i<setpoints_pos.size()-1; ++i) {
+    mav_trajectory_generation::Vertex setpoint(dimension);
+    setpoint.addConstraint(mav_trajectory_generation::derivative_order::POSITION, setpoints_pos[i]);
+    vertices.push_back(setpoint);
+  }
+
+  Eigen::VectorXd goal_pos = setpoints_pos.back();
+
+  /******* Configure end point *******/
+  // set end point constraints to desired position and set all derivatives to zero
+  end.makeStartOrEnd(goal_pos,
+                     derivative_to_optimize);
+
+  // set start point's velocity to be constrained to current velocity
+  end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                    Eigen::Vector3d(0, 0, 0));
 
   // add waypoint to list
   vertices.push_back(end);

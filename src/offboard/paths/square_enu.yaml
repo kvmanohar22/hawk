@@ -1,0 +1,5 @@
+# Square trajectory
+
+easting: [0, 3.0, 3.0, 0]
+northing: [-3.0, -3.0, 0, 0]
+height: [1.0, 1.0, 1.0, 1.0]

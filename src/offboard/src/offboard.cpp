@@ -100,7 +100,7 @@ void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg) {
   double R, P, Y;
   m.getRPY(R, P, Y);
   initial_yaw_ = -Y + hawk::PI / 2;
-  ROS_INFO_STREAM("Local pose is set, yaw = " << initial_yaw_);
+  ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
   local_pose_set_ = true; 
 }
 
@@ -333,7 +333,7 @@ bool Offboard::engage_offboard_trajectory() {
 
   // ensure we have reached required altitude
   // TODO: This is dangerous behaviour. Callbacks are not cnosidered
-  ros::Duration(15).sleep();
+  ros::Duration(20).sleep();
 
 /* TODO: Not sure this is correct way to do it?
   

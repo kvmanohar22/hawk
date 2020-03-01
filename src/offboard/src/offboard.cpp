@@ -333,7 +333,7 @@ bool Offboard::engage_offboard_trajectory() {
 
   // ensure we have reached required altitude
   // TODO: This is dangerous behaviour. Callbacks are not cnosidered
-  ros::Duration(5).sleep();
+  ros::Duration(15).sleep();
 
 /* TODO: Not sure this is correct way to do it?
   
@@ -359,6 +359,7 @@ bool Offboard::engage_offboard_trajectory() {
   }
 
   // set the pose at this location to be the starting point for trajectory planning
+  ROS_INFO_STREAM("Request sent to set the current pose in planner"); 
   set_current_pose_ = true;
 
   while (ros::ok()) {

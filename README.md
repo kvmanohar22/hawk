@@ -32,21 +32,20 @@ wstool update -j8
 
 - Install MatrixVision driver
 
-```bash
-./src/VIO/bluefox2/install/install.bash
-```
+Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
 
 #### Build
+
+**Note:** For the sake of uniformity, use **only** bash shell.
 
 ```bash
 cd ~/hawk_ws
 catkin build
 ```
-Change `.zsh` to whatever shell you are using.
 
 ```bash
-echo "source devel/setup.zsh" >> ~/.zshrc
-source ~/.zshrc
+echo "source devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
 ```
 
 <a name="usage"></a>

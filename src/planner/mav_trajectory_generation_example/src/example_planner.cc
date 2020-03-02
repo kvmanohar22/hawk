@@ -119,7 +119,7 @@ void ExamplePlanner::addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coar
   for (size_t i = 1; i < coarse_waypoints.size(); ++i) {
     Eigen::Vector3d wpa = coarse_waypoints[i - 1];
     Eigen::Vector3d wpb = coarse_waypoints[i];
-    double dist = (wpa.position_W - wpb.position_W).norm();
+    double dist = (wpa - wpb).norm();
 
     nh_private_.getParam("intermediate_pose_separation", intermediate_pose_separation_);
 
@@ -127,19 +127,18 @@ void ExamplePlanner::addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coar
     // in trajectory optimization.
     while (dist > intermediate_pose_separation_) {
       Eigen::Vector3d iwp;
-      iwp.position_W.x() = wpa.position_W.x() +
+      iwp.x() = wpa.x() +
                            (intermediate_pose_separation_ / dist) *
-                               (wpb.position_W.x() - wpa.position_W.x());
-      iwp.position_W.y() = wpa.position_W.y() +
+                               (wpb.x() - wpa.x());
+      iwp.y() = wpa.y() +
                            (intermediate_pose_separation_ / dist) *
-                               (wpb.position_W.y() - wpa.position_W.y());
-      iwp.position_W.z() = wpa.position_W.z() +
+                               (wpb.y() - wpa.y());
+      iwp.z() = wpa.z() +
                            (intermediate_pose_separation_ / dist) *
-                               (wpb.position_W.z() - wpa.position_W.z());
-      iwp.orientation_W_B = wpb.orientation_W_B;
+                               (wpb.z() - wpa.z());
       coarse_waypoints.insert(coarse_waypoints.begin() + i, iwp);
       wpa = iwp;
-      dist = (wpa.position_W - wpb.position_W).norm();
+      dist = (wpa - wpb).norm();
       i++;
     }
   }

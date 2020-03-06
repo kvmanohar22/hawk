@@ -4,6 +4,7 @@
 - [Setup](#setup)
 - [Usage](#usage)
 - [Naming conventions](#conventions)
+- [FAQ](#faq)
 
 <a name="setup"></a>
 ## Setup
@@ -79,3 +80,9 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
 ```bash
 roslaunch bluefox2 single_node.launch
 ``` 
+
+<a name="faq"></a>
+## FAQ
+1. **Unable to update to the new firmware**
+  - Disconnect all the RC pheripherals from pixhawk
+

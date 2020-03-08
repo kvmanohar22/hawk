@@ -41,7 +41,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
 }
 
 void SingleNode::imu_ts_cb(const mavros_msgs::CamIMUStamp::ConstPtr& msg) {
-  ROS_WARN("imu ts cb");
+  // ROS_WARN("imu ts cb");
   bluefox2::TriggerPacket_t pkt;
   pkt.triggerTime = msg->frame_stamp;
   pkt.triggerCounter = msg->frame_seq_id;     
@@ -81,17 +81,18 @@ void SingleNode::Acquire() {
 
     // a new video frame was captured
     // check if we need to skip it if one trigger packet was lost
-//    if (pkt.triggerCounter == nextTriggerCounter) {
+    if (pkt.triggerCounter == nextTriggerCounter) {
 	fifoRead(pkt);
         const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
         const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
         const auto time = ros::Time::now() + expose_duration;  
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-        ROS_INFO("Published image...");
-  //  } else {
-     // ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
-     //   nextTriggerCounter, pkt.triggerCounter);
-    //} 
+	if (nextTriggerCounter % 500 == 0)
+            ROS_INFO("Published image...");
+     } else {
+       ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
+        nextTriggerCounter, pkt.triggerCounter);
+     } 
     nextTriggerCounter++;
     Sleep();
   }

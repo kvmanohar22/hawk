@@ -4,6 +4,7 @@
 - [Setup](#setup)
 - [Usage](#usage)
 - [Naming conventions](#conventions)
+- [FAQ](#faq)
 
 <a name="setup"></a>
 ## Setup
@@ -32,21 +33,20 @@ wstool update -j8
 
 - Install MatrixVision driver
 
-```bash
-./src/VIO/bluefox2/install/install.bash
-```
+Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
 
 #### Build
+
+**Note:** For the sake of uniformity, use **only** bash shell.
 
 ```bash
 cd ~/hawk_ws
 catkin build
 ```
-Change `.zsh` to whatever shell you are using.
 
 ```bash
-echo "source devel/setup.zsh" >> ~/.zshrc
-source ~/.zshrc
+echo "source devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
 ```
 
 <a name="usage"></a>
@@ -80,3 +80,9 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
 ```bash
 roslaunch bluefox2 single_node.launch
 ``` 
+
+<a name="faq"></a>
+## FAQ
+1. **Unable to update to the new firmware**
+  - Disconnect all the RC pheripherals from pixhawk
+

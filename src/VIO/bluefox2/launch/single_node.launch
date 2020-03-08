@@ -12,8 +12,8 @@
     <arg name="fps" default="$(arg rate)"/>
 
     <arg name="idpf" default="0"/>
-    <arg name="aec" default="true"/>
-    <arg name="expose_us" default="10000"/>
+    <arg name="aec" default="false"/>
+    <arg name="expose_us" default="15000"/>
     <arg name="agc" default="true"/>
     <arg name="gain_db" default="0.0"/>
     <arg name="cbm" default="0"/>
@@ -24,6 +24,10 @@
     <arg name="request" default="0"/>
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
+
+    <!-- Trigger mode (ctm): 1=on demand (default), 3=hardware trigger -->     
+    <arg name="ctm" default="3"/> 
+    <arg name="cts" default="0"/>
 
     <!-- Node Settings -->
     <arg name="output" default="screen"/>
@@ -51,6 +55,8 @@
         <param name="request" type="int" value="$(arg request)"/>
         <param name="mm" type="int" value="$(arg mm)"/>
         <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
+        <param name="ctm" type="int" value="$(arg ctm)"/>
+        <param name="cts" type="int" value="$(arg cts)"/>
     </node>
 
     <!-- Proc -->

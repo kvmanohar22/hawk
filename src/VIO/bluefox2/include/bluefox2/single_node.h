@@ -4,6 +4,8 @@
 #include "bluefox2/Bluefox2DynConfig.h"
 #include <camera_base/camera_node_base.h>
 
+#include "mavros_msgs/CamIMUStamp.h"
+
 namespace bluefox2 {
 
 class Bluefox2Ros;
@@ -17,9 +19,13 @@ class SingleNode : public camera_base::CameraNodeBase<Bluefox2DynConfig> {
 
   void AcquireOnce();
 
+  void imu_ts_cb(const mavros_msgs::CamIMUStamp::ConstPtr& msg);
+
  private:
   boost::shared_ptr<Bluefox2Ros> bluefox2_ros_;
-  bool boost_{false};
+  ros::Subscriber                imu_ts_sub_;
+  bool                           boost_{false};
+  unsigned int                   nextTriggerCounter;
 };
 
 }  // namespace bluefox2

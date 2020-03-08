@@ -2,10 +2,10 @@
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "bluefox2_single");
-  ros::NodeHandle pnh("~");
+  ros::NodeHandle pnh("~"), nh;
 
   try {
-    bluefox2::SingleNode single_node(pnh);
+    bluefox2::SingleNode single_node(pnh, nh);
     single_node.Run();
     ros::spin();
     single_node.End();

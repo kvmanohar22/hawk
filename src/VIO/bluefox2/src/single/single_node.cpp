@@ -88,7 +88,7 @@ void SingleNode::Acquire() {
         const auto time = ros::Time::now() + expose_duration;  
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
         ROS_INFO("Published image...");
-  //  } else { 
+  //  } else {
      // ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
      //   nextTriggerCounter, pkt.triggerCounter);
     //} 

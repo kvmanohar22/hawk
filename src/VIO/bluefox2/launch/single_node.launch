@@ -3,6 +3,9 @@
     <arg name="device" default="26807563"/>
     <arg name="rate" default="80"/>
 
+    <!-- Record data? -->
+    <arg name="record_cameras" default="true"/>
+
     <!-- Camera Settings -->
     <arg name="serial" default="$(arg device)"/>
     <arg name="camera_name" default="camera_0_mv_$(arg serial)"/>
@@ -57,6 +60,11 @@
         <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
         <param name="ctm" type="int" value="$(arg ctm)"/>
         <param name="cts" type="int" value="$(arg cts)"/>
+    </node>
+
+    <node pkg="rosbag" type="record" name="rosbag_imu_cam"
+           args="record -o /home/hawk/ /hawk/camera_0_mv_26807563/image_raw /hawk/camera_0_mv_26807563/camera_info"
+           if="$(arg record_cameras)">
     </node>
 
     <!-- Proc -->

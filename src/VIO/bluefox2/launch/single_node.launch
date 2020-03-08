@@ -20,7 +20,6 @@
     <arg name="agc" default="true"/>
     <arg name="gain_db" default="0.0"/>
     <arg name="cbm" default="0"/>
-    <arg name="ctm" default="1"/>
     <arg name="dcfm" default="0"/>
     <arg name="hdr" default="false"/>
     <arg name="wbp" default="-1"/>
@@ -38,8 +37,13 @@
     <arg name="view" default="true"/>
     <arg name="calib" default="false"/>
 
+    <!-- Start mavros -->
+      <include file="$(find mavros)/launch/px4.launch">
+        <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+    </include>
+
     <!-- Node -->
-    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
+    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="camera_name" type="string" value="$(arg camera_name)"/>
@@ -52,14 +56,13 @@
         <param name="gain_db" type="double" value="$(arg gain_db)"/>
         <param name="cbm" type="int" value="$(arg cbm)"/>
         <param name="ctm" type="int" value="$(arg ctm)"/>
+        <param name="cts" type="int" value="$(arg cts)"/>
         <param name="dcfm" type="int" value="$(arg dcfm)"/>
         <param name="hdr" type="bool" value="$(arg hdr)"/>
         <param name="wbp" type="int" value="$(arg wbp)"/>
         <param name="request" type="int" value="$(arg request)"/>
         <param name="mm" type="int" value="$(arg mm)"/>
         <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
-        <param name="ctm" type="int" value="$(arg ctm)"/>
-        <param name="cts" type="int" value="$(arg cts)"/>
     </node>
 
     <node pkg="rosbag" type="record" name="rosbag_imu_cam"

@@ -4,8 +4,8 @@ add_library(${PROJECT_NAME}
     bluefox2_setting.cpp
     single/single_node.cpp
     stereo/stereo_node.cpp
-    single/single_nodelet.cpp
-    stereo/stereo_nodelet.cpp
+    # single/single_nodelet.cpp
+    # stereo/stereo_nodelet.cpp
     multi/multi_node.cpp
     )
 target_link_libraries(${PROJECT_NAME}

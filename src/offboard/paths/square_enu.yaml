@@ -1,5 +1,5 @@
 # Square trajectory
 
-easting: [5.0, 5.0, 5.0, 0.0, 0]
-northing: [0.0, 2.5, 5.0, 5.0, 0]
-height: [5.0, 5.0, 5.0, 5.0, 5.0]
+easting: [5.0, 5.0, 0.0, 0]
+northing: [0.0, 5.0, 5.0, 0]
+height: [5.0, 5.0, 5.0, 5.0]

@@ -7,6 +7,8 @@
 
 #include "mavros_msgs/CamIMUStamp.h"
 
+#include "mavros_msgs/CommandTriggerControl.h"
+
 namespace bluefox2 {
 
 // must be x^2-1
@@ -36,6 +38,8 @@ class SingleNode : public camera_base::CameraNodeBase<Bluefox2DynConfig> {
   boost::shared_ptr<Bluefox2Ros> bluefox2_ros_;
   ros::Subscriber                imu_ts_sub_;
   bool                           boost_{false};
+
+  ros::ServiceClient             cam_imu_trigger_client_; 
 
   int ctm;
   ros::Subscriber subTimeRef;

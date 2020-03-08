@@ -18,6 +18,22 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
   imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
     "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
 
+  // send in a one-time request to publish timestamp data
+  cam_imu_trigger_client_ = nh_.serviceClient<mavros_msgs::CommandTriggerControl>(
+      "mavros/cmd/trigger_control");
+  mavros_msgs::CommandTriggerControl trig_srv;
+  trig_srv.request.triggle_enable = true;
+  trig_srv.request.sequence_reset = true;
+  trig_srv.request.trigger_pause = false;
+  while (ros::ok()) {
+    ROS_WARN("Waiting for nod from Autopilot to enable hardware triggering...");
+    if (cam_imu_trigger_client_.call(trig_srv) && trig_srv.response.success) {
+      ROS_WARN("IMU is now publishing trigger time and camera seq id...");
+    } else {
+      rate_.sleep();
+    }
+  }
+
   ROS_WARN("recv start");
 }
 

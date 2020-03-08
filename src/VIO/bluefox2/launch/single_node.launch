@@ -1,7 +1,7 @@
 <launch>
     <!-- Common Interface -->
     <arg name="device" default="26807563"/>
-    <arg name="rate" default="80"/>
+    <arg name="rate" default="30"/>
 
     <!-- Record data? -->
     <arg name="record_cameras" default="true"/>

@@ -34,8 +34,13 @@
     <arg name="view" default="true"/>
     <arg name="calib" default="false"/>
 
+    <!-- Start mavros -->
+      <include file="$(find mavros)/launch/px4.launch">
+        <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+    </include>
+
     <!-- Node -->
-    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
+    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="camera_name" type="string" value="$(arg camera_name)"/>

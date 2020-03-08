@@ -16,12 +16,13 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
 
 
   imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
-    "mavros_msgs/CamIMUStamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
+    "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
 
   ROS_WARN("recv start");
 }
 
 void SingleNode::imu_ts_cb(const mavros_msgs::CamIMUStamp::ConstPtr& msg) {
+  ROS_WARN("imu ts cb");
   bluefox2::TriggerPacket_t pkt;
   pkt.triggerTime = msg->frame_stamp;
   pkt.triggerCounter = msg->frame_seq_id;     

@@ -85,9 +85,9 @@ class CameraRosBase {
       // Update camera info header
       cinfo_msg->header = image_msg->header;
       camera_pub_.publish(image_msg, cinfo_msg);
-      topic_diagnostic_.tick(image_msg->header.stamp);
+      // topic_diagnostic_.tick(image_msg->header.stamp);
     }
-    diagnostic_updater_.update();
+    // diagnostic_updater_.update();
   }
 
   void Publish(const sensor_msgs::ImagePtr& image_msg) {

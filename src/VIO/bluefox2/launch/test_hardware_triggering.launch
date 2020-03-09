@@ -7,7 +7,7 @@
 	<!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/single_node.launch">
 		<arg name="record_cameras" value="false"/>
-		<arg name="expose_us" value="10000"/>
+		<arg name="expose_us" value="25000"/>
 		<arg name="rate" value="150"/>
     </include>
 

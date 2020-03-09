@@ -70,7 +70,9 @@ bool SingleNode::fifoLook(TriggerPacket_t &pkt){
 void SingleNode::Acquire() {
   while (is_acquire() && ros::ok()) {
     bluefox2_ros_->RequestSingle();
+   //bluefox2_ros_->PublishCamera(ros::Time::now());
 
+    
     // wait for new trigger packet to receive
     bluefox2::TriggerPacket_t pkt;
     while (!fifoLook(pkt)) {
@@ -92,7 +94,9 @@ void SingleNode::Acquire() {
         nextTriggerCounter, pkt.triggerCounter);
      } 
     nextTriggerCounter++;
-    Sleep();
+    // Sleep();
+    
+
   }
 }
 

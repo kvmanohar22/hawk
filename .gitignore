@@ -13,5 +13,4 @@ src/mav_comm
 src/nlopt
 src/yaml_cpp_catkin
 src/catkin_simple
-src/VIO/camera_base
 

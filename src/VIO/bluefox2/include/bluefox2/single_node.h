@@ -12,7 +12,7 @@
 namespace bluefox2 {
 
 // must be x^2-1
-#define FIFO_SIZE 1023
+static const long long int FIFO_SIZE = 16383;
 
 struct TriggerPacket {
   uint32_t triggerCounter;

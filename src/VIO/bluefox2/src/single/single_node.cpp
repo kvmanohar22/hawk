@@ -15,7 +15,6 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
   pnh.param("ctm", ctm, 1);
   ROS_WARN( "ctm=%d", ctm);
 
-
   imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
     "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
 
@@ -85,7 +84,6 @@ void SingleNode::Acquire() {
 	fifoRead(pkt);
         const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
         const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
-        const auto time = ros::Time::now() + expose_duration;  
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
 	if (nextTriggerCounter % 500 == 0)
             ROS_INFO("Published image...");

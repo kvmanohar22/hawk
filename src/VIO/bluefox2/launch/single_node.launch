@@ -1,7 +1,7 @@
 <launch>
     <!-- Common Interface -->
     <arg name="device" default="26807563"/>
-    <arg name="rate" default="30"/>
+    <arg name="rate" default="15"/>
 
     <!-- Record data? -->
     <arg name="record_cameras" default="true"/>
@@ -37,11 +37,6 @@
     <arg name="view" default="true"/>
     <arg name="calib" default="false"/>
 
-    <!-- Start mavros -->
-      <include file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
-    </include>
-
     <!-- Node -->
     <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
         <param name="identifier" type="string" value="$(arg serial)"/>
@@ -66,7 +61,7 @@
     </node>
 
     <node pkg="rosbag" type="record" name="rosbag_imu_cam"
-           args="record -o /home/hawk/ /hawk/camera_0_mv_26807563/image_raw /hawk/camera_0_mv_26807563/camera_info"
+           args="record -o /home/hawk/ /hawk/camera_0/image_raw /hawk/camera_0/camera_info"
            if="$(arg record_cameras)">
     </node>
 

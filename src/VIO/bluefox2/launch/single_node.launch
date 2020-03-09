@@ -8,7 +8,7 @@
 
     <!-- Camera Settings -->
     <arg name="serial" default="$(arg device)"/>
-    <arg name="camera_name" default="camera_0_mv_$(arg serial)"/>
+    <arg name="camera_name" default="camera_0"/>
     <arg name="camera" default="$(arg camera_name)"/>
     <arg name="frame_id" default="$(arg camera)"/>
     <arg name="calib_url" default="file://${ROS_HOME}/camera_info/$(arg camera_name).yaml"/>
@@ -43,7 +43,7 @@
     </include>
 
     <!-- Node -->
-    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)">
+    <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="camera_name" type="string" value="$(arg camera_name)"/>

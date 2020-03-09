@@ -67,14 +67,10 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
 - All nodes must fall under the global name `hawk`. eg: for camera0, `/hawk/camera0` i.e, it follows hierarchical structure. This ensures there is no conflict across modules.
 
 ### Camera conventions
-- Camera 1 node: `/hawk/camera_0_mv_26807563`
-- Camera 2 node: `/hawk/camera_1_mv_26807580`
-
-`26807563` and `26807580` are serial numbers of cameras. This helps in starting up the mvBlueFox Acquire drivers in the background.
-
-- Raw image data for camera 1 topic: `/hawk/camera_0_mv_26807563/image_raw`
-- Raw image data for camera 2 topic: `/hawk/camera_1_mv_26807580/image_raw`
-
+- Camera 1 node: `/hawk/camera_0`
+- Camera 2 node: `/hawk/camera_1`
+- Raw image data for camera 1 topic: `/hawk/camera_0/image_raw`
+- Raw image data for camera 2 topic: `/hawk/camera_1/image_raw`
 - To start the single node, run the following (this launches viewer using ROS's `image_view` node)
 
 ```bash

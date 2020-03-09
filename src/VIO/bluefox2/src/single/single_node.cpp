@@ -21,7 +21,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
 
   // send in a one-time request to publish timestamp data
   cam_imu_trigger_client_ = nh.serviceClient<mavros_msgs::CommandTriggerControl>(
-      "mavros/cmd/trigger_control");
+      "/mavros/cmd/trigger_control");
 
   mavros_msgs::CommandTriggerControl trig_srv;
   trig_srv.request.trigger_enable = true;

@@ -1,14 +1,15 @@
 <launch>
     <!-- Start mavros -->
     <include file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+      <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
     </include>
 
-	<!-- Start camera driver -->
+    <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/single_node.launch">
-		<arg name="record_cameras" value="false"/>
-		<arg name="expose_us" value="25000"/>
-		<arg name="rate" value="150"/>
+		  <arg name="record_cameras" value="false"/>
+		  <arg name="expose_us" value="4000"/>
+  		<arg name="rate" value="150"/>
+      <arg name="request" value="100"/>
     </include>
 
 </launch>

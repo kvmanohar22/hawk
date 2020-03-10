@@ -157,6 +157,7 @@ void Bluefox2::Configure(Bluefox2DynConfig &config) {
 
 void Bluefox2::FillCaptureQueue(int &n) const {
   n = std::min<int>(n, fi_->requestCount() - 1);
+  ROS_WARN(">>>>>>>>>>  Request count = %d", n);
   for (int i = 0; i < n; ++i) {
     fi_->imageRequestSingle();
   }

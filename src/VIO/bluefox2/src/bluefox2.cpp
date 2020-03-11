@@ -55,11 +55,13 @@ int Bluefox2::GetExposeUs() const {
 void Bluefox2::RequestSingle() const {
   int result = DMR_NO_ERROR;
   result = fi_->imageRequestSingle();
-  if (result != DMR_NO_ERROR) {
+  /*
+   if (result != DMR_NO_ERROR) {
     std::cout << serial() << ": Error while requesting image: "
               << ImpactAcquireException::getErrorCodeAsString(result)
               << std::endl;
   }
+  */
 }
 
 void Bluefox2::RequestImages(int n) const {
@@ -107,11 +109,14 @@ bool Bluefox2::GrabImage(sensor_msgs::Image &image_msg) {
   } else {
     encoding = PixelFormatToEncoding(request_->imagePixelFormat.read());
   }
+ 
+  ros::Time start_reading=ros::Time::now();
   sensor_msgs::fillImage(image_msg, encoding, request_->imageHeight.read(),
                          request_->imageWidth.read(),
                          request_->imageLinePitch.read(),
                          request_->imageData.read());
 
+  ROS_INFO_STREAM(">>>>>>>>>>> Filling time = " << (ros::Time::now()-start_reading).toSec()*1e3 << " ms");
   // Release capture request
   fi_->imageRequestUnlock(request_nr);
   return true;

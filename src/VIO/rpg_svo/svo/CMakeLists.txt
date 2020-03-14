@@ -47,7 +47,7 @@ SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -
 
 # Add plain cmake packages 
 FIND_PACKAGE(OpenCV REQUIRED)
-FIND_PACKAGE(Eigen REQUIRED)
+FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)
 FIND_PACKAGE(fast REQUIRED)
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system)
@@ -69,7 +69,7 @@ ENDIF()
 # Include dirs
 INCLUDE_DIRECTORIES(
   include
-  ${Eigen_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${Sophus_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}

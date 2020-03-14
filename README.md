@@ -80,5 +80,7 @@ roslaunch bluefox2 single_node.launch
 <a name="faq"></a>
 ## FAQ
 1. **Unable to update to the new firmware**
-  - Disconnect all the RC pheripherals from pixhawk
+   Disconnect all the RC pheripherals from pixhawk
+2. **Issues related to Eigen alignment**
+   Read the following article and fix accordingly: [link](https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html)
 

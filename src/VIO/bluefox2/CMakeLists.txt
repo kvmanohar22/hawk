@@ -8,16 +8,22 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp nodelet camera_base
     message_generation
     )
-set(mvIMPACT_DIR "/home/hawk/hawk/src/VIO/bluefox2/mvIMPACT")
-set(mvIMPACT_LIBRARY "/home/hawk/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64")
 
 find_package(mvIMPACT REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 
-FILE(GLOB mvIMPACT_LIBRARIES /home/hawk/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64/*)
+# set(mvIMPACT_DIR "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT")
+# if (DEFINED ENV{ARM_ARCHITECTURE})
+#   set(mvIMPACT_LIBRARY "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64")
+#   FILE(GLOB mvIMPACT_LIBRARIES /home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64/*)
+# else()
+#   set(mvIMPACT_LIBRARY "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/x86_64")
+#   FILE(GLOB mvIMPACT_LIBRARIES /home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/x86_64/*)
+# endif()
+
+message(">>>>>>>>> ${mvIMPACT_LIBRARY}")
 message(">>>>>>>>> ${mvIMPACT_LIBRARY_DIR}")
 message(">>>>>>>>> ${mvIMPACT_LIBRARIES}")
-
 
 # dynamic reconfigure
 generate_dynamic_reconfigure_options(cfg/Bluefox2Dyn.cfg)

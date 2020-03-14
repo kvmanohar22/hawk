@@ -1,6 +1,8 @@
 <launch>
     <!-- start camera -->
-    <include file="$(find bluefox2)/launch/test_hardware_triggering.launch"/>
+    <include file="$(find bluefox2)/launch/test_hardware_triggering.launch">
+        <arg name="expose_us" value="16000"/>
+    </include>
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch"/>

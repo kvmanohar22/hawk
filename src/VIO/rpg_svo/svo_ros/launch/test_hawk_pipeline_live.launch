@@ -1,13 +1,11 @@
 <launch>
+    <!-- start camera -->
+    <include file="$(find bluefox2)/launch/test_hardware_triggering.launch"/>
 
-  <!-- start camera -->
-  <include file="$(find bluefox2)/launch/test_hardware_triggering.launch">
-  </include>
+    <!-- start svo hawk pipeline -->
+    <include file="$(find svo_ros)/launch/load_svo.launch"/>
 
-  <!-- start svo hawk pipeline -->
-  <include file="$(find svo_ros)/launch/load_svo.launch"/>
-
-  <!-- start rviz -->
-  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+    <!-- start rviz -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
 
 </launch>

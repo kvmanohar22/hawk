@@ -1,14 +1,14 @@
 <launch>
-  <!-- TODO: Set this parameter -->
-  <arg name="bagfile" value="$(find bluefox2)/../../../bags/bag0.bag"/>
+    <!-- TODO: Set this parameter -->
+    <arg name="bagfile" value="$(find bluefox2)/../../../bags/bag0.bag"/>
 
-  <!-- start svo hawk pipeline -->
-  <include file="$(find svo_ros)/launch/load_svo.launch"/>
+    <!-- start svo hawk pipeline -->
+    <include file="$(find svo_ros)/launch/load_svo.launch"/>
 
-  <!-- start rviz -->
-  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+    <!-- start rviz -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
 
-  <!-- start rosbag -->
-  <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bagfile)"/>
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bagfile)"/>
 
 </launch>

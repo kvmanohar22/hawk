@@ -14,8 +14,5 @@
     local-name: nlopt
     uri: https://github.com/ethz-asl/nlopt.git
 - git:
-    local-name: yaml_cpp_catkin
-    uri: https://github.com/ethz-asl/yaml_cpp_catkin.git
-- git:
     local-name: catkin_simple
     uri: https://github.com/catkin/catkin_simple.git

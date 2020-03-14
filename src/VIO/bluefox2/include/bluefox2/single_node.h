@@ -37,7 +37,6 @@ class SingleNode : public camera_base::CameraNodeBase<Bluefox2DynConfig> {
  private:
   boost::shared_ptr<Bluefox2Ros> bluefox2_ros_;
   ros::Subscriber                imu_ts_sub_;
-  ros::Rate                      pr_rate_;
   bool                           boost_{false};
 
   ros::ServiceClient             cam_imu_trigger_client_; 

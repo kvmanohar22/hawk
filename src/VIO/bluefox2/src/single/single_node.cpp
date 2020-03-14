@@ -5,8 +5,7 @@ namespace bluefox2 {
 
 SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
     : CameraNodeBase(pnh),
-      bluefox2_ros_(boost::make_shared<Bluefox2Ros>(pnh)),
-			pr_rate_(100)
+      bluefox2_ros_(boost::make_shared<Bluefox2Ros>(pnh))
 {
   fifoReadPos = fifoWritePos = 0;
   nextTriggerCounter = 0;
@@ -32,7 +31,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
       ROS_WARN("IMU is now publishing trigger time and camera seq id...");
       break;
     } else {
-      pr_rate_.sleep();
+      ros::Duration(0.001).sleep();
     }
   }
 
@@ -71,11 +70,13 @@ bool SingleNode::fifoLook(TriggerPacket_t &pkt){
 void SingleNode::Acquire() {
   while (is_acquire() && ros::ok()) {
     bluefox2_ros_->RequestSingle();
+   //bluefox2_ros_->PublishCamera(ros::Time::now());
 
+    
     // wait for new trigger packet to receive
     bluefox2::TriggerPacket_t pkt;
-    while (!fifoLook(pkt)) {    
-      ros::Duration(0.001).sleep();
+    while (!fifoLook(pkt)) {
+      ros::Duration(0.00001).sleep();
     }
 
     // a new video frame was captured
@@ -84,16 +85,20 @@ void SingleNode::Acquire() {
 	      fifoRead(pkt);
         const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
         const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
+        ros::Time begin=ros::Time::now();
         bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-	      if (nextTriggerCounter % 500 == 0) {
-            ROS_INFO("Published image...");
-        }
+        // ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
+	      // if (nextTriggerCounter % 500 == 0) {
+        // ROS_INFO("Published image, nextTriggerCounter = %d \t |write-read| = %d", nextTriggerCounter, fifoWritePos-fifoReadPos);
+        // }
      } else {
        ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
         nextTriggerCounter, pkt.triggerCounter);
      } 
     nextTriggerCounter++;
-    Sleep();
+    // Sleep();
+    
+
   }
 }
 

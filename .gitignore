@@ -16,5 +16,3 @@ src/catkin_simple
 *.bag
 bags/**
 
-src/VIO/fast/**
-src/VIO/Sophus/**

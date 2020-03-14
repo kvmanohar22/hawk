@@ -19,16 +19,3 @@
 - git:
     local-name: catkin_simple
     uri: https://github.com/catkin/catkin_simple.git
-- git:
-    local-name: VIO/camera_base
-    uri: https://github.com/KumarRobotics/camera_base.git
-- git:
-    local-name: VIO/fast
-    uri: https://github.com/uzh-rpg/fast.git
-- git:
-    local-name: VIO/Sophus
-    uri: https://github.com/strasdat/Sophus.git
-- git:
-    local-name: VIO/vikit
-    uri: https://github.com/uzh-rpg/rpg_vikit.git
-

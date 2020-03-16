@@ -81,39 +81,34 @@ roslaunch bluefox2 single_node.launch
 <a name="launch"></a>
 ## Launch files
 - Launch a single camera node
-```bash
-roslaunch bluefox2 single_node.launch
-```
-**Note**:
+  - ```bash
+      roslaunch bluefox2 single_node.launch
+    ```
   - The images will be published on the topic `/hawk/camera_0/image_raw`
 
 - Launch camera node with hardware triggering enabled
-```bash
-roslaunch bluefox2 test_hardware_triggering.launch
-```
-**Note**:
+  - ```bash
+      roslaunch bluefox2 test_hardware_triggering.launch
+    ```
   - Trigger interval has to be specified in QGC
   - Exposure time and other camera specific parameters have to be specified in the launch file
 
 - Visualize camera data from a bagfile
-```bash
-roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile
-```
-**Note**:
+  - ```bash
+      roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile
+    ```
   - `bag_path` has to be absolute
 
 - Run svo from a bagfile
-```bash
-roslaunch svo_ros test_hawk_pipeline_bag.launch bag_path:=/path/to/bag
-```
-**Note**:
+  - ```bash
+      roslaunch svo_ros test_hawk_pipeline_bag.launch bag_path:=/path/to/bag
+    ```
   - `bag_path` has to be absolute
 
 - Run svo from live camera
-```bash
-roslaunch svo_ros test_hawk_pipeline_live.launch
-```
-**Note**:
+  - ```bash
+      roslaunch svo_ros test_hawk_pipeline_live.launch
+    ```
   - Change the exposure in the above launch file
 
 

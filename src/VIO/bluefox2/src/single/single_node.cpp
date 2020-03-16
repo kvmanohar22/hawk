@@ -14,25 +14,29 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
   pnh.param("ctm", ctm, 1);
   ROS_WARN( "ctm=%d", ctm);
 
-  imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
-    "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
+  if (ctm == 3) { // hardware triggering
+    imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
+      "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::SingleNode::imu_ts_cb, this);
 
-  // send in a one-time request to publish timestamp data
-  cam_imu_trigger_client_ = nh.serviceClient<mavros_msgs::CommandTriggerControl>(
-      "/mavros/cmd/trigger_control");
+    // send in a one-time request to publish timestamp data
+    cam_imu_trigger_client_ = nh.serviceClient<mavros_msgs::CommandTriggerControl>(
+        "/mavros/cmd/trigger_control");
 
-  mavros_msgs::CommandTriggerControl trig_srv;
-  trig_srv.request.trigger_enable = true;
-  trig_srv.request.sequence_reset = true;
-  trig_srv.request.trigger_pause = false;
-  while (ros::ok()) {
-    ROS_WARN("Waiting for nod from Autopilot to enable hardware triggering...");
-    if (cam_imu_trigger_client_.call(trig_srv) && trig_srv.response.success) {
-      ROS_WARN("IMU is now publishing trigger time and camera seq id...");
-      break;
-    } else {
-      ros::Duration(0.001).sleep();
+    mavros_msgs::CommandTriggerControl trig_srv;
+    trig_srv.request.trigger_enable = true;
+    trig_srv.request.sequence_reset = true;
+    trig_srv.request.trigger_pause = false;
+    while (ros::ok()) {
+      ROS_WARN("Waiting for nod from Autopilot to enable hardware triggering...");
+      if (cam_imu_trigger_client_.call(trig_srv) && trig_srv.response.success) {
+        ROS_WARN("IMU is now publishing trigger time and camera seq id...");
+        break;
+      } else {
+        ros::Duration(0.001).sleep();
+      }
     }
+  } else {
+
   }
 
   ROS_WARN("recv start");
@@ -69,36 +73,40 @@ bool SingleNode::fifoLook(TriggerPacket_t &pkt){
 
 void SingleNode::Acquire() {
   while (is_acquire() && ros::ok()) {
-    bluefox2_ros_->RequestSingle();
-   //bluefox2_ros_->PublishCamera(ros::Time::now());
+    if (ctm == 3) {
+      bluefox2_ros_->RequestSingle();
+     //bluefox2_ros_->PublishCamera(ros::Time::now());
 
-    
-    // wait for new trigger packet to receive
-    bluefox2::TriggerPacket_t pkt;
-    while (!fifoLook(pkt)) {
-      ros::Duration(0.00001).sleep();
+      // wait for new trigger packet to receive
+      bluefox2::TriggerPacket_t pkt;
+      while (!fifoLook(pkt)) {
+        ros::Duration(0.00001).sleep();
+      }
+
+      // a new video frame was captured
+      // check if we need to skip it if one trigger packet was lost
+      if (pkt.triggerCounter == nextTriggerCounter) {
+  	      fifoRead(pkt);
+          const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
+          const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
+          ros::Time begin=ros::Time::now();
+          bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
+          // ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
+  	      // if (nextTriggerCounter % 500 == 0) {
+          // ROS_INFO("Published image, nextTriggerCounter = %d \t |write-read| = %d", nextTriggerCounter, fifoWritePos-fifoReadPos);
+          // }
+       } else {
+         ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
+          nextTriggerCounter, pkt.triggerCounter);
+       } 
+      nextTriggerCounter++;
+    } else {
+      bluefox2_ros_->RequestSingle();
+      const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
+      const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
+      const auto time = ros::Time::now() + expose_duration;
+      bluefox2_ros_->PublishCamera(time);
     }
-
-    // a new video frame was captured
-    // check if we need to skip it if one trigger packet was lost
-    if (pkt.triggerCounter == nextTriggerCounter) {
-	      fifoRead(pkt);
-        const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
-        const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
-        ros::Time begin=ros::Time::now();
-        bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-        // ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
-	      // if (nextTriggerCounter % 500 == 0) {
-        // ROS_INFO("Published image, nextTriggerCounter = %d \t |write-read| = %d", nextTriggerCounter, fifoWritePos-fifoReadPos);
-        // }
-     } else {
-       ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
-        nextTriggerCounter, pkt.triggerCounter);
-     } 
-    nextTriggerCounter++;
-    // Sleep();
-    
-
   }
 }
 

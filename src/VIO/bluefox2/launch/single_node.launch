@@ -4,7 +4,7 @@
     <arg name="rate" default="15"/>
 
     <!-- Record data? -->
-    <arg name="record_cameras" default="true"/>
+    <arg name="record_cameras" default="false"/>
 
     <!-- Camera Settings -->
     <arg name="serial" default="$(arg device)"/>

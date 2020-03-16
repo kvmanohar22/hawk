@@ -80,11 +80,16 @@ roslaunch bluefox2 single_node.launch
 
 <a name="launch"></a>
 ## Launch files
-- Launch a single camera node
+- Launch camera node with continuous triggering
   - ```bash
-      roslaunch bluefox2 single_node.launch
+      roslaunch bluefox2 test_continuous_triggering.launch
     ```
-  - The images will be published on the topic `/hawk/camera_0/image_raw`
+  - By default, the images will be published on the topic `/hawk/camera_0/image_raw`
+  - To test the second camera, with serial number `26807580`, use the following command;
+  - ```bash
+      roslaunch bluefox2 test_continuous_triggering.launch device:=26807580
+    ```
+  - In the above case, images will be published on the topic `/hawk/camera_0/image_raw`
 
 - Launch camera node with hardware triggering enabled
   - ```bash
@@ -98,6 +103,7 @@ roslaunch bluefox2 single_node.launch
       roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile
     ```
   - `bag_path` has to be absolute
+  - By default, the topic is `/hawk/camera_0/image_raw`. Pass in the argument through command line if it is a different topic
 
 - Run svo from a bagfile
   - ```bash

@@ -15,4 +15,3 @@ src/catkin_simple
 *.bag
 bags/**
 src/CMakeLists.txt
-

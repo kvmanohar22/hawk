@@ -1,5 +1,7 @@
 <launch>
+    <arg name="device" default="26807563"/>
     <arg name="expose_us" default="890"/>
+    <arg name="view" default="false"/>
 
     <!-- Start mavros -->
     <include file="$(find mavros)/launch/px4.launch">
@@ -8,8 +10,10 @@
 
     <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/single_node.launch">
-        <arg name="record_cameras" value="true"/>
+        <arg name="record_cameras" value="false"/>
+        <arg name="device" value="$(arg device)"/>
         <arg name="expose_us" value="$(arg expose_us)"/>
+        <arg name="view" value="$(arg view)"/>
         <arg name="rate" value="150"/>
         <arg name="request" value="100"/>
         <arg name="gain_db" value="1.0"/>

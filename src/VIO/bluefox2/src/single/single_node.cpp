@@ -72,8 +72,8 @@ bool SingleNode::fifoLook(TriggerPacket_t &pkt){
 }
 
 void SingleNode::Acquire() {
-  while (is_acquire() && ros::ok()) {
-    if (ctm == 3) {
+  if (ctm == 3) { // hardware triggering
+    while (is_acquire() && ros::ok()) { // TODO: use a service to safely exit the camera node
       bluefox2_ros_->RequestSingle();
      //bluefox2_ros_->PublishCamera(ros::Time::now());
 
@@ -89,9 +89,7 @@ void SingleNode::Acquire() {
   	      fifoRead(pkt);
           const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
           const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
-          ros::Time begin=ros::Time::now();
           bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
-          // ROS_INFO_STREAM(">>>>>>>>>>> time = " << (ros::Time::now()-begin).toSec()*1e3 << " ms");
   	      // if (nextTriggerCounter % 500 == 0) {
           // ROS_INFO("Published image, nextTriggerCounter = %d \t |write-read| = %d", nextTriggerCounter, fifoWritePos-fifoReadPos);
           // }
@@ -100,7 +98,9 @@ void SingleNode::Acquire() {
           nextTriggerCounter, pkt.triggerCounter);
        } 
       nextTriggerCounter++;
-    } else {
+    }
+  } else { // continuous acquiring
+    while (is_acquire() && ros::ok()) {
       bluefox2_ros_->RequestSingle();
       const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
       const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);

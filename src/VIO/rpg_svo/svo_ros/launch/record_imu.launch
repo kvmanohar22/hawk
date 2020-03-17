@@ -1,0 +1,12 @@
+<launch>
+    <!-- Start mavros -->
+    <include file="$(find mavros)/launch/px4.launch">
+        <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
+    </include>
+
+    <!-- Start rosbag recorder -->
+    <node pkg="rosbag" type="record" name="rosbag_imu"
+           args="record -o /home/hawk/ /mavros/imu/data_raw">
+    </node>
+
+</launch>

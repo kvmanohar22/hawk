@@ -1,6 +1,7 @@
 <launch>
     <arg name="device" default="26807563"/>
     <arg name="expose_us" default="16000"/>
+    <arg name="view" default="false"/>
     <arg name="rate" default="50"/>
     <arg name="record_cameras" default="false"/>
 
@@ -9,6 +10,7 @@
         <arg name="record_cameras" value="$(arg record_cameras)"/>
         <arg name="expose_us" value="$(arg expose_us)"/>
         <arg name="device" value="$(arg device)"/>
+        <arg name="view" value="$(arg view)"/>
         <arg name="rate" value="$(arg rate)"/>
         <arg name="request" value="100"/>
         <arg name="gain_db" value="12.0"/>

@@ -1,17 +1,19 @@
 <launch>
     <arg name="device" default="26807563"/>
     <arg name="expose_us" default="16000"/>
+    <arg name="rate" default="50"/>
+    <arg name="record_cameras" default="false"/>
 
     <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/single_node.launch">
-        <arg name="record_cameras" value="false"/>
+        <arg name="record_cameras" value="$(arg record_cameras)"/>
         <arg name="expose_us" value="$(arg expose_us)"/>
         <arg name="device" value="$(arg device)"/>
-        <arg name="rate" value="150"/>
+        <arg name="rate" value="$(arg rate)"/>
         <arg name="request" value="100"/>
         <arg name="gain_db" value="12.0"/>
         <arg name="hdr" value="false"/>
-        <arg name="mm" value="3"/>
+        <arg name="mm" value="0"/>
         <arg name="aec" value="false"/>
         <arg name="agc" value="false"/>
         <arg name="ctm" value="0"/>

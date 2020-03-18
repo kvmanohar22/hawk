@@ -8,3 +8,5 @@ This directory holds the results from camera internal calibration and camera-imu
 - `take4`: aec was set to off. Again, spacing seems to be changed automatically
 - `take5`: 
 
+- `MPU_imu_param.yaml`: calibration done using [link](https://github.com/gaowenliang/imu_utils)
+

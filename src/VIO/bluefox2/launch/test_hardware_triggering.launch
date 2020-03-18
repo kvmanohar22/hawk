@@ -14,13 +14,15 @@
         <arg name="device" value="$(arg device)"/>
         <arg name="expose_us" value="$(arg expose_us)"/>
         <arg name="view" value="$(arg view)"/>
-        <arg name="rate" value="150"/>
+        <arg name="rate" value="50"/>
         <arg name="request" value="100"/>
         <arg name="gain_db" value="1.0"/>
         <arg name="hdr" value="true"/>
         <arg name="mm" value="3"/>
         <arg name="aec" value="false"/>
         <arg name="agc" value="false"/>
+        <arg name="ctm" value="3"/>
+        <arg name="cts" value="0"/>
     </include>
 
 </launch>

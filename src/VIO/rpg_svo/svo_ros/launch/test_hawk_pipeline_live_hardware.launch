@@ -1,11 +1,15 @@
 <launch>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera_0.yaml"/>
+
     <!-- start camera -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering.launch">
         <arg name="expose_us" value="16000"/>
     </include>
 
     <!-- start svo hawk pipeline -->
-    <include file="$(find svo_ros)/launch/load_svo.launch"/>
+    <include file="$(find svo_ros)/launch/load_svo.launch">
+        <arg name="calibration" value="$(arg calibration)"/>
+    </include>
 
     <!-- start rviz -->
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />

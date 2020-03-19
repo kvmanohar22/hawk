@@ -1,1 +1,12 @@
-/home/kv/ros/hawk/calibration/camera_0.yaml
+# serial: 26807563
+cam_model: Pinhole
+cam_width: 752
+cam_height: 480
+cam_fx: 415.7382901125151
+cam_fy: 418.2875521834683
+cam_cx: 373.9429341343477
+cam_cy: 240.2235159864951
+cam_d0: -0.28467288972458066
+cam_d1: 0.06749119554802169
+cam_d2: -1.4817208802857373e-05
+cam_d3: 4.2065092976800905e-05

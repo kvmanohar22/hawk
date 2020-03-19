@@ -4,7 +4,7 @@
   <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
 
   <!-- play rosbag -->
-  <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)"/>
+  <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)" output="screen"/>
 
   <!-- image viewer -->
   <node pkg="image_view" type="image_view" name="viewer"

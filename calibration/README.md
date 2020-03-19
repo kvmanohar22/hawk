@@ -7,6 +7,8 @@ This directory holds the results from camera internal calibration and camera-imu
 - `take3`: same as take2. The spacing between april tags seems to be changed automatically in take2. Wanted to confirm that in this. Seems to happen again.
 - `take4`: aec was set to off. Again, spacing seems to be changed automatically
 - `take5`: 
+- `take5`: 
+- `take7`: Cover more area of the pixels. Results are bad (rprojection error).
 
 - `imu_specs.yaml`: calibrated values from datasheet of hardware (**Incomplete**)
 - `imu_matlab.yaml`: calibration done using matlab

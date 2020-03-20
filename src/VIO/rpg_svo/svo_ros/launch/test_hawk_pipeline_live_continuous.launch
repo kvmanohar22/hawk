@@ -4,7 +4,7 @@
 
     <!-- start camera -->
     <include file="$(find bluefox2)/launch/test_continuous_triggering.launch">
-        <arg name="expose_us" value="16000"/>
+        <arg name="expose_us" value="19000"/>
         <arg name="device" value="$(arg device)"/>
     </include>
 

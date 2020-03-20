@@ -3,7 +3,7 @@
 
     <!-- start camera -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering.launch">
-        <arg name="expose_us" value="16000"/>
+        <arg name="expose_us" value="379"/>
     </include>
 
     <!-- start svo hawk pipeline -->

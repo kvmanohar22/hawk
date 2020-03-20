@@ -11,7 +11,7 @@
     <arg name="camera_name" default="camera_0"/>
     <arg name="camera" default="$(arg camera_name)"/>
     <arg name="frame_id" default="$(arg camera)"/>
-    <arg name="calib_url" default="file://${ROS_HOME}/camera_info/$(arg camera_name).yaml"/>
+    <arg name="calib_url" default="$(find svo_ros)/param/hawk/camera_0.yaml"/>
     <arg name="fps" default="$(arg rate)"/>
 
     <arg name="idpf" default="2"/>

@@ -165,7 +165,8 @@ void Bluefox2::FillCaptureQueue(int &n) const {
 }
 
 void Bluefox2::SetAoi(int &width, int &height) const {
-  // FIXEM: not implemented
+  WriteAndReadProperty(cam_set_->aoiWidth, width);
+  WriteAndReadProperty(cam_set_->aoiHeight, height);
 }
 
 void Bluefox2::SetIdpf(int &idpf) const {

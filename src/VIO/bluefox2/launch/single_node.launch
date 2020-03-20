@@ -28,6 +28,10 @@
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
 
+    <!-- resolution of the camera -->
+    <arg name="width" default="752"/>
+    <arg name="height" default="480"/>
+
     <!-- Trigger mode (ctm): 1=on demand (default), 3=hardware trigger -->     
     <arg name="ctm" default="3"/> 
     <arg name="cts" default="0"/>
@@ -58,6 +62,8 @@
         <param name="hdr" type="bool" value="$(arg hdr)"/>
         <param name="wbp" type="int" value="$(arg wbp)"/>
         <param name="request" type="int" value="$(arg request)"/>
+        <param name="width" type="int" value="$(arg width)"/>
+        <param name="height" type="int" value="$(arg height)"/>
         <param name="mm" type="int" value="$(arg mm)"/>
         <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
     </node>

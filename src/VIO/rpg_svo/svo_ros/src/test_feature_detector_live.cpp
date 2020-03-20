@@ -49,6 +49,8 @@ public:
   svo::feature_detection::FastDetector* fast_detector_;
   bool quit_{false};
   DetectorType detector_type_;
+  size_t width;
+  size_t height;
 
   DetectorRos();
   ~DetectorRos();
@@ -60,10 +62,12 @@ public:
 
 DetectorRos::DetectorRos() :
   quit_(false),
-  detector_type_(DetectorType::FAST)
+  detector_type_(DetectorType::FAST),
+  width(608),
+  height(388)
 {
-  cam_ = new vk::PinholeCamera(752, 480, 0.511496, 0.802603, 0.530199, 0.496011, 0.934092);
-  fast_detector_ = new svo::feature_detection::FastDetector(752, 480, svo::Config::gridSize(), svo::Config::nPyrLevels());
+  cam_ = new vk::PinholeCamera(width, height, 0.511496, 0.802603, 0.530199, 0.496011, 0.934092);
+  fast_detector_ = new svo::feature_detection::FastDetector(width, height, svo::Config::gridSize(), svo::Config::nPyrLevels());
 }
 
 DetectorRos::~DetectorRos() {

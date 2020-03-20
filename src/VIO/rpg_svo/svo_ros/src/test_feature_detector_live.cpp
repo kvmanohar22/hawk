@@ -40,7 +40,6 @@ enum class DetectorType {
   FAST
 };
 
-
 class DetectorRos {
 public:
   vk::AbstractCamera* cam_;

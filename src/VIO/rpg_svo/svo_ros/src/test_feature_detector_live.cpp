@@ -23,6 +23,7 @@
 #include <svo/feature.h>
 #include <vikit/timer.h>
 #include <vikit/vision.h>
+#include <vikit/params_helper.h>
 #include <vikit/abstract_camera.h>
 #include <vikit/pinhole_camera.h>
 
@@ -62,8 +63,8 @@ public:
 DetectorRos::DetectorRos() :
   quit_(false),
   detector_type_(DetectorType::FAST),
-  width(608),
-  height(388)
+  width(752),
+  height(480)
 {
   cam_ = new vk::PinholeCamera(width, height, 0.511496, 0.802603, 0.530199, 0.496011, 0.934092);
   fast_detector_ = new svo::feature_detection::FastDetector(width, height, svo::Config::gridSize(), svo::Config::nPyrLevels());

@@ -55,13 +55,13 @@ int Bluefox2::GetExposeUs() const {
 void Bluefox2::RequestSingle() const {
   int result = DMR_NO_ERROR;
   result = fi_->imageRequestSingle();
-  
+  /*
    if (result != DMR_NO_ERROR) {
     std::cout << serial() << ": Error while requesting image: "
               << ImpactAcquireException::getErrorCodeAsString(result)
               << std::endl;
   }
-  
+  */
 }
 
 void Bluefox2::RequestImages(int n) const {

@@ -6,6 +6,7 @@
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
 - [FAQ](#faq)
+- [What could have gone wrong?](#dig)
 
 <a name="setup"></a>
 ## Setup
@@ -125,3 +126,9 @@ roslaunch bluefox2 single_node.launch
 2. **Issues related to Eigen alignment**
    Read the following article and fix accordingly: [link](https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html)
 
+<a name="dig"></a>
+## What could have gone wrong
+This is a list of things that we are optimistic about and stopped working on this and moved forward. If at any point in the future some part of the pipeline does not run as expected, dig on these first;
+
+1. Camera internal calibration (As the legend says, the frame should be moved and not the camera!)
+2. 

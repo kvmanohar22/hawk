@@ -16,3 +16,9 @@
 10. Aggressive quadcopter planning, estimation and controls: [link](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7762111)
 11. Different control strategies for quadcopter, specifically linear MPC, non-linear MPC and low level PID attitude controller. [https://github.com/ethz-asl/mav_control_rw](https://github.com/ethz-asl/mav_control_rw)
 12. ROS driver for IMU [https://github.com/fsteinhardt/mpu6050_serial_to_imu](https://github.com/fsteinhardt/mpu6050_serial_to_imu)
+
+
+## IMU time synchronization
+1. https://github.com/ethz-asl/time_autosync
+2. https://github.com/ethz-asl/cuckoo_time_translator
+3. https://github.com/ethz-asl/hand_eye_calibration

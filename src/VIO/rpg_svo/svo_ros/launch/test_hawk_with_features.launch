@@ -1,0 +1,12 @@
+<launch>
+    <!-- start camera -->
+    <include file="$(find svo_ros)/launch/test_hawk_pipeline_live_continuous.launch">
+    </include>
+
+    <!-- start camera -->
+    <include file="$(find svo_ros)/launch/test_feature_detector_live.launch">
+    </include>
+
+    <node type="rqt_reconfigure" name="rqt" pkg="rqt_reconfigure"/>
+
+</launch>

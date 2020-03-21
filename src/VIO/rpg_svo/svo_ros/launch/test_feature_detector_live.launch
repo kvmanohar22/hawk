@@ -1,0 +1,14 @@
+<launch>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera_1.yaml"/>
+    <arg name="device" default="26807580"/>
+
+    <!-- start camera -->
+    <include file="$(find bluefox2)/launch/test_continuous_triggering.launch">
+        <arg name="expose_us" value="19000"/>
+        <arg name="device" value="$(arg device)"/>
+    </include>
+
+    <!-- Start feature detector node -->
+    <node pkg="svo_ros" type="feature_detector_live" name="feature_detector_node" output="screen"/>
+
+</launch>

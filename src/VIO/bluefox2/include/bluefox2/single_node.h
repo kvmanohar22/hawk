@@ -49,6 +49,7 @@ class SingleNode : public camera_base::CameraNodeBase<Bluefox2DynConfig> {
   uint32_t nextTriggerCounter;
   int fifoReadPos;
   int fifoWritePos;
+  double offset_from_kalibr_imu_cam_;
 
   void fifoWrite(TriggerPacket_t pkt);
   bool fifoRead(TriggerPacket_t &pkt);

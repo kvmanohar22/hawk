@@ -110,13 +110,11 @@ bool Bluefox2::GrabImage(sensor_msgs::Image &image_msg) {
     encoding = PixelFormatToEncoding(request_->imagePixelFormat.read());
   }
  
-  // ros::Time start_reading=ros::Time::now();
   sensor_msgs::fillImage(image_msg, encoding, request_->imageHeight.read(),
                          request_->imageWidth.read(),
                          request_->imageLinePitch.read(),
                          request_->imageData.read());
 
-  // ROS_INFO_STREAM(">>>>>>>>>>> Filling time = " << (ros::Time::now()-start_reading).toSec()*1e3 << " ms");
   // Release capture request
   fi_->imageRequestUnlock(request_nr);
   return true;
@@ -147,7 +145,6 @@ void Bluefox2::Configure(Bluefox2DynConfig &config) {
   // Dark Current Filter
   SetDcfm(config.dcfm);
   // Pixel Clock
-  ROS_INFO(">>>>>>>>>>>>>>>>>> CPC = %d", config.cpc);
   SetCpc(config.cpc);
   // Trigger Mode
   SetCtm(config.ctm);
@@ -162,14 +159,14 @@ void Bluefox2::Configure(Bluefox2DynConfig &config) {
 
 void Bluefox2::FillCaptureQueue(int &n) const {
   n = std::min<int>(n, fi_->requestCount() - 1);
-  ROS_WARN(">>>>>>>>>>  Request count = %d", n);
   for (int i = 0; i < n; ++i) {
     fi_->imageRequestSingle();
   }
 }
 
 void Bluefox2::SetAoi(int &width, int &height) const {
-  // FIXEM: not implemented
+  WriteAndReadProperty(cam_set_->aoiWidth, width);
+  WriteAndReadProperty(cam_set_->aoiHeight, height);
 }
 
 void Bluefox2::SetIdpf(int &idpf) const {

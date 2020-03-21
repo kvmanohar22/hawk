@@ -9,6 +9,7 @@ This directory holds the results from camera internal calibration and camera-imu
 - `take5`: 
 - `take5`: 
 - `take7`: Cover more area of the pixels. Results are bad (rprojection error).
+- `take8`: Second camera calibration results
 
 - `imu_specs.yaml`: calibrated values from datasheet of hardware (**Incomplete**)
 - `imu_matlab.yaml`: calibration done using matlab

@@ -54,7 +54,6 @@ class CameraNodeBase {
    * reconfiguration and restart acquisition thread
    */
   void ConfigCb(ConfigType& config, int level) {
-    ROS_INFO_STREAM("In Dynamic reconfigure callback");
     if (level < 0) {
       ROS_INFO("%s: %s", pnh().getNamespace().c_str(),
                "Initializing reconfigure server");

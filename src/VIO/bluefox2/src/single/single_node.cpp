@@ -9,7 +9,8 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
       outOfSyncCounter(0),
       nextTriggerCounter(0),
       fifoReadPos(0),
-      fifoWritePos(0)
+      fifoWritePos(0),
+      offset_from_kalibr_imu_cam_(-0.09295256514256349)
 {
   pnh.param("ctm", ctm, 1);
 
@@ -73,6 +74,7 @@ void SingleNode::Acquire() {
   if (ctm == 3) { // hardware triggering
     const auto expose_us = bluefox2_ros_->camera().GetExposeUs();
     const auto expose_duration = ros::Duration(expose_us * 1e-6 / 2);
+    const auto offset_time = ros::Duration(offset_from_kalibr_imu_cam_);
 
     while (is_acquire() && ros::ok()) { // TODO: use a service to safely exit the camera node
       bluefox2_ros_->RequestSingle();
@@ -87,7 +89,7 @@ void SingleNode::Acquire() {
       // check if we need to skip it if one trigger packet was lost
       if (pkt.triggerCounter == nextTriggerCounter) {
         fifoRead(pkt);
-        bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration);
+        bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration - offset_time);
       } else {
          ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
           nextTriggerCounter, pkt.triggerCounter);

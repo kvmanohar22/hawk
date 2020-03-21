@@ -10,7 +10,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
       nextTriggerCounter(0),
       fifoReadPos(0),
       fifoWritePos(0),
-      offset_from_kalibr_imu_cam_(-0.09295256514256349)
+      offset_from_kalibr_imu_cam_(-0.086133891664)
 {
   pnh.param("ctm", ctm, 1);
 

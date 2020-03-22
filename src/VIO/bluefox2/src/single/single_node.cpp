@@ -10,7 +10,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
       nextTriggerCounter(0),
       fifoReadPos(0),
       fifoWritePos(0),
-      offset_from_kalibr_imu_cam_(-0.086133891664)
+      offset_from_kalibr_imu_cam_(-0.08687706081999683)
 {
   pnh.param("ctm", ctm, 1);
 
@@ -89,7 +89,7 @@ void SingleNode::Acquire() {
       // check if we need to skip it if one trigger packet was lost
       if (pkt.triggerCounter == nextTriggerCounter) {
         fifoRead(pkt);
-        bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration - offset_time);
+        bluefox2_ros_->PublishCamera(pkt.triggerTime + expose_duration + offset_time);
       } else {
          ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
           nextTriggerCounter, pkt.triggerCounter);

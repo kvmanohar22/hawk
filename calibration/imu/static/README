@@ -1,0 +1,4 @@
+Calibration can be run with:
+
+kalibr_calibrate_cameras --target april_6x6.yaml --bag static.bag --models pinhole-equi pinhole-equi omni-radtan omni-radtan --topics /cam0/image_raw /cam1/image_raw /cam2/image_raw /cam3/image_raw
+

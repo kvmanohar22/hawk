@@ -1,0 +1,59 @@
+Calibration results
+===================
+Reprojection error squarred (cam0):  mean 3.26307397164, median 1.13624768806, std: 8.05258341741
+Gyro error squarred (imu0):          mean 2687.33673115, median 998.327844674, std: 5754.59040868
+Accelerometer error squarred (imu0): mean 951.837521899, median 427.021299333, std: 2362.80684663
+
+Transformation (cam0):
+-----------------------
+T_ci:  (imu to cam0): [m]
+[[-0.03472154 -0.99924919  0.01718953  0.01139767]
+ [-0.99927602  0.03497985  0.01496172  0.01443467]
+ [-0.01555178 -0.01665759 -0.9997403  -0.11678815]
+ [ 0.          0.          0.          1.        ]]
+
+T_ic:  (cam0 to imu): [m]
+[[-0.03472154 -0.99927602 -0.01555178  0.0130037 ]
+ [-0.99924919  0.03497985 -0.01665759  0.00893878]
+ [ 0.01718953  0.01496172 -0.9997403  -0.11716971]
+ [ 0.          0.          0.          1.        ]]
+
+timeshift cam0 to imu0: [s] (t_imu = t_cam + shift)
+-0.0814778075871
+
+
+Gravity vector in target coords: : [m/s^2]
+[ 0.13101272 -9.80880034 -0.07982213]
+
+
+Calibration configuration
+=========================
+
+cam0
+-----
+  Camera model: pinhole
+  Focal length: [415.7382901125151, 418.2875521834683]
+  Principal point: [373.9429341343477, 240.2235159864951]
+  Distortion model: radtan
+  Distortion coefficients: [-0.28467288972458066, 0.06749119554802169, -1.4817208802857373e-05, 4.2065092976800905e-05]
+  Type: aprilgrid
+  Tags: 
+    Rows: 6
+    Cols: 6
+    Size: 0.088 [m]
+    Spacing 0.0264 [m]
+
+
+
+IMU configuration
+=================
+
+  Update rate: 200
+  Accelerometer:
+    Noise density: 0.000122565175406 
+    Noise density (discrete): 0.00173333333333 
+    Random walk: 9.77774057698e-06
+  Gyroscope:
+    Noise density: 5.60278415096e-06
+    Noise density (discrete): 7.92353333333e-05 
+    Random walk: 6.71117403047e-09

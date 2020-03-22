@@ -2,9 +2,12 @@
     <!-- TODO: Set this parameter -->
     <arg name="bag_path" default=""/>
     <arg name="start" default="0"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera_1.yaml"/>
 
     <!-- start svo hawk pipeline -->
-    <include file="$(find svo_ros)/launch/load_svo.launch"/>
+    <include file="$(find svo_ros)/launch/load_svo.launch">
+        <arg name="calibration" value="$(arg calibration)"/>
+    </include>
 
     <!-- start rviz -->
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />

@@ -1,9 +1,11 @@
 <launch>
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera_0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera_1.yaml"/>
+    <arg name="device" default="26807580"/>
 
     <!-- start camera -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering.launch">
         <arg name="expose_us" value="379"/>
+        <arg name="device" value="$(arg device)"/>
     </include>
 
     <!-- start svo hawk pipeline -->

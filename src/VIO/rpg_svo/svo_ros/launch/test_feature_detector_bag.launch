@@ -2,9 +2,10 @@
     <!-- path to bag file (absolute) -->
     <arg name="bag_path" default=""/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+    <arg name="start" default="0"/>
 
     <!-- start rosbag -->
-    <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)" output="screen"/>
+    <node pkg="rosbag" type="play" name="player" args="$(arg bag_path) --start=$(arg start)" output="screen"/>
 
     <!-- Start feature detector node -->
     <node pkg="svo_ros" type="feature_detector_live" name="feature_detector_node" output="screen"/>

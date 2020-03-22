@@ -130,5 +130,9 @@ roslaunch bluefox2 single_node.launch
 ## What could have gone wrong
 This is a list of things that we are optimistic about and stopped working on this and moved forward. If at any point in the future some part of the pipeline does not run as expected, dig on these first;
 
-1. Camera internal calibration (As the legend says, the frame should be moved and not the camera!)
-2. 
+1. [2020/03/21] Camera internal calibration (As the legend says, the frame should be moved and not the camera!)
+2. [2020/03/22] Camera-IMU calibration
+  - We are stopping with IMU noise parameters analysis (white noise and bias) along with camera-imu external calibration here.
+  - Validation of imu noise is not done. The results from matlab have been used.
+  - Further the noise parameters are not multiplied by any factor such as 10 or 100. Although this was advised to be done.
+  - There is an offset in time synchronization and this seems quite unlikely given we are doing hardware triggering. What could have gone wrong here?

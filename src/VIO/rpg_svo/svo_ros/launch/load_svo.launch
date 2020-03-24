@@ -3,7 +3,7 @@
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
 
-    <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen">
+    <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- Camera topic to subscribe to -->
         <param name="cam_topic" value="$(arg image_topic)" type="str" />
 

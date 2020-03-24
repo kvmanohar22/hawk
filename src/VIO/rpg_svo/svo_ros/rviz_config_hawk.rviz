@@ -71,15 +71,16 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /svo/keyframes
+      Marker Topic: /hawk/svo/keyframes
       Name: Marker
       Namespaces:
         cams: true
+        trajectory: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /svo/points
+      Marker Topic: /hawk/svo/points
       Name: Marker
       Namespaces:
         trajectory: true
@@ -87,7 +88,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /svo/image
+      Image Topic: /hawk/svo/image
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -137,10 +138,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.125203997
+      Pitch: 0.435204118
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.45214987
+      Yaw: 4.10214806
     Saved: ~
 Window Geometry:
   Displays:

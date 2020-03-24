@@ -27,7 +27,7 @@ T getParam(const std::string& name, const T& defaultValue)
   T v;
   if(ros::param::get(name, v))
   {
-    ROS_INFO_STREAM("Found parameter: " << name << ", value: " << v);
+    ROS_INFO_STREAM("Found parameter: " << name);
     return v;
   }
   else
@@ -41,7 +41,7 @@ T getParam(const std::string& name)
   T v;
   if(ros::param::get(name, v))
   {
-    ROS_INFO_STREAM("Found parameter: " << name << ", value: " << v);
+    ROS_INFO_STREAM("Found parameter: " << name);
     return v;
   }
   else

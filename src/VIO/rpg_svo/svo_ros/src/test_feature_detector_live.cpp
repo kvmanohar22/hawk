@@ -26,6 +26,7 @@
 #include <vikit/params_helper.h>
 #include <vikit/abstract_camera.h>
 #include <vikit/pinhole_camera.h>
+#include <vikit/camera_loader.h>
 
 #include <image_transport/image_transport.h>
 #include <boost/thread.hpp>
@@ -63,10 +64,14 @@ public:
 DetectorRos::DetectorRos() :
   quit_(false),
   detector_type_(DetectorType::FAST),
-  width(752),
-  height(480)
+  width(0),
+  height(0)
 {
-  cam_ = new vk::PinholeCamera(width, height, 0.511496, 0.802603, 0.530199, 0.496011, 0.934092);
+  if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
+    throw std::runtime_error("Camera model not correctly specified.");
+  width = cam_->width();
+  height = cam_->height();
+
   fast_detector_ = new svo::feature_detection::FastDetector(width, height, svo::Config::gridSize(), svo::Config::nPyrLevels());
 }
 
@@ -125,7 +130,7 @@ int main(int argc, char **argv) {
   DetectorRos detector_node;
 
   // subscribe to cam msgs
-  std::string cam_topic("/hawk/camera_0/image_raw");
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/image_topic"));
   image_transport::ImageTransport it(nh);
   image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &::DetectorRos::img_cb, &detector_node);
 

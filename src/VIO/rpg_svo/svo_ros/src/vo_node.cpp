@@ -69,7 +69,7 @@ VoNode::VoNode() :
     user_input_thread_ = boost::make_shared<vk::UserInputThread>();
 
   // Create Camera
-  if(!vk::camera_loader::loadFromRosNs("svo", cam_))
+  if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
     throw std::runtime_error("Camera model not correctly specified.");
 
   // Get initial position and orientation

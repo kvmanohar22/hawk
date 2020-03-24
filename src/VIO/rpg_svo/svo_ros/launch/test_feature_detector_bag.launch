@@ -3,11 +3,15 @@
     <arg name="bag_path" default=""/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="start" default="0"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
 
     <!-- start rosbag -->
     <node pkg="rosbag" type="play" name="player" args="$(arg bag_path) --start=$(arg start)" output="screen"/>
 
     <!-- Start feature detector node -->
-    <node pkg="svo_ros" type="feature_detector_live" name="feature_detector_node" output="screen"/>
+    <node pkg="svo_ros" type="feature_detector_live" name="svo" output="screen" ns="hawk">
+      <rosparam file="$(arg calibration)"/>
+      <param name="image_topic" value="$(arg image_topic)" type="str"/>
+    </node>
 
 </launch>

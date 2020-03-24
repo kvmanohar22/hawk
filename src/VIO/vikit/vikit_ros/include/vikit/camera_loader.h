@@ -60,6 +60,50 @@ bool loadFromRosNs(const std::string& ns, vk::AbstractCamera*& cam)
   return res;
 }
 
+/// Load from ROS Namespace
+bool loadFromRosNs(const std::string& ns,
+  const std::string& cam_id,
+  vk::AbstractCamera*& cam)
+{
+  bool res = true;
+  const std::string base="/hawk/"+ns+"/"+cam_id+"/";
+  std::string cam_model(getParam<std::string>(base+"camera_model"));
+  if(cam_model == "Pinhole" || cam_model == "pinhole")
+  {
+    vector<double> distortion_coeffs = getParam<vector<double>>(base+"distortion_coeffs");
+    vector<double> intrinsics = getParam<vector<double>>(base+"intrinsics");
+    vector<int> resolution = getParam<vector<int>>(base+"resolution");
+    std::string distortion_model = getParam<std::string>(base+"distortion_model");
+
+    // TODO: Handle `equidistant` distortion model
+    // Currently only supports `radtan`
+    if (distortion_model != "radtan") {
+      throw std::runtime_error("Only radtan distortion model is supported!");
+      cam = NULL;
+      res = false;
+      return res;
+    }
+
+    cam = new vk::PinholeCamera(
+        resolution[0],
+        resolution[1],
+        intrinsics[0],
+        intrinsics[1],
+        intrinsics[2],
+        intrinsics[3],
+        distortion_coeffs[0],
+        distortion_coeffs[1],
+        distortion_coeffs[2],
+        distortion_coeffs[3]);
+  }
+  else
+  {
+    cam = NULL;
+    res = false;
+  }
+  return res;
+}
+
 } // namespace camera_loader
 } // namespace vk
 

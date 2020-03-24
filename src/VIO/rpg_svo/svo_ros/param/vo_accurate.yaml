@@ -2,3 +2,5 @@ grid_size: 20
 max_n_kfs: 50
 loba_num_iter: 10
 max_fts: 200
+triang_min_corner_score: 20.0
+quality_max_drop_fts: 40

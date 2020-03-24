@@ -58,14 +58,14 @@ public:
 
 VoNode::VoNode() :
   vo_(NULL),
-  publish_markers_(vk::getParam<bool>("svo/publish_markers", true)),
-  publish_dense_input_(vk::getParam<bool>("svo/publish_dense_input", false)),
+  publish_markers_(vk::getParam<bool>("/hawk/svo/publish_markers", true)),
+  publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", false)),
   remote_input_(""),
   cam_(NULL),
   quit_(false)
 {
   // Start user input thread in parallel thread that listens to console keys
-  if(vk::getParam<bool>("svo/accept_console_user_input", true))
+  if(vk::getParam<bool>("/hawk/svo/accept_console_user_input", true))
     user_input_thread_ = boost::make_shared<vk::UserInputThread>();
 
   // Create Camera
@@ -74,12 +74,12 @@ VoNode::VoNode() :
 
   // Get initial position and orientation
   visualizer_.T_world_from_vision_ = Sophus::SE3(
-      vk::rpy2dcm(Vector3d(vk::getParam<double>("svo/init_rx", 0.0),
-                           vk::getParam<double>("svo/init_ry", 0.0),
-                           vk::getParam<double>("svo/init_rz", 0.0))),
-      Eigen::Vector3d(vk::getParam<double>("svo/init_tx", 0.0),
-                      vk::getParam<double>("svo/init_ty", 0.0),
-                      vk::getParam<double>("svo/init_tz", 0.0)));
+      vk::rpy2dcm(Vector3d(vk::getParam<double>("/hawk/svo/init_rx", 0.0),
+                           vk::getParam<double>("/hawk/svo/init_ry", 0.0),
+                           vk::getParam<double>("/hawk/svo/init_rz", 0.0))),
+      Eigen::Vector3d(vk::getParam<double>("/hawk/svo/init_tx", 0.0),
+                      vk::getParam<double>("/hawk/svo/init_ty", 0.0),
+                      vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
 
   // Init VO and start
   vo_ = new svo::FrameHandlerMono(cam_);
@@ -102,6 +102,16 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
+
+  // WARNING: Use this with caution
+  uint8_t *data = (uint8_t*)img.data;
+  for(int i=0; i<img.rows;++i) {
+    for (int j=0; j<img.cols;++j) {
+      data[i*img.cols+j] *= 2;
+    }
+  }
+
+
   processUserActions();
   vo_->addImage(img, msg->header.stamp.toSec());
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
@@ -161,12 +171,12 @@ int main(int argc, char **argv)
   svo::VoNode vo_node;
 
   // subscribe to cam msgs
-  std::string cam_topic(vk::getParam<std::string>("svo/cam_topic", "camera/image_raw"));
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
   image_transport::ImageTransport it(nh);
   image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &svo::VoNode::imgCb, &vo_node);
 
   // subscribe to remote input
-  vo_node.sub_remote_key_ = nh.subscribe("svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
+  vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)

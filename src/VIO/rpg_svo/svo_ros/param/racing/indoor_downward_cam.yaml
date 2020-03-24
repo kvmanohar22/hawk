@@ -3,7 +3,7 @@ cam0:
   camera_model: pinhole
   distortion_coeffs: [-6.545154718304953e-06, -0.010379525898159981, 0.014935312423953146,
     -0.005639061406567785]
-  distortion_model: radtan
+  distortion_model: equidistant
   intrinsics: [275.46015578667294, 274.9948095922592, 315.958384100568, 242.7123497822731]
   resolution: [640, 480]
   rostopic: /snappy_cam/stereo_l

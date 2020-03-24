@@ -147,4 +147,5 @@ This is a list of things that we are optimistic about and stopped working on thi
   - ~~Further the noise parameters are not multiplied by any factor such as 10 or 100. Although this was advised to be done.~~ Good results were obtained. Checkout `calibration/imu` directory.
   - There is an offset in time synchronization and this seems quite unlikely given we are doing hardware triggering. What could have gone wrong here?
   - Looks like the above could be caused by setting `hdr=true`. Validate this.
+  - Use timeoffset-padding in calibrating camera-imu?
 - In continuous triggering, `rate.sleep()` looses some frames regularly. What is the correct way to implement this?

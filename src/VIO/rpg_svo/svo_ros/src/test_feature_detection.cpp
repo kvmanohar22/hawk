@@ -111,9 +111,7 @@ void DetectorRos::overlay_features(cv::Mat img, const svo::Features& fts) {
   cv::Mat img_rgb = cv::Mat(img.size(), CV_8UC3);
   cv::cvtColor(img, img_rgb, cv::COLOR_GRAY2RGB);
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
-    // cv::circle(img_rgb, cv::Point2f(i->px[0], i->px[1]), 4*(i->level+1), cv::Scalar(0,255,0), 1);
-    // cv::circle(img_rgb, cv::Point2f(i->px[0], i->px[1]), 4, cv::Scalar(0,255,0), 1);
-      cv::rectangle(img_rgb, cv::Point2f(i->px[0]-2, i->px[1]-2), cv::Point2f(i->px[0]+2, i->px[1]+2), cv::Scalar(0,255,0), cv::FILLED);
+    cv::rectangle(img_rgb, cv::Point2f(i->px[0]-2, i->px[1]-2), cv::Point2f(i->px[0]+2, i->px[1]+2), cv::Scalar(0,255,0), cv::FILLED);
   });
   cv::imshow("ref_img", img_rgb);
   cv::waitKey(1);

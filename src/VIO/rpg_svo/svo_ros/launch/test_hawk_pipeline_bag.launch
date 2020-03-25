@@ -7,8 +7,8 @@
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch">
-        <arg name="calibration" value="$(arg calibration)"/>
-        <arg name="image_topic" value="$(arg image_topic)"/>
+      <arg name="calibration" value="$(arg calibration)"/>
+      <arg name="image_topic" value="$(arg image_topic)"/>
     </include>
 
     <!-- start rviz -->

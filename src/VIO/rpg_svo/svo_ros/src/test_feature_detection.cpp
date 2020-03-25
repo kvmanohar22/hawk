@@ -88,6 +88,7 @@ void DetectorRos::img_cb(const sensor_msgs::ImageConstPtr& msg) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
 
+/*
   // WARNING: Use this with caution
   uint8_t *data = (uint8_t*)img.data;
   for(int i=0; i<img.rows;++i) {
@@ -95,6 +96,7 @@ void DetectorRos::img_cb(const sensor_msgs::ImageConstPtr& msg) {
       data[i*img.cols+j] *= 2;
     }
   }
+*/
 
   // detect features
   detect_features(img);

@@ -1,14 +1,20 @@
 <launch>
+    <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="device" default="26807580"/>
+    <arg name="expose_us" default="10000"/>
 
     <!-- start camera -->
     <include file="$(find bluefox2)/launch/test_continuous_triggering.launch">
-        <arg name="expose_us" value="19000"/>
-        <arg name="device" value="$(arg device)"/>
+      <arg name="expose_us" value="$(arg expose_us)"/>
+      <arg name="device" value="$(arg device)"/>
     </include>
 
     <!-- Start feature detector node -->
-    <node pkg="svo_ros" type="feature_detector_live" name="feature_detector_node" output="screen"/>
+    <node pkg="svo_ros" type="feature_detection" name="svo" output="screen" ns="hawk">
+      <rosparam file="$(arg calibration)"/>
+      <param name="image_topic" value="$(arg image_topic)" type="str"/>
+      <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
+    </node>
 
 </launch>

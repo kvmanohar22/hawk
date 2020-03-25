@@ -15,6 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
+#include <fstream>
 #include <vikit/math_utils.h>
 #include <vikit/abstract_camera.h>
 #include <vikit/vision.h>
@@ -129,6 +130,11 @@ void DepthFilter::initializeSeeds(FramePtr frame)
   if(options_.verbose)
     SVO_INFO_STREAM("DepthFilter: Initialized "<<new_features.size()<<" new seeds");
   seeds_updating_halt_ = false;
+
+#ifdef SVO_ANALYSIS
+  std::ofstream f("/tmp/depth_filter.log", std::ios::app);
+  f << frame->frame_counter_ << " " << frame->fts_.size() << " " << new_features.size() << std::endl;
+#endif
 }
 
 void DepthFilter::removeKeyframe(FramePtr frame)

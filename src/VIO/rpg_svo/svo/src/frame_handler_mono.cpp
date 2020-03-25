@@ -84,6 +84,16 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
+
+#ifdef SVO_ANALYSIS
+  size_t null_points=0;
+  for(Features::iterator it=last_frame_->fts_.begin(); it!=last_frame_->fts_.end(); ++it)
+  {
+    if((*it)->point == NULL)
+      ++null_points;
+  }
+  std::cout << "#Null points = " << null_points << std::endl;
+#endif
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
 }

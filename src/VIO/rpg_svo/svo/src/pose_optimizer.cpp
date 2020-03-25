@@ -128,10 +128,12 @@ void optimizeGaussNewton(
   // Remove Measurements with too large reprojection error
   double reproj_thresh_scaled = reproj_thresh / frame->cam_->errorMultiplier2();
   size_t n_deleted_refs = 0;
-  for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
+  for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end();)
   {
-    if((*it)->point == NULL)
+    if((*it)->point == NULL) {
+      ++it;
       continue;
+    }
     Vector2d e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_);
     double sqrt_inv_cov = 1.0 / (1<<(*it)->level);
     e *= sqrt_inv_cov;
@@ -141,7 +143,10 @@ void optimizeGaussNewton(
       // we don't need to delete a reference in the point since it was not created yet
       (*it)->point = NULL;
       ++n_deleted_refs;
+      it = frame->fts_.erase(it);
+      continue;
     }
+    ++it;
   }
 
   error_init=0.0;

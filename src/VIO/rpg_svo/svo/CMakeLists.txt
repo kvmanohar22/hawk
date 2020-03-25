@@ -5,6 +5,7 @@ SET(TRACE TRUE)
 SET(HAVE_G2O FALSE) 
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
+SET(SVO_ANALYSIS TRUE) # Writes log data that can be analyzed. Disable this in Release mode
 
 ################################################################################
 
@@ -27,6 +28,9 @@ IF(USE_ROS)
 ENDIF()
 IF(DEBUG_OUTPUT)
   ADD_DEFINITIONS(-DSVO_DEBUG_OUTPUT)
+ENDIF()
+IF(SVO_ANALYSIS)
+  ADD_DEFINITIONS(-DSVO_ANALYSIS)
 ENDIF()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid

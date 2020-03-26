@@ -133,7 +133,7 @@ void DepthFilter::initializeSeeds(FramePtr frame)
 
 #ifdef SVO_ANALYSIS
   std::ofstream f("/tmp/depth_filter.log", std::ios::app);
-  f << frame->frame_counter_ << " " << frame->fts_.size() << " " << new_features.size() << std::endl;
+  f << frame->id_ << " " << frame->fts_.size() << " " << new_features.size() << std::endl;
 #endif
 }
 

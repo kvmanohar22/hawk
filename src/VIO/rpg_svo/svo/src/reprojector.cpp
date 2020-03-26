@@ -79,6 +79,7 @@ void Reprojector::reprojectMap(
   // Reproject all mappoints of the closest N kfs with overlap. We only store
   // in which grid cell the points fall.
   size_t n = 0;
+  size_t tot_mapoints=0;
   overlap_kfs.reserve(options_.max_n_kfs);
   for(auto it_frame=close_kfs.begin(), ite_frame=close_kfs.end();
       it_frame!=ite_frame && n<options_.max_n_kfs; ++it_frame, ++n)
@@ -98,12 +99,15 @@ void Reprojector::reprojectMap(
       if((*it_ftr)->point->last_projected_kf_id_ == frame->id_)
         continue;
       (*it_ftr)->point->last_projected_kf_id_ = frame->id_;
-      if(reprojectPoint(frame, (*it_ftr)->point))
+      if(reprojectPoint(frame, (*it_ftr)->point)) {
         overlap_kfs.back().second++;
+        ++tot_mapoints;
+      }
     }
   }
   SVO_STOP_TIMER("reproject_kfs");
 
+  size_t n_candidates=0;
   // Now project all point candidates
   SVO_START_TIMER("reproject_candidates");
   {
@@ -121,6 +125,7 @@ void Reprojector::reprojectMap(
           continue;
         }
       }
+      ++n_candidates;
       ++it;
     }
   } // unlock the mutex when out of scope
@@ -139,6 +144,12 @@ void Reprojector::reprojectMap(
       break;
   }
   SVO_STOP_TIMER("feature_align");
+
+#ifdef SVO_ANALYSIS
+  std::ofstream f("/tmp/svo.log2", std::ios::app);
+  f << "map=" << tot_mapoints << " candidates=" << n_candidates << " " << "total=" << tot_mapoints+n_candidates << " ";
+  f.close();
+#endif
 }
 
 bool Reprojector::pointQualityComparator(Candidate& lhs, Candidate& rhs)

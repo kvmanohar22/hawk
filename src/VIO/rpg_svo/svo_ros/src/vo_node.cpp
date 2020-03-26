@@ -59,7 +59,7 @@ public:
 VoNode::VoNode() :
   vo_(NULL),
   publish_markers_(vk::getParam<bool>("/hawk/svo/publish_markers", true)),
-  publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", false)),
+  publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", true)),
   remote_input_(""),
   cam_(NULL),
   quit_(false)
@@ -102,7 +102,6 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
-
 
   // WARNING: Use this with caution
   uint8_t *data = (uint8_t*)img.data;

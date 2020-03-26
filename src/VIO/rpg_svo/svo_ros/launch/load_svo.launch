@@ -17,6 +17,10 @@
         <param name="init_rx" value="3.14" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
+
+        <!-- Visualization -->
+        <param name="publish_markers" value="true"/>
+        <param name="publish_dense_input" value="true"/>
     </node>
 
 </launch>

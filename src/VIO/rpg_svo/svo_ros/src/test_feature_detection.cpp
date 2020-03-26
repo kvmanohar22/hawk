@@ -33,13 +33,18 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 namespace {
 
 using namespace Eigen;
 using namespace std;
 
 enum class DetectorType {
-  FAST
+  FAST,
+  ORB
 };
 
 class DetectorRos {
@@ -47,7 +52,11 @@ public:
   vk::AbstractCamera* cam_;
   svo::FramePtr frame_;
   svo::Features fts_;
+
+  // feature detectors
   svo::feature_detection::FastDetector* fast_detector_;
+  cv::Ptr<cv::FeatureDetector> orb_detector_;
+
   bool quit_{false};
   DetectorType detector_type_;
   size_t width;
@@ -63,7 +72,7 @@ public:
 
 DetectorRos::DetectorRos() :
   quit_(false),
-  detector_type_(DetectorType::FAST),
+  detector_type_(DetectorType::ORB),
   width(0),
   height(0)
 {
@@ -73,6 +82,7 @@ DetectorRos::DetectorRos() :
   height = cam_->height();
 
   fast_detector_ = new svo::feature_detection::FastDetector(width, height, svo::Config::gridSize(), svo::Config::nPyrLevels());
+  orb_detector_ = cv::ORB::create(1000, 1.2f, 3);
 }
 
 DetectorRos::~DetectorRos() {
@@ -105,10 +115,17 @@ void DetectorRos::img_cb(const sensor_msgs::ImageConstPtr& msg) {
 void DetectorRos::detect_features(cv::Mat img) {
   frame_.reset(new svo::Frame(cam_, img, 0.0));
   fts_.clear();
+  std::vector<cv::KeyPoint> keypoints;
 
   switch(detector_type_) {
     case DetectorType::FAST:
       fast_detector_->detect(frame_.get(), frame_->img_pyr_, svo::Config::triangMinCornerScore(), fts_);
+      break;
+    case DetectorType::ORB:
+      orb_detector_->detect(img, keypoints);
+      std::for_each(keypoints.begin(), keypoints.end(), [&](cv::KeyPoint kpt){
+        fts_.push_back(new svo::Feature(frame_.get(), Vector2d(kpt.pt.x, kpt.pt.y), 0.0));
+      });
       break;
     default:
       ROS_ERROR_STREAM("No such feature type");

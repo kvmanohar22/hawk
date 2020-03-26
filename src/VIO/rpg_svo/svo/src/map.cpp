@@ -40,6 +40,14 @@ void Map::reset()
 
 bool Map::safeDeleteFrame(FramePtr frame)
 {
+#ifdef SVO_ANALYSIS
+  std::ofstream f("/tmp/svo.log3", std::ios::app);
+  f << "id=" << frame->id_ << " "
+    << "init=" << frame->n_new_filters_init_ << " "
+    << "converged=" << frame->n_filters_converged_
+    << std::endl;
+#endif
+
   bool found = false;
   for(auto it=keyframes_.begin(), ite=keyframes_.end(); it!=ite; ++it)
   {

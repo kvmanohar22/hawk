@@ -35,7 +35,9 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     cam_(cam),
     key_pts_(5),
     is_keyframe_(false),
-    v_kf_(NULL)
+    v_kf_(NULL),
+    n_new_filters_init_(0),
+    n_filters_converged_(0)
 {
   initFrame(img);
 }

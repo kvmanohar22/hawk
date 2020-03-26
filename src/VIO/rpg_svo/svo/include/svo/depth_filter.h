@@ -18,6 +18,7 @@
 #define SVO_DEPTH_FILTER_H_
 
 #include <queue>
+#include <unordered_map>
 #include <boost/thread.hpp>
 #include <boost/function.hpp>
 #include <vikit/performance_monitor.h>
@@ -30,6 +31,21 @@ namespace svo {
 class Frame;
 class Feature;
 class Point;
+
+struct SeedConvergence
+{
+  const int kf_id_;
+  const int init_filters_;
+  int converged_filters_;
+  int diverged_filters_;
+  SeedConvergence(int kf_id, int init_filters)
+  : kf_id_(0),
+    init_filters_(init_filters),
+    converged_filters_(0),
+    diverged_filters_(0)
+    {}
+};
+typedef std::shared_ptr<SeedConvergence> SeedConvergencePtr;
 
 /// A seed is a probabilistic depth estimate for a single pixel.
 struct Seed
@@ -150,6 +166,7 @@ protected:
   double new_keyframe_mean_depth_;      //!< Maximum depth in the new keyframe. Used for range in new seeds.
   vk::PerformanceMonitor permon_;       //!< Separate performance monitor since the DepthFilter runs in a parallel thread.
   Matcher matcher_;
+  std::unordered_map<int, SeedConvergencePtr> seed_status_;
 
   /// Initialize new seeds from a frame.
   void initializeSeeds(FramePtr frame);

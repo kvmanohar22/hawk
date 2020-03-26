@@ -54,6 +54,8 @@ public:
   bool                          is_keyframe_;           //!< Was this frames selected as keyframe?
   g2oFrameSE3*                  v_kf_;                  //!< Temporary pointer to the g2o node object of the keyframe.
   int                           last_published_ts_;     //!< Timestamp of last publishing.
+  int                           n_new_filters_init_;    //!< New filters initialized in Depth Filter
+  int                           n_filters_converged_;   //!< How many of the above converged?
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   ~Frame();

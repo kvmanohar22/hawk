@@ -39,8 +39,7 @@ class CameraRosBase {
         cnh_(pnh, prefix),
         it_(cnh_),
         camera_pub_(it_.advertiseCamera("image_raw", 1)),
-        cinfo_mgr_(cnh_, getParam<std::string>(cnh_, "camera_name"),
-                   getParam<std::string>(cnh_, "calib_url")),
+        cinfo_mgr_(cnh_, getParam<std::string>(cnh_, "camera_name")),
         fps_(10.0),
         diagnostic_updater_(pnh_, cnh_),
         topic_diagnostic_(

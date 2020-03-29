@@ -37,6 +37,9 @@ public:
   /// Provide an image.
   void addImage(const cv::Mat& img, double timestamp);
 
+  /// Provide an image.
+  void addImage(const cv::Mat& img, ros::Time ts);
+
   /// Set the first frame (used for synthetic datasets in benchmark node)
   void setFirstFrame(const FramePtr& first_frame);
 

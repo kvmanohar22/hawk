@@ -45,6 +45,7 @@ public:
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
+  ros::Time                     ros_ts_;                //!< ROS time stamp
   vk::AbstractCamera*           cam_;                   //!< Camera model.
   Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
@@ -58,6 +59,7 @@ public:
   int                           n_filters_converged_;   //!< How many of the above converged?
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
+  Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts);
   ~Frame();
 
   /// Initialize new frame and create image pyramid.

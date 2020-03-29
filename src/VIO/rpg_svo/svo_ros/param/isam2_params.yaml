@@ -1,0 +1,8 @@
+# Number of iterations to run whenever the graph is updated with new measurements
+# Note that with increase in this, more time will be consumed
+isam2_n_iters: 5
+
+# The kind of factor to represent preintegrated IMU data
+# 0: IMUFactor (bias is set as constant and not estimated)
+# 1: CombinedIMUFactor (bias is estimated as well)
+isam2_imu_factor_type: 1

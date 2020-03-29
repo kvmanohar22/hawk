@@ -3,6 +3,7 @@ devel/**
 logs/**
 .catkin_workspace
 src/offboard/compile_commands.json
+src/VIO/rpg_svo/svo/compile_commands.json
 scripts/frames*
 misc/**
 .catkin_tools

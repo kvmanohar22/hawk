@@ -2,16 +2,23 @@
 
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+    <arg name="imu_topic" default="/mavros/imu/data_raw"/>
 
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- Camera topic to subscribe to -->
         <param name="cam_topic" value="$(arg image_topic)" type="str" />
+
+        <!-- Camera topic to subscribe to -->
+        <param name="imu_topic" value="$(arg imu_topic)" type="str" />
 
         <!-- Camera calibration file -->
         <rosparam file="$(arg calibration)"/>
 
         <!-- Default parameter settings: choose between vo_fast and vo_accurate -->
         <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
+
+        <!-- Load imu preintegration params -->
+        <rosparam file="$(find svo_ros)/param/isam2_params.yaml" />
 
         <!-- Initial camera orientation, make it point downwards -->
         <param name="init_rx" value="3.14" />

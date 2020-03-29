@@ -51,7 +51,11 @@ Config::Config() :
     img_imu_delay(vk::getParam<double>("/hawk/svo/img_imu_delay", 0.0)),
     max_fts(vk::getParam<int>("/hawk/svo/max_fts", 120)),
     quality_min_fts(vk::getParam<int>("/hawk/svo/quality_min_fts", 50)),
-    quality_max_drop_fts(vk::getParam<int>("/hawk/svo/quality_max_drop_fts", 40))
+    quality_max_drop_fts(vk::getParam<int>("/hawk/svo/quality_max_drop_fts", 40)),
+
+    // isam2 specific parameters
+    isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
+    isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1))
 #else
     trace_name("svo"),
     trace_dir("/tmp"),

@@ -119,6 +119,12 @@ public:
   /// If within one frame, this amount of features are dropped. Tracking quality is bad.
   static int& qualityMaxFtsDrop() { return getInstance().quality_max_drop_fts; }
 
+  /// Number of iterations to optimize
+  static int& isam2NumIters() { return getInstance().isam2_n_iters; }
+
+  /// The type of IMU factor to use
+  static int& isam2IMUFactorType() { return getInstance().isam2_imu_factor_type; }
+
 private:
   Config();
   Config(Config const&);
@@ -152,6 +158,10 @@ private:
   size_t max_fts;
   size_t quality_min_fts;
   int quality_max_drop_fts;
+
+  // params specific to isam2
+  int isam2_n_iters;
+  int isam2_imu_factor_type;
 };
 
 } // namespace svo

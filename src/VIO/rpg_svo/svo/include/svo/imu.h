@@ -13,7 +13,7 @@
 
 namespace svo {
 
-static Vector3d geoVector2EigenVector(const geometry_msgs::Vector3& msg)
+inline static Vector3d geoVector2EigenVector(const geometry_msgs::Vector3& msg)
 {
   return Vector3d(msg.x, msg.y, msg.z);
 }
@@ -71,6 +71,7 @@ public:
   inline void pop() { stream_.pop(); }
 
 };
+typedef boost::shared_ptr<ImuContainer> ImuContainerPtr;
 
 } // namespace svo
 

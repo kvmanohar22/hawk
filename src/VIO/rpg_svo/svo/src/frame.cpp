@@ -44,7 +44,7 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
 
 Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts) :
     id_(frame_counter_++),
-    ros_ts_(timestamp),
+    ros_ts_(ts),
     cam_(cam),
     key_pts_(5),
     is_keyframe_(false),

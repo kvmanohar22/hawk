@@ -24,6 +24,7 @@
 #include <svo/sparse_img_align.h>
 #include <vikit/performance_monitor.h>
 #include <svo/depth_filter.h>
+#include <boost/thread.hpp>
 #ifdef USE_BUNDLE_ADJUSTMENT
 #include <svo/bundle_adjustment.h>
 #endif
@@ -34,7 +35,8 @@ FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
   FrameHandlerBase(),
   cam_(cam),
   reprojector_(cam_, map_),
-  depth_filter_(NULL)
+  depth_filter_(NULL),
+  inertial_estimator_(nullptr)
 {
   initialize();
 }
@@ -46,13 +48,21 @@ void FrameHandlerMono::initialize()
           cam_->width(), cam_->height(), Config::gridSize(), Config::nPyrLevels()));
   DepthFilter::callback_t depth_filter_cb = boost::bind(
       &MapPointCandidates::newCandidatePoint, &map_.point_candidates_, _1, _2);
+
+  // Start DepthFilter
   depth_filter_ = new DepthFilter(feature_detector, depth_filter_cb);
   depth_filter_->startThread();
+
+  // Start visual inertial estimator
+  imu_container_ = boost::make_shared<svo::ImuContainer>();
+  inertial_estimator_ = new svo::VisualInertialEstimator(imu_container_); 
+  inertial_estimator_->startThread();
 }
 
 FrameHandlerMono::~FrameHandlerMono()
 {
   delete depth_filter_;
+  delete inertial_estimator_;
 }
 
 void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
@@ -296,6 +306,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
+
+  // add this to graph to update
+  inertial_estimator_->addKeyFrame(new_frame_);
 
   // if limited number of keyframes, remove the one furthest apart
   if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())

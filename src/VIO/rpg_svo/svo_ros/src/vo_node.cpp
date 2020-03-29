@@ -49,7 +49,6 @@ public:
   ros::Subscriber sub_remote_key_;
   std::string remote_input_;
   vk::AbstractCamera* cam_;
-  ImuContainer* imu_container_;
   bool quit_;
   VoNode();
   ~VoNode();
@@ -82,8 +81,6 @@ VoNode::VoNode() :
       Eigen::Vector3d(vk::getParam<double>("/hawk/svo/init_tx", 0.0),
                       vk::getParam<double>("/hawk/svo/init_ty", 0.0),
                       vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
-  // create imu container
-  imu_container_ = new ImuContainer();
 
   // Init VO and start
   vo_ = new svo::FrameHandlerMono(cam_);
@@ -181,7 +178,7 @@ int main(int argc, char **argv)
 
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
-  ros::Subscriber imu_subscriber_ = nh.subscribe(imu_topic, 100, &svo::ImuContainer::imu_cb, vo_node.imu_container_);
+  ros::Subscriber imu_subscriber_ = nh.subscribe(imu_topic, 100, &svo::ImuContainer::imu_cb, vo_node.vo_->ImuContainer());
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)

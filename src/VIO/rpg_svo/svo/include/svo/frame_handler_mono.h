@@ -21,7 +21,9 @@
 #include <vikit/abstract_camera.h>
 #include <svo/frame_handler_base.h>
 #include <svo/reprojector.h>
+#include <svo/global.h>
 #include <svo/initialization.h>
+#include <svo/visual_inertial_estimator.h>
 
 namespace svo {
 
@@ -63,6 +65,9 @@ public:
       const cv::Mat& img,
       const double timestamp);
 
+  // IMU container to hold the data
+  inline ImuContainerPtr ImuContainer() { return imu_container_; }
+
 protected:
   vk::AbstractCamera* cam_;                     //!< Camera model, can be ATAN, Pinhole or Ocam (see vikit).
   Reprojector reprojector_;                     //!< Projects points from other keyframes into the current frame
@@ -72,6 +77,8 @@ protected:
   vector< pair<FramePtr,size_t> > overlap_kfs_; //!< All keyframes with overlapping field of view. the paired number specifies how many common mappoints are observed TODO: why vector!?
   initialization::KltHomographyInit klt_homography_init_; //!< Used to estimate pose of the first two keyframes by estimating a homography.
   DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
+  VisualInertialEstimator* inertial_estimator_; //!< Visual Inertial State Estimator
+  ImuContainerPtr imu_container_;               //!< IMU data container
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

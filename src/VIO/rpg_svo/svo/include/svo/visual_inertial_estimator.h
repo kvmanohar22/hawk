@@ -15,7 +15,7 @@ class VisualInertialEstimator
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  VisualInertialEstimator();
+  VisualInertialEstimator(ImuContainerPtr& imu_container);
   virtual ~VisualInertialEstimator();
 
   /// Start this thread to estimate inertial estimates 
@@ -30,11 +30,15 @@ public:
   /// Get IMU data between two keyframes
   ImuStream getImuData(ros::Time& start, ros::Time& end);  
 
+  /// Optimizer in the background
+  void OptimizerLoop();
+
 
 protected:
   boost::thread*      thread_;
-  ImuContainer        imu_container_; //!< interface to IMU data
+  ImuContainerPtr     imu_container_; //!< interface to IMU data
   std::list<FramePtr> keyframes_;
+  bool                new_kf_added_;  //!< New keyframe added?
 
 }; // class VisualInertialEstimator
 

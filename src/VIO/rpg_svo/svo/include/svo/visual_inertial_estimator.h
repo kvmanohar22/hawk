@@ -37,11 +37,13 @@ public:
 protected:
   boost::thread*      thread_;
   ImuContainerPtr     imu_container_; //!< interface to IMU data
-  std::list<FramePtr> keyframes_;
+  std::list<FramePtr> keyframes_;     //!< list of keyframes to optimize
   bool                new_kf_added_;  //!< New keyframe added?
-
+  bool                quit_;          //!< Stop optimizing and quit
+  ImuStream           batch_imu_data_;//!< New batch of IMU data to generate a single factor
 }; // class VisualInertialEstimator
 
 } // namespace svo
 
 #endif // SVO_VISUAL_INERTIAL_ESTIMATOR_H_
+

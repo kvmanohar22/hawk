@@ -10,7 +10,6 @@ ImuData::ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
 }
 
 void ImuContainer::imu_cb(const sensor_msgs::Imu::ConstPtr& msg) {
-  SVO_INFO_STREAM("New imu data TS=" << msg->header.seq); 
   add(boost::make_shared<ImuData>(msg));
 }
 

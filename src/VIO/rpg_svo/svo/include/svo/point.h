@@ -36,7 +36,7 @@ class Point : boost::noncopyable
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+
   enum PointType {
     TYPE_DELETED,
     TYPE_CANDIDATE,
@@ -59,6 +59,9 @@ public:
   int                         n_failed_reproj_;         //!< Number of failed reprojections. Used to assess the quality of the point.
   int                         n_succeeded_reproj_;      //!< Number of succeeded reprojections. Used to assess the quality of the point.
   int                         last_structure_optim_;    //!< Timestamp of last point optimization
+
+  Vector3d                    scaled_pos_;              //!< Scaled position obtained from visual inertial estimator
+  int                         n_scaled_updates_;        //!< Number of times the point was optimized
 
   Point(const Vector3d& pos);
   Point(const Vector3d& pos, Feature* ftr);

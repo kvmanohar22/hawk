@@ -35,7 +35,9 @@ Point::Point(const Vector3d& pos) :
   type_(TYPE_UNKNOWN),
   n_failed_reproj_(0),
   n_succeeded_reproj_(0),
-  last_structure_optim_(0)
+  last_structure_optim_(0),
+  scaled_pos_(pos),
+  n_scaled_updates_(0)
 {}
 
 Point::Point(const Vector3d& pos, Feature* ftr) :
@@ -49,7 +51,9 @@ Point::Point(const Vector3d& pos, Feature* ftr) :
   type_(TYPE_UNKNOWN),
   n_failed_reproj_(0),
   n_succeeded_reproj_(0),
-  last_structure_optim_(0)
+  last_structure_optim_(0),
+  scaled_pos_(pos),
+  n_scaled_updates_(0)
 {
   obs_.push_front(ftr);
 }
@@ -171,6 +175,7 @@ void Point::optimize(const size_t n_iter)
     if(vk::norm_max(dp) <= EPS)
       break;
   }
+  scaled_pos_ = pos_;
 #ifdef POINT_OPTIMIZER_DEBUG
   cout << endl;
 #endif

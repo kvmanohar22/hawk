@@ -6,7 +6,7 @@ SET(HAVE_G2O FALSE)
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_ANALYSIS TRUE) # Writes log data that can be analyzed. Disable this in Release mode
-
+SET(SVO_BUILD_TESTS FALSE) # Enable this to build tests
 ################################################################################
 
 SET(PROJECT_NAME svo)
@@ -56,6 +56,7 @@ FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)
 FIND_PACKAGE(fast REQUIRED)
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system)
+FIND_PACKAGE(GTSAM REQUIRED)
 
 IF(USE_ROS)
   FIND_PACKAGE(catkin REQUIRED COMPONENTS roscpp roslib cmake_modules vikit_common vikit_ros)
@@ -74,11 +75,12 @@ ENDIF()
 # Include dirs
 INCLUDE_DIRECTORIES(
   include
-  ${Eigen3_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${Sophus_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${fast_INCLUDE_DIRS}
+  ${GTSAM_INCLUDE_DIRS}
 )
 
 # Set link libraries
@@ -87,6 +89,7 @@ LIST(APPEND LINK_LIBS
   ${Sophus_LIBRARIES}
   ${Boost_LIBRARIES}
   ${fast_LIBRARIES}
+  gtsam
 )
 
 IF(USE_ROS)
@@ -136,24 +139,25 @@ TARGET_LINK_LIBRARIES(svo ${LINK_LIBS})
 
 ################################################################################
 # TESTS
+IF(SVO_BUILD_TESTS)
+  ADD_EXECUTABLE(test_feature_align test/test_feature_alignment.cpp)
+  TARGET_LINK_LIBRARIES(test_feature_align svo)
 
-ADD_EXECUTABLE(test_feature_align test/test_feature_alignment.cpp)
-TARGET_LINK_LIBRARIES(test_feature_align svo)
+  ADD_EXECUTABLE(test_pipeline test/test_pipeline.cpp)
+  TARGET_LINK_LIBRARIES(test_pipeline svo)
 
-ADD_EXECUTABLE(test_pipeline test/test_pipeline.cpp)
-TARGET_LINK_LIBRARIES(test_pipeline svo)
+  ADD_EXECUTABLE(test_matcher test/test_matcher.cpp)
+  TARGET_LINK_LIBRARIES(test_matcher svo)
 
-ADD_EXECUTABLE(test_matcher test/test_matcher.cpp)
-TARGET_LINK_LIBRARIES(test_matcher svo)
+  ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
+  TARGET_LINK_LIBRARIES(test_feature_detection svo)
 
-ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
-TARGET_LINK_LIBRARIES(test_feature_detection svo)
+  ADD_EXECUTABLE(test_depth_filter test/test_depth_filter.cpp)
+  TARGET_LINK_LIBRARIES(test_depth_filter svo)
 
-ADD_EXECUTABLE(test_depth_filter test/test_depth_filter.cpp)
-TARGET_LINK_LIBRARIES(test_depth_filter svo)
+  ADD_EXECUTABLE(test_sparse_img_align test/test_sparse_img_align.cpp)
+  TARGET_LINK_LIBRARIES(test_sparse_img_align svo)
 
-ADD_EXECUTABLE(test_sparse_img_align test/test_sparse_img_align.cpp)
-TARGET_LINK_LIBRARIES(test_sparse_img_align svo)
-
-ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
-TARGET_LINK_LIBRARIES(test_pose_optimizer svo) 
+  ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
+  TARGET_LINK_LIBRARIES(test_pose_optimizer svo) 
+ENDIF(SVO_BUILD_TESTS)

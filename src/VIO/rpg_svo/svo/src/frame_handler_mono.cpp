@@ -307,7 +307,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
 
-  // add this to graph to update
+  // add this to graph for inertial state estimation
   inertial_estimator_->addKeyFrame(new_frame_);
 
   // if limited number of keyframes, remove the one furthest apart

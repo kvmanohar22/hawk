@@ -14,10 +14,28 @@
 
 #include <vikit/params_helper.h>
 
+#include <sensor_msgs/Imu.h>
+
 #include <svo/global.h>
 #include <svo/imu.h>
 
 namespace svo {
+
+namespace Symbol = gtsam::symbol_shorthand;
+
+/// Assess the current stage of the system
+enum class EstimatorStage {
+  PAUSED,
+  FIRST_KEYFRAME,
+  SECOND_KEYFRAME,
+  DEFAULT_KEYFRAME,
+};
+
+/// Assess the result of estimation
+enum class EstimatorResult {
+  GOOD, // optimization was succesfull
+  BAD   // optimization divrged
+};
 
 /// Noise parameters from specifications
 struct ImuNoiseParams {
@@ -45,13 +63,15 @@ class VisualInertialEstimator
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  typedef gtsam::noiseModel::Diagonal Noise;
   typedef gtsam::noiseModel::Diagonal::shared_ptr NoisePtr;
-  typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Matrix33;
-  typedef Eigen::Matrix<double, 6, 6, Eigen::RowMajor> Matrix66;
   typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
 
   VisualInertialEstimator(ImuContainerPtr& imu_container);
   virtual ~VisualInertialEstimator();
+
+  /// Imu callback
+  void imu_cb(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Start this thread to estimate inertial estimates 
   void startThread();
@@ -68,32 +88,57 @@ public:
   /// Optimizer in the background
   void OptimizerLoop();
 
+  /// initialize prior states (identity) for the first state
+  void initializePrior();
+
+  /// initialize optimization values for the latest keyframe
+  void initializeLatestKF();
+
+  /// Run optimization
+  EstimatorResult runOptimization();
+
+  /// Update the state with optimized values
+  void updateState(const gtsam::Values& result);
+
+  /// Cleanup after a new IMU factor has been added
+  void cleanUp();
+
 protected:
+  // TODO: Need to hold proper reference to keyframes
+  //       These could be deleted in the Motion Estimation thread
+  //       Maybe unordered_map is efficient?
+  EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
   ImuContainerPtr              imu_container_;         //!< interface to IMU data
   std::list<FramePtr>          keyframes_;             //!< list of keyframes to optimize
+  FramePtr                     prev_keyframe_;         //!< Previous keyframe 
+  FramePtr                     curr_keyframe_;         //!< Latest keyframe 
   bool                         new_kf_added_;          //!< New keyframe added?
   bool                         quit_;                  //!< Stop optimizing and quit
   ImuStream                    batch_imu_data_;        //!< Batch of data to generate a factor
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
-  PreintegrationTypePtr        integration_type_;      //!< Integration type
+  PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   gtsam::imuBias::ConstantBias prior_imu_bias_;        //!< prior IMU bias
-  NoisePtr                     pose_noise_model_;      //!< pose noise model
-  NoisePtr                     velocity_noise_model_;  //!< velocity noise model
-  NoisePtr                     bias_noise_model_;      //!< bias noise model
   ImuNoiseParams*              imu_noise_params_;      //!< Noise specifications
+  const double                 dt_;                    //!< IMU sampling rate
 
-  Matrix33                     white_noise_acc_cov_;
-  Matrix33                     white_noise_omg_cov_;
-  Matrix33                     random_walk_acc_cov_;
-  Matrix33                     random_walk_omg_cov_;
-  Matrix33                     integration_error_cov_;
-  Matrix66                     bias_acc_omega_int_;
+  // TODO: Are these matrices row major or col major
+  gtsam::Matrix33              white_noise_acc_cov_;
+  gtsam::Matrix33              white_noise_omg_cov_;
+  gtsam::Matrix33              random_walk_acc_cov_;
+  gtsam::Matrix33              random_walk_omg_cov_;
+  gtsam::Matrix33              integration_error_cov_;
+  gtsam::Matrix66              bias_acc_omega_int_;
 
   boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> params_;
+
+  gtsam::Values                initial_values_;        //!< initial values
+  int                          correction_count_;      //!< used for symbols
+  gtsam::imuBias::ConstantBias curr_imu_bias_;         //!< Used to initialize next keyframes' bias
+
 
 }; // class VisualInertialEstimator
 

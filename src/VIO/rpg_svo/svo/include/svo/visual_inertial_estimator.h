@@ -2,7 +2,6 @@
 #define SVO_VISUAL_INERTIAL_ESTIMATOR_H_
 
 #include <boost/thread.hpp>
-
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/navigation/ImuBias.h>
@@ -11,13 +10,10 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/ISAM2.h>
-
 #include <vikit/params_helper.h>
-
 #include <sensor_msgs/Imu.h>
-
 #include <svo/global.h>
-#include <svo/imu.h>
+#include <svo/config.h>
 
 namespace svo {
 
@@ -67,7 +63,7 @@ public:
   typedef gtsam::noiseModel::Diagonal::shared_ptr NoisePtr;
   typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
 
-  VisualInertialEstimator(ImuContainerPtr& imu_container);
+  VisualInertialEstimator();
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
@@ -81,9 +77,6 @@ public:
 
   /// Add a new keyframe to optimization
   void addKeyFrame(FramePtr keyframe);
-
-  /// Get IMU data between two keyframes
-  ImuStream getImuData(ros::Time& start, ros::Time& end);
 
   /// Optimizer in the background
   void OptimizerLoop();
@@ -103,19 +96,26 @@ public:
   /// Cleanup after a new IMU factor has been added
   void cleanUp();
 
+  /// Integrate a single measurement
+  void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
+
+  /// Integrate a multiple measurement
+  void integrateMultipleMeasurements(const list<sensor_msgs::Imu::ConstPtr>& msgs);
+
+  /// Add a single factor to graph
+  void addSingleFactorToGraph();
+
 protected:
   // TODO: Need to hold proper reference to keyframes
   //       These could be deleted in the Motion Estimation thread
   //       Maybe unordered_map is efficient?
   EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
-  ImuContainerPtr              imu_container_;         //!< interface to IMU data
   std::list<FramePtr>          keyframes_;             //!< list of keyframes to optimize
   FramePtr                     prev_keyframe_;         //!< Previous keyframe 
   FramePtr                     curr_keyframe_;         //!< Latest keyframe 
   bool                         new_kf_added_;          //!< New keyframe added?
   bool                         quit_;                  //!< Stop optimizing and quit
-  ImuStream                    batch_imu_data_;        //!< Batch of data to generate a factor
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
@@ -138,6 +138,10 @@ protected:
   gtsam::Values                initial_values_;        //!< initial values
   int                          correction_count_;      //!< used for symbols
   gtsam::imuBias::ConstantBias curr_imu_bias_;         //!< Used to initialize next keyframes' bias
+  bool                         factor_added_to_graph_; //!< Check for adding imu factor to graph
+  std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;     //!< Need to store some of 'em while optimization is running
+  bool                         optimization_complete_; //!< Is optimization complete?
+  bool                         multiple_int_complete_; //!< Is optimization complete?
 
 
 }; // class VisualInertialEstimator

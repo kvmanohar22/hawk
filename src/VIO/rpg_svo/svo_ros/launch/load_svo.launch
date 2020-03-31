@@ -18,7 +18,10 @@
         <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
 
         <!-- Load imu preintegration params -->
-        <rosparam file="$(find svo_ros)/param/isam2_params.yaml" />
+        <rosparam file="$(find svo_ros)/param/hawk/isam2_params.yaml" />
+
+        <!-- Load imu calibration params -->
+        <rosparam file="$(find svo_ros)/param/hawk/imu.yaml" />
 
         <!-- Initial camera orientation, make it point downwards -->
         <param name="init_rx" value="3.14" />

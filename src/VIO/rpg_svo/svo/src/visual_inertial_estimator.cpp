@@ -3,15 +3,18 @@
 
 namespace svo {
 
-VisualInertialEstimator::VisualInertialEstimator(ImuContainerPtr& imu_container)
+VisualInertialEstimator::VisualInertialEstimator()
   : stage_(EstimatorStage::PAUSED),
     thread_(nullptr),
-    imu_container_(imu_container),
     new_kf_added_(false),
     quit_(false),
     imu_preintegrated_(nullptr),
     imu_noise_params_(nullptr),
-    dt_(vk::getParam<double>("/hawk/svo/isam2_imu_dt"))
+    dt_(Config::dt()),
+    correction_count_(0),
+    factor_added_to_graph_(false),
+    optimization_complete_(false),
+    multiple_int_complete_(false)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
@@ -57,7 +60,39 @@ VisualInertialEstimator::~VisualInertialEstimator()
   stopThread();
   delete imu_noise_params_; 
   delete graph_; 
-  SVO_INFO_STREAM("Visual Inertial Estimator destructed");
+  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator destructed");
+}
+
+void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
+{
+  const geometry_msgs::Vector3 acc = msg->linear_acceleration;
+  const geometry_msgs::Vector3 omg = msg->angular_velocity;
+  imu_preintegrated_->integrateMeasurement(
+      gtsam::Vector3(acc.x, acc.y, acc.z),
+      gtsam::Vector3(omg.x, omg.y, omg.z),
+      dt_);
+}
+
+void VisualInertialEstimator::integrateMultipleMeasurements(const list<sensor_msgs::Imu::ConstPtr>& msgs)
+{
+  for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
+      itr != msgs.end(); ++itr)
+  {
+    integrateSingleMeasurement(*itr);
+  }
+}
+void VisualInertialEstimator::addSingleFactorToGraph()
+{
+  const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
+    dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
+       *imu_preintegrated_);
+
+  gtsam::CombinedImuFactor imu_factor(
+      Symbol::X(correction_count_-1), Symbol::V(correction_count_-1),
+      Symbol::X(correction_count_  ), Symbol::V(correction_count_  ),
+      Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
+      preint_imu_combined);
+  graph_->add(imu_factor);
 }
 
 void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
@@ -65,39 +100,42 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
   if (stage_ == EstimatorStage::PAUSED) { // No KF added, just ignore
     return;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
-    const geometry_msgs::Vector3 acc = msg->linear_acceleration;
-    const geometry_msgs::Vector3 omg = msg->angular_velocity;
-    imu_preintegrated_->integrateMeasurement(
-        gtsam::Vector3(acc.x, acc.y, acc.z),
-        gtsam::Vector3(omg.x, omg.y, omg.z),
-        dt_);
-  } else if (stage_ == EstimatorStage::SECOND_KEYFRAME) { // second KF added, pause integration
-    const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
-      dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
-          *imu_preintegrated_);
-
-    gtsam::CombinedImuFactor imu_factor(
-        Symbol::X(correction_count_-1), Symbol::V(correction_count_-1),
-        Symbol::X(correction_count_  ), Symbol::V(correction_count_  ),
-        Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
-        preint_imu_combined);
-
-    // Add the brand new factor to graph
-    graph_->add(imu_factor);
-  
+    ROS_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
+    integrateSingleMeasurement(msg); 
+  } else if (stage_ == EstimatorStage::SECOND_KEYFRAME) { // new KF added, pause integration
+    ROS_INFO_STREAM_ONCE("[Estimator]: Second keyframe added. Generating IMU factor"); 
+    if (!factor_added_to_graph_) { // First add factor to graph
+      addSingleFactorToGraph();
+      SVO_INFO_STREAM("[Estimator]: Adding new IMU factor to graph");
+      factor_added_to_graph_ = true;
+      imu_msgs_.clear(); 
+    } else { // integrate Imu values for next imu factor
+      if (optimization_complete_) {
+        if (multiple_int_complete_) {
+          integrateSingleMeasurement(msg);
+        } else {
+          imu_msgs_.push_back(msg); 
+          integrateMultipleMeasurements(imu_msgs_);
+          imu_msgs_.clear();
+          multiple_int_complete_ = true;
+        } 
+      } else { // while optimization is going, we store the messages in a list
+        imu_msgs_.push_back(msg);
+      } 
+    } 
     // TODO: Cleanup the integration and start a fresh for the next keyframe 
   }
 }
 
 void VisualInertialEstimator::startThread()
 {
-  SVO_INFO_STREAM("Visual Inertial Estimator start thread invoked"); 
+  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator start thread invoked"); 
   thread_ = new boost::thread(&VisualInertialEstimator::OptimizerLoop, this);
 }
 
 void VisualInertialEstimator::stopThread()
 {
-  SVO_WARN_STREAM("Visual Inertial Estimator stop thread invoked"); 
+  SVO_WARN_STREAM("[Estimator]: Visual Inertial Estimator stop thread invoked"); 
   if(thread_ != nullptr)
   {
     thread_->interrupt();
@@ -108,17 +146,23 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  SVO_INFO_STREAM("[Estimator]: New keyframe added");
-  
   // initialize the to be estimated pose to the scale ambiguous pose
   keyframe->scaled_T_f_w_ = keyframe->T_f_w_;
   new_kf_added_ = true;
 
   if(stage_ == EstimatorStage::PAUSED) {
     curr_keyframe_ = keyframe;
-  } else {
+    stage_ = EstimatorStage::FIRST_KEYFRAME;
+  } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
     prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
+    stage_ = EstimatorStage::SECOND_KEYFRAME;
+  } else if(stage_ == EstimatorStage::SECOND_KEYFRAME) {
+    prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
+    curr_keyframe_ = keyframe;
+    stage_ = EstimatorStage::DEFAULT_KEYFRAME;
+  } else {
+
   }
 }
 
@@ -126,9 +170,6 @@ void VisualInertialEstimator::initializePrior()
 {
   gtsam::Pose3 prior_pose(gtsam::Rot3::identity(), gtsam::Point3::Zero());
   gtsam::Vector3 prior_velocity(gtsam::Vector3::Zero());
-
-  SVO_INFO_STREAM("prior pose = " << prior_pose);
-  SVO_INFO_STREAM("prior velocity = " << prior_velocity);
 
   initial_values_.clear();
   initial_values_.insert(Symbol::X(correction_count_), prior_pose);
@@ -154,14 +195,6 @@ void VisualInertialEstimator::initializePrior()
   SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
   
   ++correction_count_;
-}
-
-ImuStream VisualInertialEstimator::getImuData(
-    ros::Time& start,
-    ros::Time& end)
-{
-  ImuStream new_stream = imu_container_->read(start, end);
-  return new_stream;
 }
 
 void VisualInertialEstimator::initializeLatestKF()
@@ -198,7 +231,9 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 void VisualInertialEstimator::cleanUp()
 {
   // TODO: In this process, some IMU values could have been lost, store them
+  SVO_INFO_STREAM("[Estimator]: Reset integration of IMU");
   imu_preintegrated_->resetIntegrationAndSetBias(curr_imu_bias_);
+  optimization_complete_ = true;
 }
 
 void VisualInertialEstimator::OptimizerLoop()
@@ -207,6 +242,7 @@ void VisualInertialEstimator::OptimizerLoop()
   {
     if(new_kf_added_)
     {
+      new_kf_added_ = false;
       switch(stage_) {
         case EstimatorStage::PAUSED:
         {
@@ -223,7 +259,7 @@ void VisualInertialEstimator::OptimizerLoop()
           // We can now optimize
           // TODO:1. Make a check to see if the imu factor is created and added to the graph 
           //      2. Make this thread safe, the latest keyframe should not be overwritten in addKF function 
-          initializeLatestKF();       
+          initializeLatestKF();
           EstimatorResult result = runOptimization(); 
           if (result == EstimatorResult::BAD) {
             SVO_WARN_STREAM("[Estimator]: Estimator diverged");
@@ -236,7 +272,6 @@ void VisualInertialEstimator::OptimizerLoop()
           break; 
         } 
       }
-
     }
   }
 }

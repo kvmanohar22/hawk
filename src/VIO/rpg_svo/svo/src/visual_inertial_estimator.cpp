@@ -15,7 +15,8 @@ VisualInertialEstimator::VisualInertialEstimator()
     add_factor_to_graph_(false),
     optimization_complete_(false),
     multiple_int_complete_(false),
-    new_factor_added_(false)
+    new_factor_added_(false),
+    n_integrated_measures_(0)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
@@ -72,6 +73,7 @@ void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu:
       gtsam::Vector3(acc.x, acc.y, acc.z),
       gtsam::Vector3(omg.x, omg.y, omg.z),
       dt_);
+  ++n_integrated_measures_;
 }
 
 void VisualInertialEstimator::integrateMultipleMeasurements(const list<sensor_msgs::Imu::ConstPtr>& msgs)
@@ -85,6 +87,9 @@ void VisualInertialEstimator::integrateMultipleMeasurements(const list<sensor_ms
 
 void VisualInertialEstimator::addSingleFactorToGraph()
 {
+  ++correction_count_; 
+
+  SVO_INFO_STREAM("Number of integrated measurements = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
@@ -95,6 +100,8 @@ void VisualInertialEstimator::addSingleFactorToGraph()
       Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
       preint_imu_combined);
   graph_->add(imu_factor);
+  new_factor_added_ = true;
+  n_integrated_measures_ = 0;
 }
 
 void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
@@ -102,7 +109,7 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
   if (stage_ == EstimatorStage::PAUSED) { // No KF added, just ignore
     return;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
-    ROS_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
+    SVO_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
     integrateSingleMeasurement(msg); 
   } else { // new KF added, pause integration
     if (add_factor_to_graph_) { // First add factor to graph
@@ -117,6 +124,7 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
       SVO_INFO_STREAM("[Estimator]: New KF arrived. Adding new IMU factor to graph");
       add_factor_to_graph_ = false;
       optimization_complete_ = false; 
+      multiple_int_complete_ = false;
       imu_msgs_.clear(); 
     } else { // integrate Imu values for next imu factor
       if (optimization_complete_) {
@@ -127,7 +135,7 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
           integrateMultipleMeasurements(imu_msgs_);
           imu_msgs_.clear();
           multiple_int_complete_ = true;
-        } 
+        }
       } else { // while optimization is going, we store the messages in a list
         imu_msgs_.push_back(msg);
       } 
@@ -159,19 +167,17 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   new_kf_added_ = true;
 
   if(stage_ == EstimatorStage::PAUSED) {
+    SVO_DEBUG_STREAM("[Estimator]: First KF arrived"); 
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::FIRST_KEYFRAME;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
+    SVO_DEBUG_STREAM("[Estimator]: Second KF arrived"); 
     prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::SECOND_KEYFRAME;
     add_factor_to_graph_ = true; 
-  } else if(stage_ == EstimatorStage::SECOND_KEYFRAME) {
-    prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
-    curr_keyframe_ = keyframe;
-    stage_ = EstimatorStage::DEFAULT_KEYFRAME;
-    add_factor_to_graph_ = true; 
   } else {
+    SVO_DEBUG_STREAM("[Estimator]: New KF arrived"); 
     prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
@@ -206,18 +212,21 @@ void VisualInertialEstimator::initializePrior()
 
   curr_imu_bias_ = prior_imu_bias_;
   SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
-  
-  ++correction_count_;
 }
 
 void VisualInertialEstimator::initializeLatestKF()
 {
-  ++correction_count_;
-  // TODO: Initialize the fused value here? 
-  // initial_values_.insert(Symbol::X(correction_count_), 
-  const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
+  // wait until a new factor has been added 
+  while (ros::ok() && !quit_) { 
+    if (new_factor_added_) {
+      new_factor_added_ = false;
+      break;
+    }
+  } 
   
+  // TODO: Initialize the fused value here? 
   // TODO: Is the ordering correct? T_f_w or T_w_f?
+  const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
   gtsam::Rot3 rotation(unscaled_pose.rotation_matrix());
   gtsam::Point3 translation(unscaled_pose.translation());
   gtsam::Pose3 pose(rotation, translation);
@@ -228,13 +237,16 @@ void VisualInertialEstimator::initializeLatestKF()
 
 EstimatorResult VisualInertialEstimator::runOptimization()
 {
-  EstimatorResult opt_result = EstimatorResult::BAD;
+  SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
+  EstimatorResult opt_result = EstimatorResult::GOOD;
   isam2_.update(*graph_, initial_values_);
+  /* 
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
   const gtsam::Values result = isam2_.calculateEstimate();
-  updateState(result); 
-  return opt_result; 
+  updateState(result);
+ */ 
+  return opt_result;
 }
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
@@ -249,6 +261,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
+  SVO_INFO_STREAM("Optimized state updated for KF=" << correction_count_);
 }
 
 void VisualInertialEstimator::cleanUp()

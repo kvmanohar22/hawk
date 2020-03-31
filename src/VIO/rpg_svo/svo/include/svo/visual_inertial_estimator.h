@@ -144,10 +144,9 @@ protected:
   bool                         optimization_complete_; //!< Is optimization complete?
   bool                         multiple_int_complete_; //!< Is optimization complete?
   bool                         new_factor_added_;      //!< This check it used to start optimization
-
+  int                          n_integrated_measures_; //!< Number of imu messages integrated
 }; // class VisualInertialEstimator
 
 } // namespace svo
 
 #endif // SVO_VISUAL_INERTIAL_ESTIMATOR_H_
-

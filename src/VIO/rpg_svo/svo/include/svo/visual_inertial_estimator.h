@@ -138,11 +138,12 @@ protected:
   gtsam::Values                initial_values_;        //!< initial values
   int                          correction_count_;      //!< used for symbols
   gtsam::imuBias::ConstantBias curr_imu_bias_;         //!< Used to initialize next keyframes' bias
-  bool                         factor_added_to_graph_; //!< Check for adding imu factor to graph
+  gtsam::Vector3               curr_velocity_;         //!< Velocity vector
+  bool                         add_factor_to_graph_;   //!< Check for adding imu factor to graph [if new KF arrives, this is true]
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;     //!< Need to store some of 'em while optimization is running
   bool                         optimization_complete_; //!< Is optimization complete?
   bool                         multiple_int_complete_; //!< Is optimization complete?
-
+  bool                         new_factor_added_;      //!< This check it used to start optimization
 
 }; // class VisualInertialEstimator
 

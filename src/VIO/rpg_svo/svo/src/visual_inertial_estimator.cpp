@@ -12,9 +12,10 @@ VisualInertialEstimator::VisualInertialEstimator()
     imu_noise_params_(nullptr),
     dt_(Config::dt()),
     correction_count_(0),
-    factor_added_to_graph_(false),
+    add_factor_to_graph_(false),
     optimization_complete_(false),
-    multiple_int_complete_(false)
+    multiple_int_complete_(false),
+    new_factor_added_(false)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
@@ -81,6 +82,7 @@ void VisualInertialEstimator::integrateMultipleMeasurements(const list<sensor_ms
     integrateSingleMeasurement(*itr);
   }
 }
+
 void VisualInertialEstimator::addSingleFactorToGraph()
 {
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
@@ -102,12 +104,19 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
     ROS_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
     integrateSingleMeasurement(msg); 
-  } else if (stage_ == EstimatorStage::SECOND_KEYFRAME) { // new KF added, pause integration
-    ROS_INFO_STREAM_ONCE("[Estimator]: Second keyframe added. Generating IMU factor"); 
-    if (!factor_added_to_graph_) { // First add factor to graph
+  } else { // new KF added, pause integration
+    if (add_factor_to_graph_) { // First add factor to graph
+      if (stage_ == EstimatorStage::DEFAULT_KEYFRAME)
+      {
+        // In the default stage, we need to clear the graph and initial values
+        // But not for SECOND_KEYFRAME. b/c this will be first optimization
+        graph_->resize(0);
+        initial_values_.clear();
+      }
       addSingleFactorToGraph();
-      SVO_INFO_STREAM("[Estimator]: Adding new IMU factor to graph");
-      factor_added_to_graph_ = true;
+      SVO_INFO_STREAM("[Estimator]: New KF arrived. Adding new IMU factor to graph");
+      add_factor_to_graph_ = false;
+      optimization_complete_ = false; 
       imu_msgs_.clear(); 
     } else { // integrate Imu values for next imu factor
       if (optimization_complete_) {
@@ -123,7 +132,6 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
         imu_msgs_.push_back(msg);
       } 
     } 
-    // TODO: Cleanup the integration and start a fresh for the next keyframe 
   }
 }
 
@@ -157,12 +165,17 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
     prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::SECOND_KEYFRAME;
+    add_factor_to_graph_ = true; 
   } else if(stage_ == EstimatorStage::SECOND_KEYFRAME) {
     prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
+    add_factor_to_graph_ = true; 
   } else {
-
+    prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
+    curr_keyframe_ = keyframe;
+    stage_ = EstimatorStage::DEFAULT_KEYFRAME;
+    add_factor_to_graph_ = true; 
   }
 }
 
@@ -199,9 +212,18 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeLatestKF()
 {
+  ++correction_count_;
+  // TODO: Initialize the fused value here? 
   // initial_values_.insert(Symbol::X(correction_count_), 
-
-
+  const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
+  
+  // TODO: Is the ordering correct? T_f_w or T_w_f?
+  gtsam::Rot3 rotation(unscaled_pose.rotation_matrix());
+  gtsam::Point3 translation(unscaled_pose.translation());
+  gtsam::Pose3 pose(rotation, translation);
+  initial_values_.insert(Symbol::X(correction_count_), pose);
+  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
+  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);  
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
@@ -226,6 +248,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
   curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
+  curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
 }
 
 void VisualInertialEstimator::cleanUp()
@@ -269,6 +292,12 @@ void VisualInertialEstimator::OptimizerLoop()
         } 
         case EstimatorStage::DEFAULT_KEYFRAME:
         {
+          initializeLatestKF();
+          EstimatorResult result = runOptimization(); 
+          if (result == EstimatorResult::BAD) {
+            SVO_WARN_STREAM("[Estimator]: Estimator diverged");
+          } 
+          cleanUp(); 
           break; 
         } 
       }

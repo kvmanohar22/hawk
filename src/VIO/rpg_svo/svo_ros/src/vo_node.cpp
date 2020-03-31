@@ -18,7 +18,7 @@
 #include <svo/frame_handler_mono.h>
 #include <svo/map.h>
 #include <svo/config.h>
-#include <svo/imu.h>
+#include <svo/visual_inertial_estimator.h>
 #include <svo_ros/visualizer.h>
 #include <vikit/params_helper.h>
 #include <sensor_msgs/Image.h>
@@ -178,7 +178,8 @@ int main(int argc, char **argv)
 
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
-  ros::Subscriber imu_subscriber_ = nh.subscribe(imu_topic, 100, &svo::ImuContainer::imu_cb, vo_node.vo_->ImuContainer());
+  ros::Subscriber imu_subscriber_ = nh.subscribe(
+      imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)

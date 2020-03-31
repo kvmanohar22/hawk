@@ -6,3 +6,6 @@ isam2_n_iters: 5
 # 0: IMUFactor (bias is set as constant and not estimated)
 # 1: CombinedIMUFactor (bias is estimated as well)
 isam2_imu_factor_type: 1
+
+# Rate of IMU sampling (Hz)
+dt_: 200

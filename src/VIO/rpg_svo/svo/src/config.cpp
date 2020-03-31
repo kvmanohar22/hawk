@@ -55,7 +55,8 @@ Config::Config() :
 
     // isam2 specific parameters
     isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
-    isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1))
+    isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1)),
+    isam2_dt(vk::getParam<int>("/hawk/svo/dt_", 1))
 #else
     trace_name("svo"),
     trace_dir("/tmp"),

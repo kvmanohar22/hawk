@@ -54,8 +54,7 @@ void FrameHandlerMono::initialize()
   depth_filter_->startThread();
 
   // Start visual inertial estimator
-  imu_container_ = boost::make_shared<svo::ImuContainer>();
-  inertial_estimator_ = new svo::VisualInertialEstimator(imu_container_); 
+  inertial_estimator_ = new svo::VisualInertialEstimator(); 
   inertial_estimator_->startThread();
 }
 

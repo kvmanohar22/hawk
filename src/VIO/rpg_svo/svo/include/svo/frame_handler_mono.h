@@ -58,15 +58,15 @@ public:
   /// Access the depth filter.
   DepthFilter* depthFilter() const { return depth_filter_; }
 
+  /// Access to member of inertial estimator
+  inline VisualInertialEstimator* inertialEstimator() const { return inertial_estimator_; }
+
   /// An external place recognition module may know where to relocalize.
   bool relocalizeFrameAtPose(
       const int keyframe_id,
       const SE3& T_kf_f,
       const cv::Mat& img,
       const double timestamp);
-
-  // IMU container to hold the data
-  inline ImuContainerPtr ImuContainer() { return imu_container_; }
 
 protected:
   vk::AbstractCamera* cam_;                     //!< Camera model, can be ATAN, Pinhole or Ocam (see vikit).
@@ -78,7 +78,6 @@ protected:
   initialization::KltHomographyInit klt_homography_init_; //!< Used to estimate pose of the first two keyframes by estimating a homography.
   DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
   VisualInertialEstimator* inertial_estimator_; //!< Visual Inertial State Estimator
-  ImuContainerPtr imu_container_;               //!< IMU data container
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

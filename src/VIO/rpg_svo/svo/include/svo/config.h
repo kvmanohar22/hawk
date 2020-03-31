@@ -125,6 +125,9 @@ public:
   /// The type of IMU factor to use
   static int& isam2IMUFactorType() { return getInstance().isam2_imu_factor_type; }
 
+  /// The type of IMU factor to use
+  static int& dt() { return getInstance().isam2_dt; }
+
 private:
   Config();
   Config(Config const&);
@@ -162,6 +165,7 @@ private:
   // params specific to isam2
   int isam2_n_iters;
   int isam2_imu_factor_type;
+  int isam2_dt;
 };
 
 } // namespace svo

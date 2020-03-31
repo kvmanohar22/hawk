@@ -106,6 +106,8 @@ public:
   void addSingleFactorToGraph();
 
 protected:
+  void initializeTcamImu();
+
   // TODO: Need to hold proper reference to keyframes
   //       These could be deleted in the Motion Estimation thread
   //       Maybe unordered_map is efficient?
@@ -145,6 +147,7 @@ protected:
   bool                         multiple_int_complete_; //!< Is optimization complete?
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
+  Sophus::SE3                  T_cam_imu_;             //!< Transformation from imu -> camera
 }; // class VisualInertialEstimator
 
 } // namespace svo

@@ -3,6 +3,12 @@
 
 namespace svo {
 
+static Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
+{
+  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
+  return v_eigen; 
+}
+
 VisualInertialEstimator::VisualInertialEstimator()
   : stage_(EstimatorStage::PAUSED),
     thread_(nullptr),
@@ -19,6 +25,7 @@ VisualInertialEstimator::VisualInertialEstimator()
     n_integrated_measures_(0)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
+  initializeTcamImu();
 
   imu_noise_params_ = new ImuNoiseParams(
     vk::getParam<double>("/hawk/svo/imu0/accelerometer_noise_density"),
@@ -65,13 +72,32 @@ VisualInertialEstimator::~VisualInertialEstimator()
   SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator destructed");
 }
 
+void VisualInertialEstimator::initializeTcamImu()
+{
+  std::vector<double> T;
+  T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
+  Eigen::Matrix<double, 3, 3> R_cam_imu;
+  Eigen::Vector3d t_cam_imu;
+  for(size_t i=0; i<3; ++i) {
+    for(size_t j=0; j<4; ++j) {
+      double v = T[i*4+j]; 
+      if(j == 3) {
+        t_cam_imu(i) = v;
+      } else {
+        R_cam_imu(i, j) = v;
+      } 
+    }
+  }
+  T_cam_imu_ = Sophus::SE3(R_cam_imu, t_cam_imu);
+}
+
 void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
 {
-  const geometry_msgs::Vector3 acc = msg->linear_acceleration;
-  const geometry_msgs::Vector3 omg = msg->angular_velocity;
+  const Eigen::Vector3d acc = T_cam_imu_ * ros2eigen(msg->linear_acceleration);
+  const Eigen::Vector3d omg = T_cam_imu_ * ros2eigen(msg->angular_velocity);
   imu_preintegrated_->integrateMeasurement(
-      gtsam::Vector3(acc.x, acc.y, acc.z),
-      gtsam::Vector3(omg.x, omg.y, omg.z),
+      gtsam::Vector3(acc(0), acc(1), acc(2)),
+      gtsam::Vector3(omg(0), omg(1), omg(2)),
       dt_);
   ++n_integrated_measures_;
 }
@@ -229,6 +255,7 @@ void VisualInertialEstimator::initializeLatestKF()
   const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
   gtsam::Rot3 rotation(unscaled_pose.rotation_matrix());
   gtsam::Point3 translation(unscaled_pose.translation());
+
   gtsam::Pose3 pose(rotation, translation);
   initial_values_.insert(Symbol::X(correction_count_), pose);
   initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
@@ -240,12 +267,12 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   isam2_.update(*graph_, initial_values_);
-  /* 
+   
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
   const gtsam::Values result = isam2_.calculateEstimate();
   updateState(result);
- */ 
+  
   return opt_result;
 }
 

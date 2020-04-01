@@ -138,15 +138,17 @@ protected:
   NoisePtr                     prior_vel_noise_model_;
   NoisePtr                     prior_bias_noise_model_;
 
-  gtsam::NavState              prev_state_; // previous state used for Imu state prediction
-  gtsam::NavState              pred_state_; // predicted state based on integration
 
   boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> params_;
 
   gtsam::Values                initial_values_;        //!< initial values
   int                          correction_count_;      //!< used for symbols
+
+  gtsam::NavState              curr_state_;            //!< current state used for Imu state prediction
+  gtsam::Pose3                 curr_pose_;             //!< optimized pose
   gtsam::imuBias::ConstantBias curr_imu_bias_;         //!< Used to initialize next keyframes' bias
   gtsam::Vector3               curr_velocity_;         //!< Velocity vector
+
   bool                         add_factor_to_graph_;   //!< Check for adding imu factor to graph [if new KF arrives, this is true]
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;     //!< Need to store some of 'em while optimization is running
   bool                         optimization_complete_; //!< Is optimization complete?

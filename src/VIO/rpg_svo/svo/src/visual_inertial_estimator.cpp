@@ -47,7 +47,7 @@ VisualInertialEstimator::VisualInertialEstimator()
   bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
 
   // TODO: Not true. Read from calibrated values
-  prior_imu_bias_ = gtsam::imuBias::ConstantBias();
+  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
 
   // TODO: Initialize this gravity vector in the following params
   vector<double> g = vk::getParam<vector<double>>("/hawk/svo/imu0/gravity");
@@ -62,7 +62,7 @@ VisualInertialEstimator::VisualInertialEstimator()
   params_->biasAccOmegaInt         = bias_acc_omega_int_;
   // params_->n_gravity               = gravity_gtsam.normalized();
 
-  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, prior_imu_bias_);
+  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, curr_imu_bias_);
   assert(imu_preintegrated_);
 
   isam2_params_.relinearizeThreshold = 0.01;
@@ -255,25 +255,25 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 
 void VisualInertialEstimator::initializePrior()
 {
-  gtsam::Pose3 prior_pose(gtsam::Rot3::identity(), gtsam::Point3::Zero());
-  gtsam::Vector3 prior_velocity(gtsam::Vector3::Zero());
+  // initialize the prior state
+  curr_pose_     = gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3::Zero());
+  curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
+  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
   initial_values_.clear();
-  initial_values_.insert(Symbol::X(correction_count_), prior_pose);
-  initial_values_.insert(Symbol::V(correction_count_), prior_velocity);
-  initial_values_.insert(Symbol::B(correction_count_), prior_imu_bias_);
+  initial_values_.insert(Symbol::X(correction_count_), curr_pose_);
+  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
+  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);
 
   // Add in first keyframe's factors
   graph_->resize(0);
   graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
-        Symbol::X(correction_count_), prior_pose, prior_pose_noise_model_));
+        Symbol::X(correction_count_), curr_pose_, prior_pose_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
-        Symbol::V(correction_count_), prior_velocity, prior_vel_noise_model_));
+        Symbol::V(correction_count_), curr_velocity_, prior_vel_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
-        Symbol::B(correction_count_), prior_imu_bias_, prior_bias_noise_model_));
+        Symbol::B(correction_count_), curr_imu_bias_, prior_bias_noise_model_));
 
-  curr_imu_bias_ = prior_imu_bias_;
-  prev_state_ = gtsam::NavState(prior_pose, prior_velocity);
   SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
 }
 
@@ -299,7 +299,7 @@ void VisualInertialEstimator::initializeNewVariables()
 */
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
-      prev_state_, curr_imu_bias_);
+      curr_state_, curr_imu_bias_);
  
   initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
@@ -334,11 +334,11 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   // TODO: Not the right way to do it. This could be overwritten.
   curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
-
-  prev_state_ = gtsam::NavState(result.at<gtsam::Pose3>(Symbol::X(correction_count_)),
-        result.at<gtsam::Vector3>(Symbol::V(correction_count_)));
-  curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
+  // update the optimized state
+  curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
+  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+  curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   optimization_complete_ = true;
   SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF=" << correction_count_);
 }

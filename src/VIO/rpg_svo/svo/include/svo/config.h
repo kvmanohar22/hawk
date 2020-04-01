@@ -119,6 +119,9 @@ public:
   /// If within one frame, this amount of features are dropped. Tracking quality is bad.
   static int& qualityMaxFtsDrop() { return getInstance().quality_max_drop_fts; }
 
+  /// Whether or not to run inertial estimator
+  static bool& runInertialEstimator() { return getInstance().run_inertial_estimator; }
+
   /// Number of iterations to optimize
   static int& isam2NumIters() { return getInstance().isam2_n_iters; }
 
@@ -163,6 +166,7 @@ private:
   int quality_max_drop_fts;
 
   // params specific to isam2
+  bool run_inertial_estimator;
   int isam2_n_iters;
   int isam2_imu_factor_type;
   int isam2_dt;

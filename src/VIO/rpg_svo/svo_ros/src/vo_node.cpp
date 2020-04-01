@@ -178,8 +178,12 @@ int main(int argc, char **argv)
 
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
-  // ros::Subscriber imu_subscriber_ = nh.subscribe(
-  //     imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
+
+  if(svo::Config::runInertialEstimator())
+  {
+    ros::Subscriber imu_subscriber_ = nh.subscribe(
+        imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
+  }
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)

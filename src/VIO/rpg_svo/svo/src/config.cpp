@@ -54,6 +54,7 @@ Config::Config() :
     quality_max_drop_fts(vk::getParam<int>("/hawk/svo/quality_max_drop_fts", 40)),
 
     // isam2 specific parameters
+    run_inertial_estimator(vk::getParam<bool>("/hawk/svo/run_inertial_estimator", false)),
     isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
     isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1)),
     isam2_dt(vk::getParam<int>("/hawk/svo/dt_", 1))

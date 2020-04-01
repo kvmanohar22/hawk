@@ -54,14 +54,19 @@ void FrameHandlerMono::initialize()
   depth_filter_->startThread();
 
   // // Start visual inertial estimator
-  // inertial_estimator_ = new svo::VisualInertialEstimator(); 
-  // inertial_estimator_->startThread();
+  if (Config::runInertialEstimator())
+  {
+    SVO_INFO_STREAM("Starting Inertial Estimator");
+    inertial_estimator_ = new svo::VisualInertialEstimator(); 
+    inertial_estimator_->startThread();
+  }
 }
 
 FrameHandlerMono::~FrameHandlerMono()
 {
   delete depth_filter_;
-  delete inertial_estimator_;
+  if (Config::runInertialEstimator())
+    delete inertial_estimator_;
 }
 
 void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
@@ -289,7 +294,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
 
   // add this to graph for inertial state estimation
-  inertial_estimator_->addKeyFrame(new_frame_);
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
 
   // if limited number of keyframes, remove the one furthest apart
   if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())

@@ -262,12 +262,14 @@ void VisualInertialEstimator::initializeLatestKF()
   } 
 
 /*
-  // TODO: Initialize the fused value here? 
+  // TODO: Initialize the fused value here?
   // TODO: Is the ordering correct? T_f_w or T_w_f?
   const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
   gtsam::Rot3 rotation(unscaled_pose.rotation_matrix());
   gtsam::Point3 translation(unscaled_pose.translation());
   gtsam::Pose3 pose(rotation, translation);
+  initial_values_.insert(Symbol::X(correction_count_), pose);
+  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
 */
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       prev_state_, curr_imu_bias_);

@@ -33,6 +33,12 @@ VisualInertialEstimator::VisualInertialEstimator()
     vk::getParam<double>("/hawk/svo/imu0/accelerometer_random_walk"),
     vk::getParam<double>("/hawk/svo/imu0/gyroscope_random_walk"));
 
+  // TODO: Tweak these values
+  prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
+  prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  prior_bias_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
+
   white_noise_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_noise_sigma_, 2);
   white_noise_omg_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->gyro_noise_sigma_, 2);
   random_walk_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_bias_rw_sigma_, 2);
@@ -43,13 +49,21 @@ VisualInertialEstimator::VisualInertialEstimator()
   // TODO: Not true. Read from calibrated values
   prior_imu_bias_ = gtsam::imuBias::ConstantBias();
 
-  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD(0.0);
+  // TODO: Initialize this gravity vector in the following params
+  vector<double> g = vk::getParam<vector<double>>("/hawk/svo/imu0/gravity");
+  gtsam::Vector3 gravity_gtsam(g[0], g[1], g[2]);
+
+  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
   params_->accelerometerCovariance = white_noise_acc_cov_;
   params_->integrationCovariance   = integration_error_cov_;
   params_->gyroscopeCovariance     = white_noise_omg_cov_;
   params_->biasAccCovariance       = random_walk_acc_cov_;
   params_->biasOmegaCovariance     = random_walk_omg_cov_;
   params_->biasAccOmegaInt         = bias_acc_omega_int_;
+  // params_->n_gravity               = gravity_gtsam.normalized();
+
+
+  SVO_INFO_STREAM("Gravity = " << params_->getGravity());
 
   imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, prior_imu_bias_);
   assert(imu_preintegrated_);
@@ -93,8 +107,12 @@ void VisualInertialEstimator::initializeTcamImu()
 
 void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
 {
-  const Eigen::Vector3d acc = T_cam_imu_ * ros2eigen(msg->linear_acceleration);
-  const Eigen::Vector3d omg = T_cam_imu_ * ros2eigen(msg->angular_velocity);
+  // acceleration in world frame
+  // const Eigen::Vector3d acc = T_cam_imu_ * ros2eigen(msg->linear_acceleration);
+  const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
+
+  // angular velocity in body frame
+  const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
   imu_preintegrated_->integrateMeasurement(
       gtsam::Vector3(acc(0), acc(1), acc(2)),
       gtsam::Vector3(omg(0), omg(1), omg(2)),
@@ -126,6 +144,7 @@ void VisualInertialEstimator::addSingleFactorToGraph()
       Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
       preint_imu_combined);
   graph_->add(imu_factor);
+
   new_factor_added_ = true;
   n_integrated_measures_ = 0;
 }
@@ -221,22 +240,17 @@ void VisualInertialEstimator::initializePrior()
   initial_values_.insert(Symbol::V(correction_count_), prior_velocity);
   initial_values_.insert(Symbol::B(correction_count_), prior_imu_bias_);
 
-  // TODO: Tweak these values
-  NoisePtr prior_pose_noise_model = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
-  NoisePtr prior_velocity_noise_model = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  NoisePtr prior_imu_bias_noise_model = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
-
   // Add in first keyframe's factors
   graph_->resize(0);
   graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
-        Symbol::X(correction_count_), prior_pose, prior_pose_noise_model));
+        Symbol::X(correction_count_), prior_pose, prior_pose_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
-        Symbol::V(correction_count_), prior_velocity, prior_velocity_noise_model));
+        Symbol::V(correction_count_), prior_velocity, prior_vel_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
-        Symbol::B(correction_count_), prior_imu_bias_, prior_imu_bias_noise_model));
+        Symbol::B(correction_count_), prior_imu_bias_, prior_bias_noise_model_));
 
   curr_imu_bias_ = prior_imu_bias_;
+  prev_state_ = gtsam::NavState(prior_pose, prior_velocity);
   SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
 }
 
@@ -250,28 +264,32 @@ void VisualInertialEstimator::initializeLatestKF()
     }
   } 
 
+/*
   // TODO: Initialize the fused value here? 
   // TODO: Is the ordering correct? T_f_w or T_w_f?
   const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
   gtsam::Rot3 rotation(unscaled_pose.rotation_matrix());
   gtsam::Point3 translation(unscaled_pose.translation());
-
   gtsam::Pose3 pose(rotation, translation);
-  initial_values_.insert(Symbol::X(correction_count_), pose);
-  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
-  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);  
+*/
+  const gtsam::NavState predicted_state = imu_preintegrated_->predict(
+      prev_state_, curr_imu_bias_);
+ 
+  initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
+  initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
+  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
 {
   SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
-  // isam2_.update(*graph_, initial_values_);
+  isam2_.update(*graph_, initial_values_);
   ros::Duration(0.01).sleep();   
-  // for(int i=0; i<n_iters_; ++i)
-  //   isam2_.update();
-  // const gtsam::Values result = isam2_.calculateEstimate();
-  // updateState(result);
+  for(int i=0; i<n_iters_; ++i)
+    isam2_.update();
+  const gtsam::Values result = isam2_.calculateEstimate();
+  updateState(result);
 
   return opt_result;
 }
@@ -286,6 +304,8 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   // TODO: Not the right way to do it. This could be overwritten.
   curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
+  prev_state_ = gtsam::NavState(result.at<gtsam::Pose3>(Symbol::X(correction_count_)),
+        result.at<gtsam::Vector3>(Symbol::V(correction_count_)));
   curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
   SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF=" << correction_count_);

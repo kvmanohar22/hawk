@@ -133,6 +133,13 @@ protected:
   gtsam::Matrix33              integration_error_cov_;
   gtsam::Matrix66              bias_acc_omega_int_;
 
+  NoisePtr                     prior_pose_noise_model_;
+  NoisePtr                     prior_vel_noise_model_;
+  NoisePtr                     prior_bias_noise_model_;
+
+  gtsam::NavState              prev_state_; // previous state used for Imu state prediction
+  gtsam::NavState              pred_state_; // predicted state based on integration
+
   boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> params_;
 
   gtsam::Values                initial_values_;        //!< initial values

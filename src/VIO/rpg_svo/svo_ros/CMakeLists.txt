@@ -77,7 +77,9 @@ TARGET_LINK_LIBRARIES(svo_visualizer ${LINK_LIBS})
 # Create Executables                      
 ADD_EXECUTABLE(vo src/vo_node.cpp)
 TARGET_LINK_LIBRARIES(vo svo_visualizer)
-ADD_EXECUTABLE(benchmark src/benchmark_node.cpp)
-TARGET_LINK_LIBRARIES(benchmark svo_visualizer)
+
+# ADD_EXECUTABLE(benchmark src/benchmark_node.cpp)
+# TARGET_LINK_LIBRARIES(benchmark svo_visualizer)
+
 ADD_EXECUTABLE(feature_detection src/test_feature_detection.cpp)
 TARGET_LINK_LIBRARIES(feature_detection svo_visualizer)

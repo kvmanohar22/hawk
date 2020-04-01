@@ -156,6 +156,10 @@ protected:
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
   Sophus::SE3                  T_cam_imu_;             //!< Transformation from imu -> camera
+
+  // For debugging purposes
+  const int                    max_measurements_int_;  //!< Max. number of measurements to be used for integration
+
 }; // class VisualInertialEstimator
 
 } // namespace svo

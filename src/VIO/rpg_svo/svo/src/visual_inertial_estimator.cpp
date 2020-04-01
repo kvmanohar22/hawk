@@ -22,7 +22,8 @@ VisualInertialEstimator::VisualInertialEstimator()
     optimization_complete_(false),
     multiple_int_complete_(false),
     new_factor_added_(false),
-    n_integrated_measures_(0)
+    n_integrated_measures_(0),
+    max_measurements_int_(2)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
   initializeTcamImu();
@@ -159,6 +160,13 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
     SVO_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
     integrateSingleMeasurement(msg);
+
+    // For debugging
+    if (n_integrated_measures_ == max_measurements_int_)
+    {
+      add_factor_to_graph_ = true;
+      stage_ = EstimatorStage::SECOND_KEYFRAME;
+    }
   } else { // new KF added, pause integration
     if (add_factor_to_graph_) { // First add factor to graph
       if (stage_ == EstimatorStage::DEFAULT_KEYFRAME)

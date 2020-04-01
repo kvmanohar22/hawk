@@ -23,6 +23,8 @@
         <!-- Load imu calibration params -->
         <rosparam file="$(find svo_ros)/param/hawk/imu.yaml" />
 
+        <param name="max_measurements" value="50" />
+
         <!-- Initial camera orientation, make it point downwards -->
         <param name="init_rx" value="3.14" />
         <param name="init_ry" value="0.00" />

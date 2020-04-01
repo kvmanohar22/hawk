@@ -10,7 +10,7 @@ static Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
 }
 
 VisualInertialEstimator::VisualInertialEstimator()
-  : stage_(EstimatorStage::PAUSED),
+  : stage_(EstimatorStage::FIRST_KEYFRAME),
     thread_(nullptr),
     new_kf_added_(false),
     quit_(false),
@@ -23,7 +23,7 @@ VisualInertialEstimator::VisualInertialEstimator()
     multiple_int_complete_(false),
     new_factor_added_(false),
     n_integrated_measures_(0),
-    max_measurements_int_(2)
+    max_measurements_int_(vk::getParam<int>("/hawk/svo/max_measurements"))
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
   initializeTcamImu();
@@ -48,11 +48,11 @@ VisualInertialEstimator::VisualInertialEstimator()
   bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
 
   // TODO: Not true. Read from calibrated values
-  // curr_imu_bias_ = gtsam::imuBias::ConstantBias();
-  const double a = imu_noise_params_->accel_bias_rw_sigma_;
-  const double g = imu_noise_params_->gyro_bias_rw_sigma_;
-  curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-      (gtsam::Vector(6) << a, a, a, g, g, g).finished());
+  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
+  // const double a = imu_noise_params_->accel_bias_rw_sigma_;
+  // const double g = imu_noise_params_->gyro_bias_rw_sigma_;
+  // curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+  //     (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
   // TODO: Initialize this gravity vector in the following params
   vector<double> gravity = vk::getParam<vector<double>>("/hawk/svo/imu0/gravity");
@@ -71,7 +71,7 @@ VisualInertialEstimator::VisualInertialEstimator()
   imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, curr_imu_bias_);
   assert(imu_preintegrated_);
 
-  isam2_params_.relinearizeThreshold = 0.01;
+  isam2_params_.relinearizeThreshold = 0.1;
   isam2_params_.relinearizeSkip = 1;
   isam2_ = gtsam::ISAM2(isam2_params_);
 
@@ -135,7 +135,7 @@ void VisualInertialEstimator::integrateMultipleMeasurements(const list<sensor_ms
 
 void VisualInertialEstimator::addSingleFactorToGraph()
 {
-  ++correction_count_; 
+  ++correction_count_;
 
   SVO_INFO_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
@@ -149,24 +149,56 @@ void VisualInertialEstimator::addSingleFactorToGraph()
       preint_imu_combined);
   graph_->add(imu_factor);
 
+  SVO_INFO_STREAM("[Estimator]: graph size = " << graph_->size());
+
   new_factor_added_ = true;
   n_integrated_measures_ = 0;
 }
 
+void VisualInertialEstimator::imu_cb2(const sensor_msgs::Imu::ConstPtr& msg)
+{
+  if (n_integrated_measures_ == max_measurements_int_)
+  {
+    add_factor_to_graph_ = true;
+    if (correction_count_ == 0)
+      stage_ = EstimatorStage::SECOND_KEYFRAME;
+    else
+      stage_ = EstimatorStage::DEFAULT_KEYFRAME;
+  }
+
+  if (add_factor_to_graph_) {
+    if (stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
+      SVO_INFO_STREAM("[Estimator]: Cleared the graph and initial values");
+      graph_->resize(0);
+      initial_values_.clear();
+    }
+    SVO_INFO_STREAM("[Estimator]: Adding new IMU factor to graph");
+    addSingleFactorToGraph();
+    initializeNewVariables();
+    EstimatorResult result = runOptimization(); 
+    cleanUp();
+    add_factor_to_graph_ = false;
+  } else {
+    integrateSingleMeasurement(msg);
+  }
+}
+
 void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  if (n_integrated_measures_ == max_measurements_int_)
+  {
+    add_factor_to_graph_ = true;
+    if (correction_count_ == 0)
+      stage_ = EstimatorStage::SECOND_KEYFRAME;
+    else
+      stage_ = EstimatorStage::DEFAULT_KEYFRAME;
+  }
+
   if (stage_ == EstimatorStage::PAUSED) { // No KF added, just ignore
     return;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
     SVO_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
     integrateSingleMeasurement(msg);
-
-    // For debugging
-    if (n_integrated_measures_ == max_measurements_int_)
-    {
-      add_factor_to_graph_ = true;
-      stage_ = EstimatorStage::SECOND_KEYFRAME;
-    }
   } else { // new KF added, pause integration
     if (add_factor_to_graph_) { // First add factor to graph
       if (stage_ == EstimatorStage::DEFAULT_KEYFRAME)
@@ -189,11 +221,20 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
       }
 
       // add the factor
-      addSingleFactorToGraph();
       SVO_INFO_STREAM("[Estimator]: New KF arrived. Adding new IMU factor to graph");
+      addSingleFactorToGraph();
+
+      initializeNewVariables();
+      EstimatorResult result = runOptimization(); 
+      if (result == EstimatorResult::BAD) {
+        SVO_WARN_STREAM("[Estimator]: Estimator diverged");
+      } 
+      cleanUp(); 
+
       add_factor_to_graph_ = false;
       optimization_complete_ = false; 
       multiple_int_complete_ = false;
+      stage_ = EstimatorStage::FIRST_KEYFRAME; // FOR debugging
       imu_msgs_.clear(); 
     } else { // integrate Imu values for next imu factor
       if (optimization_complete_) {
@@ -345,7 +386,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Vector3 translation = pose.translation().vector();
 
   // TODO: Not the right way to do it. This could be overwritten.
-  curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
+  // curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));

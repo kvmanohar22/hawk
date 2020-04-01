@@ -3,7 +3,7 @@ run_inertial_estimator: true
 
 # Number of iterations to run whenever the graph is updated with new measurements
 # Note that with increase in this, more time will be consumed
-isam2_n_iters: 5
+isam2_n_iters: 1
 
 # The kind of factor to represent preintegrated IMU data
 # 0: IMUFactor (bias is set as constant and not estimated)
@@ -11,4 +11,4 @@ isam2_n_iters: 5
 isam2_imu_factor_type: 1
 
 # Rate of IMU sampling (Hz)
-dt_: 200
+dt_: 0.005

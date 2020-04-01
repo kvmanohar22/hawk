@@ -183,7 +183,7 @@ int main(int argc, char **argv)
   if(svo::Config::runInertialEstimator())
   {
     imu_subscriber_ = nh.subscribe(
-      imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
+      imu_topic, 100, &svo::VisualInertialEstimator::imu_cb2, vo_node.vo_->inertialEstimator());
   }
 
   // start processing callbacks

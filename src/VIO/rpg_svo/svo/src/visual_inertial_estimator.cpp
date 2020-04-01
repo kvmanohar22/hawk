@@ -47,11 +47,16 @@ VisualInertialEstimator::VisualInertialEstimator()
   bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
 
   // TODO: Not true. Read from calibrated values
-  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
+  // curr_imu_bias_ = gtsam::imuBias::ConstantBias();
+  const double a = imu_noise_params_->accel_bias_rw_sigma_;
+  const double g = imu_noise_params_->gyro_bias_rw_sigma_;
+  curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+      (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
   // TODO: Initialize this gravity vector in the following params
-  vector<double> g = vk::getParam<vector<double>>("/hawk/svo/imu0/gravity");
-  gtsam::Vector3 gravity_gtsam(g[0], g[1], g[2]);
+  vector<double> gravity = vk::getParam<vector<double>>("/hawk/svo/imu0/gravity");
+  gtsam::Vector3 gravity_gtsam(
+      (gtsam::Vector(3) << gravity[0], gravity[1], gravity[2]).finished());
 
   params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
   params_->accelerometerCovariance = white_noise_acc_cov_;
@@ -249,7 +254,7 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
     // TODO: This is bad. It hurts performance of motion estimation thread.
     //       Ideally, maintain a queue of keyframes
     SVO_INFO_STREAM("[Estimator]: New KF arrived. Wait time = " << (ros::Time::now()-start).toSec()*1e3 << " ms"); 
-    add_factor_to_graph_ = true;
+    add_factor_to_graph_ = false;
   }
 }
 

@@ -84,8 +84,9 @@ public:
   /// initialize prior states (identity) for the first state
   void initializePrior();
 
-  /// initialize optimization values for the latest keyframe
-  void initializeLatestKF();
+  /// initialize values for new variables in the optimization
+  /// Namely, (X, V, B) of the latest keyframe's pose
+  void initializeNewVariables();
 
   /// Run optimization
   EstimatorResult runOptimization();
@@ -99,7 +100,7 @@ public:
   /// Integrate a single measurement
   void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
 
-  /// Integrate a multiple measurement
+  /// Integrate multiple measurements
   void integrateMultipleMeasurements(const list<sensor_msgs::Imu::ConstPtr>& msgs);
 
   /// Add a single factor to graph

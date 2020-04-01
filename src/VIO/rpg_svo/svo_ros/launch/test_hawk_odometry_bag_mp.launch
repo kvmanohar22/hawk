@@ -4,12 +4,14 @@
     <arg name="start" default="0"/>
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+    <arg name="rig" default="monocular"/>
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch">
       <arg name="calibration" value="$(arg calibration)"/>
       <arg name="image_topic" value="$(arg image_topic)"/>
       <arg name="use_motion_priors" value="true"/>
+      <arg name="rig" value="$(arg rig)"/>
     </include>
 
     <!-- start rviz -->

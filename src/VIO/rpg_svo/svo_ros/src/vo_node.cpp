@@ -53,7 +53,15 @@ public:
   ros::Rate rate_;
   VoNode();
   ~VoNode();
+
+  // for monocular case
   void imgCb(const sensor_msgs::ImageConstPtr& msg);
+
+  // for stereo case
+  void imgStereoCb(
+      const sensor_msgs::ImageConstPtr& l_msg,
+      const sensor_msgs::ImageConstPtr& r_msg);
+
   void processUserActions();
   void remoteKeyCb(const std_msgs::StringConstPtr& key_input);
 };
@@ -128,6 +136,27 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
     usleep(100000);
 }
 
+void VoNode::imgStereoCb(
+    const sensor_msgs::ImageConstPtr& l_msg,
+    const sensor_msgs::ImageConstPtr& r_msg)
+{
+  cv::Mat l_img, r_img;
+
+  try {
+    l_img = cv_bridge::toCvShare(l_msg, "mono8")->image;
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception left message: %s", e.what());
+  }
+
+  try {
+    r_img = cv_bridge::toCvShare(r_msg, "mono8")->image;
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception right message: %s", e.what());
+  }
+
+  // TODO: Process the stereo images
+}
+
 void VoNode::processUserActions()
 {
   char input = remote_input_.c_str()[0];
@@ -172,11 +201,30 @@ int main(int argc, char **argv)
   std::cout << "create vo_node" << std::endl;
   svo::VoNode vo_node;
 
-  // subscribe to cam msgs
-  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
+  // subscribe to message topics
   std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu_topic", "imu/data"));
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
+  std::string left_cam_topic(vk::getParam<std::string>("/hawk/stereo/left_image_topic", "camera/image_raw"));
+  std::string right_cam_topic(vk::getParam<std::string>("/hawk/stereo/right_image_topic", "camera/image_raw"));
+
+
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 1);
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 1);
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_policy;
+  message_filters::Synchronizer<sync_policy> sync(sync_policy(5), subscriber_left, subscriber_right);
+
   image_transport::ImageTransport it(nh);
-  image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &svo::VoNode::imgCb, &vo_node);
+  image_transport::Subscriber it_sub;
+  std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
+  if(rig_type == "monocular") {
+    SVO_INFO_STREAM("Starting system with monocular camera rig");
+    it_sub = it.subscribe(cam_topic, 5, &svo::VoNode::imgCb, &vo_node);
+  } else if(rig_type == "stereo") {
+    SVO_INFO_STREAM("Starting system with stereo camera rig");
+    sync.registerCallback(boost::bind(&svo::VoNode::imgStereoCb, &vo_node, _1, _2));
+  } else {
+    SVO_ERROR_STREAM("Camera rig type not understood");
+  }
 
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);

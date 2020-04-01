@@ -16,7 +16,7 @@
     <arg name="idpf" default="2"/>
     <arg name="aec" default="false"/>
     <arg name="expose_us" default="15000"/>
-    <arg name="agc" default="true"/>
+    <arg name="agc" default="false"/>
     <arg name="gain_db" default="0.0"/>
     <arg name="cbm" default="0"/>
     <arg name="dcfm" default="0"/>
@@ -37,9 +37,7 @@
 
     <!-- Node Settings -->
     <arg name="output" default="screen"/>
-    <arg name="proc" default="false"/>
     <arg name="view" default="true"/>
-    <arg name="calib" default="false"/>
 
     <!-- Node -->
     <node pkg="bluefox2" type="bluefox2_single_node" name="$(arg camera)" output="$(arg output)" ns="hawk">

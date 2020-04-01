@@ -1,6 +1,6 @@
 <launch>
     <!-- Common Interface -->
-    <arg name="rate" default="70"/>
+    <arg name="rate" default="90"/>
 
     <!-- Camera Settings -->
     <arg name="left" default="26807563"/>
@@ -11,22 +11,31 @@
     <arg name="frame_id" default="$(arg camera)"/>
     <arg name="fps" default="$(arg rate)"/>
 
-    <arg name="color" default="false"/>
-    <arg name="aec" default="0"/>
-    <arg name="cbm" default="false"/>
-    <arg name="ctm" default="1"/>
+    <arg name="idpf" default="2"/>
+    <arg name="aec" default="false"/>
+    <arg name="expose_us" default="15000"/>
+    <arg name="agc" default="false"/>
+    <arg name="gain_db" default="12.0"/>
+    <arg name="cbm" default="0"/>
     <arg name="dcfm" default="0"/>
+    <arg name="cpc" default="40000"/>
     <arg name="hdr" default="false"/>
     <arg name="wbp" default="-1"/>
-    <arg name="expose_us" default="5000"/>
-    <arg name="gain_db" default="0.0"/>
-    <arg name="boost" default="false"/>
+    <arg name="request" default="0"/>
+    <arg name="mm" default="0"/>
+    <arg name="jpeg_quality" default="80"/>
+
+    <!-- resolution of the camera -->
+    <arg name="width" default="752"/>
+    <arg name="height" default="480"/>
+
+    <!-- Trigger mode (ctm): 1=on demand (default), 3=hardware trigger -->     
+    <arg name="ctm" default="1"/> 
+    <arg name="cts" default="-1"/>
 
     <!-- Node Settings -->
     <arg name="output" default="screen"/>
-    <arg name="proc" default="false"/>
-    <arg name="view" default="false"/>
-    <arg name="calib" default="false"/>
+    <arg name="view" default="true"/>
 
     <!-- Node -->
     <node pkg="bluefox2" type="bluefox2_stereo_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
@@ -36,26 +45,36 @@
         <param name="right/camera_name" type="string" value="$(arg right_camera_name)"/>
         <param name="right/identifier" type="string" value="$(arg right)"/>
 
-        <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="fps" type="double" value="$(arg fps)"/>
-        <param name="color" type="bool" value="$(arg color)"/>
-        <param name="aec" type="int" value="$(arg aec)"/>
-        <param name="cbm" type="bool" value="$(arg cbm)"/>
+        <param name="idpf" type="int" value="$(arg idpf)"/>
+        <param name="aec" type="bool" value="$(arg aec)"/>
+        <param name="expose_us" type="int" value="$(arg expose_us)"/>
+        <param name="agc" type="bool" value="$(arg aec)"/>
+        <param name="gain_db" type="double" value="$(arg gain_db)"/>
+        <param name="cbm" type="int" value="$(arg cbm)"/>
         <param name="ctm" type="int" value="$(arg ctm)"/>
+        <param name="cpc" type="int" value="$(arg cpc)"/>
+        <param name="cts" type="int" value="$(arg cts)"/>
         <param name="dcfm" type="int" value="$(arg dcfm)"/>
         <param name="hdr" type="bool" value="$(arg hdr)"/>
         <param name="wbp" type="int" value="$(arg wbp)"/>
-        <param name="expose_us" type="int" value="$(arg expose_us)"/>
-        <param name="gain_db" type="double" value="$(arg gain_db)"/>
-        <param name="boost" type="bool" value="$(arg boost)"/>
+        <param name="request" type="int" value="$(arg request)"/>
+        <param name="width" type="int" value="$(arg width)"/>
+        <param name="height" type="int" value="$(arg height)"/>
+        <param name="mm" type="int" value="$(arg mm)"/>
+        <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
     </node>
 
-    <!-- View -->
-    <arg name="image" default="image_rect"/>
+    <!-- Left View -->
     <node if="$(arg view)"
-        pkg="image_view" type="stereo_view" name="viewer" ns="hawk"
-        output="$(arg output)"
-        args="stereo:=$(arg camera) image:=$(arg image) _autosize:=true _window_namw:=hawk">
+        pkg="image_view" type="image_view" name="viewer_left" ns="hawk"
+        args="image:=/hawk/stereo/left/image_raw  _autosize:=true _window_name:=hawk" output="$(arg output)">
+    </node>
+
+    <!-- Right View -->
+    <node if="$(arg view)"
+        pkg="image_view" type="image_view" name="viewer_right" ns="hawk"
+        args="image:=/hawk/stereo/right/image_raw  _autosize:=true _window_name:=hawk" output="$(arg output)">
     </node>
 
 </launch>

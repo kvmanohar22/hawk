@@ -53,9 +53,9 @@ void FrameHandlerMono::initialize()
   depth_filter_ = new DepthFilter(feature_detector, depth_filter_cb);
   depth_filter_->startThread();
 
-  // Start visual inertial estimator
-  inertial_estimator_ = new svo::VisualInertialEstimator(); 
-  inertial_estimator_->startThread();
+  // // Start visual inertial estimator
+  // inertial_estimator_ = new svo::VisualInertialEstimator(); 
+  // inertial_estimator_->startThread();
 }
 
 FrameHandlerMono::~FrameHandlerMono()

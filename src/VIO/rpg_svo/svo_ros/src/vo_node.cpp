@@ -104,13 +104,13 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
 
-  // WARNING: Use this with caution
-  uint8_t *data = (uint8_t*)img.data;
-  for(int i=0; i<img.rows;++i) {
-    for (int j=0; j<img.cols;++j) {
-      data[i*img.cols+j] *= 2;
-    }
-  }
+  // // WARNING: Use this with caution
+  // uint8_t *data = (uint8_t*)img.data;
+  // for(int i=0; i<img.rows;++i) {
+  //   for (int j=0; j<img.cols;++j) {
+  //     data[i*img.cols+j] *= 2;
+  //   }
+  // }
 
   processUserActions();
   vo_->addImage(img, msg->header.stamp.toSec());
@@ -178,8 +178,8 @@ int main(int argc, char **argv)
 
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
-  ros::Subscriber imu_subscriber_ = nh.subscribe(
-      imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
+  // ros::Subscriber imu_subscriber_ = nh.subscribe(
+  //     imu_topic, 100, &svo::VisualInertialEstimator::imu_cb, vo_node.vo_->inertialEstimator());
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)

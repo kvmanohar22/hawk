@@ -1,11 +1,8 @@
 <launch>
     <arg name="expose_us" default="12000"/>
     <arg name="view" default="false"/>
-    <arg name="rate" default="50"/>
+    <arg name="rate" default="100"/>
     <arg name="record_cameras" default="false"/>
-
-    <!-- Start mavros -->
-    <include file="$(find bluefox2)/launch/mavros.launch"/>
 
     <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/stereo_node.launch">
@@ -19,7 +16,7 @@
         <arg name="mm" value="3"/>
         <arg name="aec" value="false"/>
         <arg name="agc" value="false"/>
-        <arg name="ctm" value="-1"/>
+        <arg name="ctm" value="1"/>
         <arg name="cts" value="0"/>
     </include>
 

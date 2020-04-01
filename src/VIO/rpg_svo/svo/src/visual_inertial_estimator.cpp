@@ -115,7 +115,7 @@ void VisualInertialEstimator::addSingleFactorToGraph()
 {
   ++correction_count_; 
 
-  SVO_INFO_STREAM("Number of integrated measurements = " << n_integrated_measures_);
+  SVO_INFO_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
@@ -192,19 +192,19 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   keyframe->scaled_T_f_w_ = keyframe->T_f_w_;
   new_kf_added_ = true;
 
+  // TODO: Use a check so that curr_keyframe_ is not overwritten
+
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived"); 
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::FIRST_KEYFRAME;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
     SVO_DEBUG_STREAM("[Estimator]: Second KF arrived"); 
-    prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::SECOND_KEYFRAME;
     add_factor_to_graph_ = true; 
   } else {
     SVO_DEBUG_STREAM("[Estimator]: New KF arrived"); 
-    prev_keyframe_ = curr_keyframe_; // TODO: Why do we require this?
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
     add_factor_to_graph_ = true; 
@@ -249,7 +249,7 @@ void VisualInertialEstimator::initializeLatestKF()
       break;
     }
   } 
-  
+
   // TODO: Initialize the fused value here? 
   // TODO: Is the ordering correct? T_f_w or T_w_f?
   const Sophus::SE3 unscaled_pose = curr_keyframe_->T_f_w_;
@@ -266,13 +266,13 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 {
   SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
-  isam2_.update(*graph_, initial_values_);
-   
-  for(int i=0; i<n_iters_; ++i)
-    isam2_.update();
-  const gtsam::Values result = isam2_.calculateEstimate();
-  updateState(result);
-  
+  // isam2_.update(*graph_, initial_values_);
+  ros::Duration(0.01).sleep();   
+  // for(int i=0; i<n_iters_; ++i)
+  //   isam2_.update();
+  // const gtsam::Values result = isam2_.calculateEstimate();
+  // updateState(result);
+
   return opt_result;
 }
 
@@ -288,7 +288,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
-  SVO_INFO_STREAM("Optimized state updated for KF=" << correction_count_);
+  SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF=" << correction_count_);
 }
 
 void VisualInertialEstimator::cleanUp()
@@ -306,40 +306,18 @@ void VisualInertialEstimator::OptimizerLoop()
     if(new_kf_added_)
     {
       new_kf_added_ = false;
-      switch(stage_) {
-        case EstimatorStage::PAUSED:
-        {
-          // Nothing to be done here
-          break;
-        }
-        case EstimatorStage::FIRST_KEYFRAME:
-        {
-          // First KF has arrived, but we need atleast two for optimization 
-          break;
-        }
-        case EstimatorStage::SECOND_KEYFRAME:
-        {
-          // We can now optimize
-          // TODO:1. Make a check to see if the imu factor is created and added to the graph 
-          //      2. Make this thread safe, the latest keyframe should not be overwritten in addKF function 
-          initializeLatestKF();
-          EstimatorResult result = runOptimization(); 
-          if (result == EstimatorResult::BAD) {
-            SVO_WARN_STREAM("[Estimator]: Estimator diverged");
-          } 
-          cleanUp(); 
-          break;
+      if (stage_ == EstimatorStage::SECOND_KEYFRAME ||
+          stage_ == EstimatorStage::DEFAULT_KEYFRAME)
+      {
+        // We can now optimize
+        // TODO:1. Make a check to see if the imu factor is created and added to the graph 
+        //      2. Make this thread safe, the latest keyframe should not be overwritten in addKF function 
+        initializeLatestKF();
+        EstimatorResult result = runOptimization(); 
+        if (result == EstimatorResult::BAD) {
+          SVO_WARN_STREAM("[Estimator]: Estimator diverged");
         } 
-        case EstimatorStage::DEFAULT_KEYFRAME:
-        {
-          initializeLatestKF();
-          EstimatorResult result = runOptimization(); 
-          if (result == EstimatorResult::BAD) {
-            SVO_WARN_STREAM("[Estimator]: Estimator diverged");
-          } 
-          cleanUp(); 
-          break; 
-        } 
+        cleanUp(); 
       }
     }
   }

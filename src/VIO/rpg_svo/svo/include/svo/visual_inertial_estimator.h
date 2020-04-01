@@ -113,8 +113,6 @@ protected:
   //       Maybe unordered_map is efficient?
   EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
-  std::list<FramePtr>          keyframes_;             //!< list of keyframes to optimize
-  FramePtr                     prev_keyframe_;         //!< Previous keyframe 
   FramePtr                     curr_keyframe_;         //!< Latest keyframe 
   bool                         new_kf_added_;          //!< New keyframe added?
   bool                         quit_;                  //!< Stop optimizing and quit

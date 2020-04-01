@@ -62,9 +62,6 @@ VisualInertialEstimator::VisualInertialEstimator()
   params_->biasAccOmegaInt         = bias_acc_omega_int_;
   // params_->n_gravity               = gravity_gtsam.normalized();
 
-
-  SVO_INFO_STREAM("Gravity = " << params_->getGravity());
-
   imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, prior_imu_bias_);
   assert(imu_preintegrated_);
 
@@ -221,12 +218,12 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
     SVO_DEBUG_STREAM("[Estimator]: Second KF arrived"); 
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::SECOND_KEYFRAME;
-    add_factor_to_graph_ = true; 
+    add_factor_to_graph_ = true;
   } else {
     SVO_DEBUG_STREAM("[Estimator]: New KF arrived"); 
     curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
-    add_factor_to_graph_ = true; 
+    add_factor_to_graph_ = false;
   }
 }
 
@@ -278,16 +275,18 @@ void VisualInertialEstimator::initializeLatestKF()
   initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
   initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);
+  SVO_INFO_STREAM("[Estimator]: Initialized values for optimization");
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
 {
   SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
+  ros::Time start_time = ros::Time::now();
   isam2_.update(*graph_, initial_values_);
-  ros::Duration(0.01).sleep();   
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
+  SVO_INFO_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
   const gtsam::Values result = isam2_.calculateEstimate();
   updateState(result);
 

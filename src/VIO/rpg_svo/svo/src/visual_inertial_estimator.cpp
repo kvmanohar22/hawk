@@ -24,7 +24,8 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     new_factor_added_(false),
     n_integrated_measures_(0),
     should_integrate_(false),
-    camera_(camera)
+    camera_(camera),
+    initialization_done_(false)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
   initializeTcamImu();
@@ -153,8 +154,19 @@ void VisualInertialEstimator::addImuFactorToGraph()
 
 void VisualInertialEstimator::addVisionFactorToGraph()
 {
-  SVO_INFO_STREAM("Keyframe correction id = " << keyframes_.front()->correction_id_ <<
-    "size = " << keyframes_.size());
+  SVO_INFO_STREAM(
+      "Keyframe correction id = " << keyframes_.front()->correction_id_ <<
+      "frame id = " << keyframes_.front()->id_ <<
+      "size = " << keyframes_.size());
+
+  if(initialization_done_)
+  {
+
+  }
+  else
+  {
+
+  }
 }
 
 void VisualInertialEstimator::addFactorsToGraph()
@@ -175,8 +187,10 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
     }
     integrateSingleMeasurement(msg);
   }
-  else if(stage_ != EstimatorStage::PAUSED)
+  else if(stage_ != EstimatorStage::PAUSED) {
+    SVO_INFO_STREAM("here"); 
     imu_msgs_.push_back(msg);
+  }
 }
 
 void VisualInertialEstimator::startThread()
@@ -204,15 +218,15 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   keyframes_.push(keyframe);
 
   if(stage_ == EstimatorStage::PAUSED) {
-    SVO_INFO_STREAM("[Estimator]: First KF arrived"); 
+    SVO_INFO_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
-    SVO_INFO_STREAM("[Estimator]: Second KF arrived"); 
+    SVO_INFO_STREAM("[Estimator]: Second KF arrived id="<< keyframe->id_); 
     stage_ = EstimatorStage::SECOND_KEYFRAME;
     should_integrate_ = false;
   } else {
-    SVO_INFO_STREAM("[Estimator]: New KF arrived"); 
+    SVO_INFO_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_); 
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
     should_integrate_ = false;
   }
@@ -298,7 +312,15 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Matrix33 rotation   = pose.rotation().matrix();
   gtsam::Vector3 translation = pose.translation().vector();
 
-  FramePtr update_keyframe = keyframes_.front();
+  FramePtr update_keyframe;
+  if(!initialization_done_)
+  {
+    // we don't want to update the first frame's pose (since it is identity)
+    keyframes_.pop();
+    initialization_done_ = true;
+  }
+  
+  update_keyframe = keyframes_.front();
   keyframes_.pop(); 
   update_keyframe->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
@@ -329,7 +351,7 @@ void VisualInertialEstimator::OptimizerLoop()
 {
   while(ros::ok() && !quit_ && !boost::this_thread::interruption_requested())
   {
-    if(new_kf_added_ || !keyframes_.empty())
+    if(new_kf_added_ || keyframes_.size() > 1)
     {
       new_kf_added_ = false;
       if (shouldRunOptimization())

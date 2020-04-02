@@ -178,7 +178,7 @@ protected:
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
   NoisePtr                     measurement_noise_;     //!< Measurement noise model
-
+  bool                         initialization_done_;   //!< True if initial keyframes are optimized
 
 
 

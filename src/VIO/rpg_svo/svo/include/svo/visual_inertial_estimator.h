@@ -106,10 +106,16 @@ public:
   void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Integrate multiple measurements
-  void integrateMultipleMeasurements(const list<sensor_msgs::Imu::ConstPtr>& msgs);
+  void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
 
-  /// Add a single factor to graph
-  void addSingleFactorToGraph();
+  /// Add a single factor to graph (imu and vision)
+  void addFactorsToGraph();
+
+  /// Adds imu factor to graph
+  void addImuFactorToGraph();
+
+  /// Adds visual factor to graph
+  void addVisionFactorToGraph();
 
 protected:
   void initializeTcamImu();
@@ -162,6 +168,9 @@ protected:
 
   // For debugging purposes
   const int                    max_measurements_int_;  //!< Max. number of measurements to be used for integration
+
+  bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
+
 
 }; // class VisualInertialEstimator
 

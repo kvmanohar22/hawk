@@ -1,11 +1,11 @@
 ################################################################################
 # user build settings
 
-SET(TRACE TRUE)
+SET(TRACE FALSE)
 SET(HAVE_G2O FALSE) 
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
-SET(SVO_ANALYSIS TRUE) # Writes log data that can be analyzed. Disable this in Release mode
+SET(SVO_ANALYSIS FALSE) # Writes log data that can be analyzed. Disable this in Release mode
 SET(SVO_BUILD_TESTS FALSE) # Enable this to build tests
 ################################################################################
 

@@ -161,14 +161,14 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+  stage_ = STAGE_SECOND_FRAME;
+  SVO_INFO_STREAM("Init: Selected first frame.");
 
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
-  map_.addKeyframe(new_frame_);
-  stage_ = STAGE_SECOND_FRAME;
-  SVO_INFO_STREAM("Init: Selected first frame.");
   return RESULT_IS_KEYFRAME;
 }
 
@@ -190,15 +190,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   frame_utils::getSceneDepth(*new_frame_, depth_mean, depth_min);
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
 
-  if (Config::runInertialEstimator()) {
-    inertial_estimator_->addKeyFrame(new_frame_);
-  }
-
   // add frame to map
   map_.addKeyframe(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
   klt_homography_init_.reset();
   SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
+
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
   return RESULT_IS_KEYFRAME;
 }
 

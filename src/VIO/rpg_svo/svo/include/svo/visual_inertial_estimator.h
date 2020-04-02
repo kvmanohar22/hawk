@@ -120,6 +120,7 @@ protected:
   EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
   FramePtr                     curr_keyframe_;         //!< Latest keyframe 
+  std::queue<FramePtr>         keyframes_;             //!< Keyframes to be optimized
   bool                         new_kf_added_;          //!< New keyframe added?
   bool                         quit_;                  //!< Stop optimizing and quit
   int                          n_iters_;               //!< Number of optimization iterations
@@ -127,7 +128,6 @@ protected:
   gtsam::ISAM2                 isam2_;                 //!< Optimization
   PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
-  gtsam::imuBias::ConstantBias prior_imu_bias_;        //!< prior IMU bias
   ImuNoiseParams*              imu_noise_params_;      //!< Noise specifications
   const double                 dt_;                    //!< IMU sampling rate
 

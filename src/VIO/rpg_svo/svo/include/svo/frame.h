@@ -45,6 +45,7 @@ public:
     
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
+  int                           correction_id_;         //!< Used in estimator thread 
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   ros::Time                     ros_ts_;                //!< ROS time stamp
   vk::AbstractCamera*           cam_;                   //!< Camera model.

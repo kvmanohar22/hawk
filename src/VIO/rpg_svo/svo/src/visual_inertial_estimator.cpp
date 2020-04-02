@@ -218,32 +218,19 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   // initialize the to be estimated pose to the scale ambiguous pose
   keyframe->scaled_T_f_w_ = keyframe->T_f_w_;
   new_kf_added_ = true;
+  keyframes_.push(keyframe);
 
   // TODO: Use a check so that curr_keyframe_ is not overwritten
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_INFO_STREAM("[Estimator]: First KF arrived"); 
-    curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::FIRST_KEYFRAME;
+    keyframes_.pop();  // we cannot do this when initializing smartFactors
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
     SVO_INFO_STREAM("[Estimator]: Second KF arrived"); 
-    curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::SECOND_KEYFRAME;
     add_factor_to_graph_ = true;
   } else {
-    curr_keyframe_ = keyframe;
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
-    // wait until the optimization is complete
-    // and then add the factor to graph
-    ros::Time start = ros::Time::now();
-    while (ros::ok() && !quit_)
-    {
-      if (optimization_complete_)
-        break;
-      ros::Duration(0.0001).sleep();
-    }
-    // TODO: This is bad. It hurts performance of motion estimation thread.
-    //       Ideally, maintain a queue of keyframes
-    SVO_INFO_STREAM("[Estimator]: New KF arrived. Wait time = " << (ros::Time::now()-start).toSec()*1e3 << " ms"); 
     add_factor_to_graph_ = true;
   }
 }
@@ -337,13 +324,14 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
-  // TODO: Only updating the latest pose, update all the updates values
-  const auto pose   = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
+  // Only update the latest pose
+  const auto pose            = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   gtsam::Matrix33 rotation   = pose.rotation().matrix();
   gtsam::Vector3 translation = pose.translation().vector();
 
-  // TODO: Not the right way to do it. This could be overwritten.
-  // curr_keyframe_->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
+  FramePtr update_keyframe = keyframes_.front();
+  keyframes_.pop(); 
+  update_keyframe->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
@@ -351,7 +339,8 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
   curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   optimization_complete_ = true;
-  SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF=" << correction_count_);
+  SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF="
+      << correction_count_ << " remaining kfs= " << keyframes_.size());
 }
 
 bool VisualInertialEstimator::shouldRunOptimization()
@@ -369,7 +358,7 @@ void VisualInertialEstimator::cleanUp()
 
 void VisualInertialEstimator::OptimizerLoop()
 {
-  while(ros::ok() && !quit_)
+  while(ros::ok() && !quit_ && !boost::this_thread::interruption_requested())
   {
     if(new_kf_added_)
     {

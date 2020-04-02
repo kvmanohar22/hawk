@@ -31,6 +31,7 @@ int Frame::frame_counter_ = 0;
 
 Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     id_(frame_counter_++),
+    correction_id_(-1),
     timestamp_(timestamp),
     cam_(cam),
     key_pts_(5),
@@ -44,6 +45,7 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
 
 Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts) :
     id_(frame_counter_++),
+    correction_id_(-1),
     ros_ts_(ts),
     cam_(cam),
     key_pts_(5),

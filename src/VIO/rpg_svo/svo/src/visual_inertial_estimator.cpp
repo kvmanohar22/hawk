@@ -20,7 +20,7 @@ VisualInertialEstimator::VisualInertialEstimator()
     correction_count_(0),
     add_factor_to_graph_(false),
     optimization_complete_(false),
-    multiple_int_complete_(false),
+    multiple_int_complete_(true),
     new_factor_added_(false),
     n_integrated_measures_(0),
     max_measurements_int_(vk::getParam<int>("/hawk/svo/max_measurements"))
@@ -91,13 +91,12 @@ VisualInertialEstimator::~VisualInertialEstimator()
 
 void VisualInertialEstimator::initializeTcamImu()
 {
-  std::vector<double> T;
-  T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
+  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
   Eigen::Matrix<double, 3, 3> R_cam_imu;
   Eigen::Vector3d t_cam_imu;
   for(size_t i=0; i<3; ++i) {
     for(size_t j=0; j<4; ++j) {
-      double v = T[i*4+j]; 
+      const double v = T[i*4+j]; 
       if(j == 3) {
         t_cam_imu(i) = v;
       } else {
@@ -156,21 +155,20 @@ void VisualInertialEstimator::addSingleFactorToGraph()
 
 void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
 {
-  if (stage_ == EstimatorStage::PAUSED) { // No KF added, just ignore
-    return;
-  } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
+  if (stage_ == EstimatorStage::FIRST_KEYFRAME) { // first KF added, start integrating
     SVO_INFO_STREAM_ONCE("[Estimator]: First keyframe added. Starting IMU integration"); 
     integrateSingleMeasurement(msg);
   } else { // new KF added, pause integration
     if (add_factor_to_graph_) { // First add factor to graph
-      // integrate the current measurement
-      integrateSingleMeasurement(msg);
-
       // check if integration of previous measurements is pending
       if (!multiple_int_complete_) {
+        SVO_INFO_STREAM("[Estimator]: Optimization complete2. Integrating multiple values: " << imu_msgs_.size());
         integrateMultipleMeasurements(imu_msgs_);
         imu_msgs_.clear();
       }
+
+      // integrate the current measurement
+      integrateSingleMeasurement(msg);
 
       // add the factor
       SVO_INFO_STREAM("[Estimator]: New KF arrived. Adding new IMU factor to graph");
@@ -182,17 +180,16 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
       imu_msgs_.clear(); 
     } else { // integrate Imu values for next imu factor
       if (optimization_complete_) {
-        SVO_INFO_STREAM_ONCE("[Estimator]: Optimization complete. Integrating multiple values: " << imu_msgs_.size());
         if (multiple_int_complete_) {
           integrateSingleMeasurement(msg);
         } else {
           imu_msgs_.push_back(msg); 
+          SVO_INFO_STREAM("[Estimator]: Optimization complete1. Integrating multiple values: " << imu_msgs_.size());
           integrateMultipleMeasurements(imu_msgs_);
           imu_msgs_.clear();
           multiple_int_complete_ = true;
         }
       } else { // while optimization is going, we store the messages in a list
-        SVO_INFO_STREAM_ONCE("[Estimator]: Optimization in progress. Storing IMU values");
         imu_msgs_.push_back(msg);
       } 
     } 

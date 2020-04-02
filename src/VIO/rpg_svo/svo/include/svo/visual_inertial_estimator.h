@@ -62,15 +62,14 @@ public:
   typedef gtsam::noiseModel::Diagonal Noise;
   typedef gtsam::noiseModel::Diagonal::shared_ptr NoisePtr;
   typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
+  typedef boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> CombinedParamsPtr;
+
 
   VisualInertialEstimator();
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
   void imu_cb(const sensor_msgs::Imu::ConstPtr& msg);
-
-  /// Imu callback
-  void imu_cb2(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Start this thread to estimate inertial estimates 
   void startThread();
@@ -90,6 +89,9 @@ public:
   /// initialize values for new variables in the optimization
   /// Namely, (X, V, B) of the latest keyframe's pose
   void initializeNewVariables();
+
+  /// Flag to see if optimization is to be run
+  bool shouldRunOptimization();
 
   /// Run optimization
   EstimatorResult runOptimization();
@@ -129,10 +131,9 @@ protected:
   ImuNoiseParams*              imu_noise_params_;      //!< Noise specifications
   const double                 dt_;                    //!< IMU sampling rate
 
-  // TODO: Are these matrices row major or col major
-  gtsam::Matrix33              white_noise_acc_cov_;
-  gtsam::Matrix33              white_noise_omg_cov_;
-  gtsam::Matrix33              random_walk_acc_cov_;
+  gtsam::Matrix33              white_noise_acc_cov_;   //!< All these matrices are COL major
+  gtsam::Matrix33              white_noise_omg_cov_;   //   But doesn't make a difference
+  gtsam::Matrix33              random_walk_acc_cov_;   //   since all these are diagonal
   gtsam::Matrix33              random_walk_omg_cov_;
   gtsam::Matrix33              integration_error_cov_;
   gtsam::Matrix66              bias_acc_omega_int_;
@@ -141,8 +142,7 @@ protected:
   NoisePtr                     prior_vel_noise_model_;
   NoisePtr                     prior_bias_noise_model_;
 
-
-  boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> params_;
+  CombinedParamsPtr            params_;
 
   gtsam::Values                initial_values_;        //!< initial values
   int                          correction_count_;      //!< used for symbols

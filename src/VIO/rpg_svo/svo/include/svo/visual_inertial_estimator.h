@@ -4,6 +4,10 @@
 #include <boost/thread.hpp>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
+#include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Cal3DS2_Base.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -11,6 +15,8 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <vikit/params_helper.h>
+#include <vikit/abstract_camera.h>
+#include <vikit/pinhole_camera.h>
 #include <sensor_msgs/Imu.h>
 #include <svo/global.h>
 #include <svo/config.h>
@@ -63,9 +69,11 @@ public:
   typedef gtsam::noiseModel::Diagonal::shared_ptr NoisePtr;
   typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
   typedef boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> CombinedParamsPtr;
-
-
-  VisualInertialEstimator();
+  typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
+  typedef SmartFactor::shared_ptr SmartFactorPtr;
+  typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
+  
+  VisualInertialEstimator(vk::AbstractCamera* camera);
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
@@ -165,11 +173,13 @@ protected:
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
   Sophus::SE3                  T_cam_imu_;             //!< Transformation from imu -> camera
-
-  // For debugging purposes
-  const int                    max_measurements_int_;  //!< Max. number of measurements to be used for integration
-
   bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
+ 
+  vk::AbstractCamera*          camera_;                //!< Abstract camera 
+  Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
+  NoisePtr                     measurement_noise_;     //!< Measurement noise model
+
+
 
 
 }; // class VisualInertialEstimator

@@ -57,7 +57,7 @@ void FrameHandlerMono::initialize()
   if (Config::runInertialEstimator())
   {
     SVO_INFO_STREAM("Starting Inertial Estimator");
-    inertial_estimator_ = new svo::VisualInertialEstimator(); 
+    inertial_estimator_ = new svo::VisualInertialEstimator(cam_);
     inertial_estimator_->startThread();
   }
 }

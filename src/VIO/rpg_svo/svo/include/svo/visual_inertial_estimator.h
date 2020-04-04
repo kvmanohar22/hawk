@@ -25,6 +25,12 @@ namespace svo {
 
 namespace Symbol = gtsam::symbol_shorthand;
 
+static inline Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
+{
+  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
+  return v_eigen; 
+}
+
 /// Assess the current stage of the system
 enum class EstimatorStage {
   PAUSED,
@@ -125,8 +131,16 @@ public:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
-protected:
+  /// Initialize relative transformation b/w camera and IMU
   void initializeTcamImu();
+
+  /// instance functionalities
+  inline const CombinedParamsPtr params() const { return params_; }
+
+  /// IMU bias
+  inline const gtsam::imuBias::ConstantBias imuBias() const { return curr_imu_bias_; }
+
+protected:
 
   // TODO: Need to hold proper reference to keyframes
   //       These could be deleted in the Motion Estimation thread
@@ -140,7 +154,7 @@ protected:
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
-  PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU
+  PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   ImuNoiseParams*              imu_noise_params_;      //!< Noise specifications
   const double                 dt_;                    //!< IMU sampling rate

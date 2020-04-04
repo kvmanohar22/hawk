@@ -25,8 +25,15 @@
 #include <svo/initialization.h>
 #include <svo/visual_inertial_estimator.h>
 #include <sensor_msgs/Imu.h>
+#include <gtsam/navigation/ImuFactor.h>
 
 namespace svo {
+
+enum class InitializationType
+{
+  KLT,
+  STEREO
+};
 
 /// Monocular Visual Odometry Pipeline as described in the SVO paper.
 class FrameHandlerMono : public FrameHandlerBase
@@ -90,6 +97,15 @@ protected:
   Matrix3d  R_curr_; // Rotation of latest frame wrt world
   Vector3d  v_curr_; // Velocity of latest frame
   Vector3d  p_curr_; // Position of latest frame in world
+
+  VisualInertialEstimator::PreintegrationTypePtr integrator_;
+  VisualInertialEstimator::CombinedParamsPtr     integration_params_;
+  gtsam::imuBias::ConstantBias imu_bias_;
+  bool reset_integration_;
+  bool start_integration_;
+  bool prior_updated_;
+  InitializationType init_type_;
+
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

@@ -36,7 +36,11 @@ FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
   cam_(cam),
   reprojector_(cam_, map_),
   depth_filter_(NULL),
-  inertial_estimator_(nullptr)
+  inertial_estimator_(nullptr),
+  reset_integration_(false),
+  start_integration_(false),
+  prior_updated_(false),
+  init_type_(InitializationType::KLT)
 {
   initialize();
 }
@@ -61,10 +65,21 @@ void FrameHandlerMono::initialize()
     inertial_estimator_->startThread();
   }
 
-  // Used for motion priors
-  R_prev_ = Eigen::Matrix3d::Identity();
-  v_prev_ = Vector3d::Zero();
-  p_prev_ = Vector3d::Zero();
+  if(Config::useImu())
+  {
+    // Used for motion priors
+    R_prev_ = Eigen::Matrix3d::Identity();
+    v_prev_ = Vector3d::Zero();
+    p_prev_ = Vector3d::Zero();
+
+    /// initialize the integrator
+    /// TODO: Set T b/w world frame and IMU frame in the params 
+    integration_params_ = inertial_estimator_->params();
+    imu_bias_ = inertial_estimator_->imuBias();
+    integrator_ = std::make_shared<gtsam::PreintegrationType>(
+        integration_params_, imu_bias_);
+    integrator_->resetIntegration(); 
+  }
 }
 
 FrameHandlerMono::~FrameHandlerMono()
@@ -76,7 +91,22 @@ FrameHandlerMono::~FrameHandlerMono()
 
 void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  // TODO: set the initial (R, t) 
+  if(start_integration_) {
+    const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
+    const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
+    static gtsam::Matrix9 A; 
+    static gtsam::Matrix93 B, C; 
+    integrator_->update(acc, omg, Config::dt(), &A, &B, &C);
+  } else if(reset_integration_) {
+    R_curr_ = integrator_->deltaRij().matrix();
+    p_curr_ = integrator_->deltaPij();
+    prior_updated_ = true;   
 
+    // TODO: Need to reset bias after certain number of keyframes as well 
+    integrator_->resetIntegration();
+    start_integration_ = true; 
+  }
 }
 
 void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
@@ -178,7 +208,11 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
-
+ 
+  // in stereo, we get the initial map right here. No second frame processed 
+  if(init_type_ == InitializationType::STEREO) 
+    start_integration_ = true;
+  
   return RESULT_IS_KEYFRAME;
 }
 
@@ -209,19 +243,47 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
+
+  // if we are here, we are using KLT to bootstrap the map
+  start_integration_ = true;
+  
   return RESULT_IS_KEYFRAME;
 }
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
-  // Set initial pose TODO use prior
+  // stop the integration and generate priors
+  reset_integration_ = true;
+  start_integration_ = false; 
+  
+  // Set initial pose
+  // TODO: Set this initial transformation to the one from IMU? 
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
+
+  // get motion priors and reset integration
+  SVO_START_TIMER("imu_prior_wait");
+  while(ros::ok())
+  {
+    if(prior_updated_) {
+      prior_updated_ = false;
+      break;
+    }
+  }
+  SVO_STOP_TIMER("imu_prior_wait");
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");
-  SparseImgAlign img_align(Config::kltMaxLevel(), Config::kltMinLevel(),
-                           30, SparseImgAlign::GaussNewton, false, false);
-  size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
+  boost::shared_ptr<SparseImgAlign> img_align; 
+  if(Config::useImu())
+  {
+    img_align = boost::make_shared<SparseImgAlign>(
+        Config::kltMaxLevel(), Config::kltMinLevel(), 30, SparseImgAlign::GaussNewton, false, false,
+        true, true, R_curr_, p_curr_);
+  } else {
+    img_align = boost::make_shared<SparseImgAlign>(
+        Config::kltMaxLevel(), Config::kltMinLevel(), 30, SparseImgAlign::GaussNewton, false, false);
+  }
+  size_t img_align_n_tracked = img_align->run(last_frame_, new_frame_);
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);

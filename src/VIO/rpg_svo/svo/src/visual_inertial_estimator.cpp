@@ -3,12 +3,6 @@
 
 namespace svo {
 
-static Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
-{
-  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
-  return v_eigen; 
-}
-
 VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
   : stage_(EstimatorStage::PAUSED),
     thread_(nullptr),

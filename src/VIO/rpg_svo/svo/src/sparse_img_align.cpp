@@ -273,7 +273,8 @@ double SparseImgAlign::computeResiduals(
     // Jacobian * residual
     const Vector3d pos_res = p - p_prior_;
     const Vector3d rot_res = omega;
-    const Vector6d prior_res = Vector6d(pos_res, prior_res);
+    Vector6d prior_res;
+    prior_res << pos_res, rot_res;
     const Vector6d Jres_prior = Jt * prior_res;
 
     const double prior_chi2 = prior_res.transpose()*prior_res; 

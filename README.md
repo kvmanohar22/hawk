@@ -35,6 +35,9 @@ git clone git@github.com:kvmanohar22/hawk.git
 
 - Install MatrixVision driver. Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
 
+- Install GTSAM as outlined [here](https://github.com/borglab/gtsam)
+  - **IMPORTANT**: Disable the flag `GTSAM_TANGENT_PREINTEGRATION` which is ON by default.
+
 #### Build
 
 **Note:** For the sake of uniformity, use **only** bash shell.

@@ -104,6 +104,9 @@ void VisualInertialEstimator::initializeTcamImu()
     }
   }
   T_cam_imu_ = Sophus::SE3(R_cam_imu, t_cam_imu);
+  const gtsam::Rot3 R(T_cam_imu_.rotation_matrix()); 
+  const gtsam::Point3 t(T_cam_imu_.translation());
+  T_cam_imu_gtsam_ = gtsam::Pose3(R, t);
 }
 
 void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)

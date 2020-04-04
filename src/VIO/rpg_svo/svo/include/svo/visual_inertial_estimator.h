@@ -187,15 +187,13 @@ protected:
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
   Sophus::SE3                  T_cam_imu_;             //!< Transformation from imu -> camera
+  gtsam::Pose3                 T_cam_imu_gtsam_;       //!< body P sensor
   bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
   NoisePtr                     measurement_noise_;     //!< Measurement noise model
   bool                         initialization_done_;   //!< True if initial keyframes are optimized
-
-
-
 }; // class VisualInertialEstimator
 
 } // namespace svo

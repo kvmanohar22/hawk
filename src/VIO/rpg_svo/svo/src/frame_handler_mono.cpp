@@ -53,13 +53,18 @@ void FrameHandlerMono::initialize()
   depth_filter_ = new DepthFilter(feature_detector, depth_filter_cb);
   depth_filter_->startThread();
 
-  // // Start visual inertial estimator
+  // Start visual inertial estimator
   if (Config::runInertialEstimator())
   {
     SVO_INFO_STREAM("Starting Inertial Estimator");
     inertial_estimator_ = new svo::VisualInertialEstimator(cam_);
     inertial_estimator_->startThread();
   }
+
+  // Used for motion priors
+  R_prev_ = Eigen::Matrix3d::Identity();
+  v_prev_ = Vector3d::Zero();
+  p_prev_ = Vector3d::Zero();
 }
 
 FrameHandlerMono::~FrameHandlerMono()
@@ -67,6 +72,11 @@ FrameHandlerMono::~FrameHandlerMono()
   delete depth_filter_;
   if (Config::runInertialEstimator())
     delete inertial_estimator_;
+}
+
+void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+{
+
 }
 
 void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)

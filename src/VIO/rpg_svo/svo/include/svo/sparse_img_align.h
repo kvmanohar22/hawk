@@ -46,7 +46,11 @@ public:
       int n_iter,
       Method method,
       bool display,
-      bool verbose);
+      bool verbose,
+      bool use_motion_priors = false,
+      bool motion_prior_verbose = false, 
+      const Matrix3d R_prior = Matrix3d::Zero(),
+      const Vector3d p_prior = Vector3d::Zero());
 
   size_t run(
       FramePtr ref_frame,
@@ -63,12 +67,19 @@ protected:
   bool display_;                  //!< display residual image.
   int max_level_;                 //!< coarsest pyramid level for the alignment.
   int min_level_;                 //!< finest pyramid level for the alignment.
+  bool use_motion_priors_;        //!< Use motion priors
+  bool motion_prior_verbose_;     //!< motion prior verbosity 
+  Matrix3d R_prior_;              //!< Rotation prior from gyroscope
+  Vector3d p_prior_;              //!< translation prior from gyroscope
 
   // cache:
   Matrix<double, 6, Dynamic, ColMajor> jacobian_cache_;
   bool have_ref_patch_cache_;
   cv::Mat ref_patch_cache_;
   std::vector<bool> visible_fts_;
+
+  /// computes right Jacobian inverse of SO3
+  Matrix3d computeJrInvSO3(const Vector3d& phi);
 
   void precomputeReferencePatches();
   virtual double computeResiduals(const SE3& model, bool linearize_system, bool compute_weight_scale = false);

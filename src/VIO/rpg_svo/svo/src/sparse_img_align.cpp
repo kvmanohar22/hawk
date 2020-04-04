@@ -28,10 +28,18 @@ namespace svo {
 
 SparseImgAlign::SparseImgAlign(
     int max_level, int min_level, int n_iter,
-    Method method, bool display, bool verbose) :
+    Method method, bool display, bool verbose,
+    bool use_motion_priors, 
+    bool motion_prior_verbose, 
+    const Matrix3d R_prior,
+    const Vector3d p_prior) :
         display_(display),
         max_level_(max_level),
-        min_level_(min_level)
+        min_level_(min_level),
+        use_motion_priors_(use_motion_priors),
+        motion_prior_verbose_(motion_prior_verbose), 
+        R_prior_(R_prior),
+        p_prior_(p_prior)
 {
   n_iter_ = n_iter;
   n_iter_init_ = n_iter_;
@@ -144,6 +152,19 @@ void SparseImgAlign::precomputeReferencePatches()
   have_ref_patch_cache_ = true;
 }
 
+Matrix3d SparseImgAlign::computeJrInvSO3(const Vector3d& omega)
+{
+  Matrix3d Jinv;
+  const Matrix3d omega_hat = Sophus::SO3::hat(omega);
+  const double omega_norm = omega.norm();
+  const double omega_norm_2 = omega_norm * omega_norm;
+  Jinv = Matrix3d::Identity() + 
+        0.5 * omega_hat + 
+        ((1.0/omega_norm_2)+(1.0+std::cos(omega_norm))/(2*omega_norm*std::sin(omega_norm))) * omega_hat * omega_hat; 
+
+  return Jinv;
+}
+
 double SparseImgAlign::computeResiduals(
     const SE3& T_cur_from_ref,
     bool linearize_system,
@@ -235,11 +256,45 @@ double SparseImgAlign::computeResiduals(
     }
   }
 
+  double chi2_total = chi2/n_meas_;
+  if(use_motion_priors_) {
+    const Matrix3d R = T_cur_from_ref.rotation_matrix();
+    const Vector3d p = T_cur_from_ref.translation(); 
+    const SO3 RpriorTR(R_prior_.transpose()*R); 
+    const Vector3d omega = SO3::log(RpriorTR); 
+    const Matrix3d JrInv = computeJrInvSO3(omega);
+    const Matrix3d Jr = JrInv.inverse();
+   
+    // compute Jacobian
+    Matrix<double, 6, 6> Jt = Matrix<double, 6, 6>::Zero();;
+    Jt.block(0, 0, 3, 3).noalias() = R.transpose();
+    Jt.block(3, 3, 3, 3).noalias() = JrInv.transpose();
+
+    // Jacobian * residual
+    const Vector3d pos_res = p - p_prior_;
+    const Vector3d rot_res = omega;
+    const Vector6d prior_res = Vector6d(pos_res, prior_res);
+    const Vector6d Jres_prior = Jt * prior_res;
+
+    const double prior_chi2 = prior_res.transpose()*prior_res; 
+    chi2_total += prior_chi2;
+    if(motion_prior_verbose_)
+      cout << "prior chi2 = " << prior_chi2 << "\n";
+
+    // compute Hessian
+    Matrix<double, 6, 6> JtJ;
+    JtJ.noalias() = Jt * Jt.transpose(); 
+ 
+    // update Hessian and Jacobian*residual 
+    H_.noalias() += JtJ; 
+    Jres_.noalias() -= Jres_prior;
+  }
+
   // compute the weights on the first iteration
   if(compute_weight_scale && iter_ == 0)
     scale_ = scale_estimator_->compute(errors);
 
-  return chi2/n_meas_;
+  return chi2_total;
 }
 
 int SparseImgAlign::solve()

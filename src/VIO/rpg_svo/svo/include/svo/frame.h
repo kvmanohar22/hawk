@@ -146,7 +146,29 @@ public:
     J(1,2) = y*z_inv_2;           // y/z^2
     J(1,3) = 1.0 + y*J(1,2);      // 1.0 + y^2/z^2
     J(1,4) = -J(0,3);             // -x*y/z^2
-    J(1,5) = -x*z_inv;            // x/z
+    J(1,5) = -x*z_inv;            // -x/z
+  }
+
+  // Required in sparse image alignment step
+  inline static void jacobian_xyz2uv(
+      const Vector3d& xyz_in_f,
+      Matrix<double,2,6>& J,
+      const Matrix3d& R_cb)
+  {
+    const double x = xyz_in_f[0];
+    const double y = xyz_in_f[1];
+    const double z = xyz_in_f[2];
+    const double z_inv = 1./xyz_in_f[2];
+    const double z_inv_2 = z_inv*z_inv;
+
+    // Jacobian of projection matrix
+    const Matrix<double, 2, 3> dPIdX = (Matrix<double, 2, 3>() << z_inv, 0, -x*z_inv_2, 0, z_inv, -y*z_inv_2).finished();
+
+    // skew symmetric matrix representation of vector
+    const Matrix<double, 3, 3> X_skew = (Matrix<double, 3, 3>() << 0, -z, y, z, 0, -x, -y, x, 0).finished();
+
+    J.topLeftCorner(2, 3).noalias()  = -dPIdX * R_cb;
+    J.topRightCorner(2, 3).noalias() =  dPIdX * R_cb * X_skew;
   }
 };
 

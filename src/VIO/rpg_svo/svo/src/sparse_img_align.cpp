@@ -64,7 +64,8 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
   jacobian_cache_.resize(Eigen::NoChange, ref_patch_cache_.rows*patch_area_);
   visible_fts_.resize(ref_patch_cache_.rows, false); // TODO: should it be reset at each level?
 
-  SE3 T_cur_from_ref(cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse());
+  // Optimize for change in body transformation rather than camera transfomration
+  SE3 T_cur_from_ref(Frame::T_b_c_ * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * Frame::T_c_b_);
 
   for(level_=max_level_; level_>=min_level_; --level_)
   {
@@ -75,9 +76,9 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
       printf("\nPYRAMID LEVEL %i\n---------------\n", level_);
     optimize(T_cur_from_ref);
   }
-  cur_frame_->T_f_w_ = T_cur_from_ref * ref_frame_->T_f_w_;
 
-
+  // update the current frames' tranformation
+  cur_frame_->T_f_w_ = Frame::T_c_b_ * T_cur_from_ref * Frame::T_b_c_ * ref_frame_->T_f_w_;
 
   return n_meas_/patch_area_;
 }
@@ -117,7 +118,7 @@ void SparseImgAlign::precomputeReferencePatches()
 
     // evaluate projection jacobian
     Matrix<double,2,6> frame_jac;
-    Frame::jacobian_xyz2uv(xyz_ref, frame_jac);
+    Frame::jacobian_xyz2uv(xyz_ref, frame_jac, Frame::T_c_b_.rotation_matrix());
 
     // compute bilateral interpolation weights for reference image
     const float subpix_u_ref = u_ref-u_ref_i;
@@ -199,9 +200,9 @@ double SparseImgAlign::computeResiduals(
 
     // compute pixel location in cur img
     const double depth = ((*it)->point->pos_ - ref_pos).norm();
-    const Vector3d xyz_ref((*it)->f*depth);
-    const Vector3d xyz_cur(T_cur_from_ref * xyz_ref);
-    const Vector2f uv_cur_pyr(cur_frame_->cam_->world2cam(xyz_cur).cast<float>() * scale);
+    const Vector3d xyz_ref_body(Frame::T_b_c_ * (*it)->f*depth); // this one is in ref body frame
+    const Vector3d xyz_cur_cam(Frame::T_c_b_ * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
+    const Vector2f uv_cur_pyr(cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale);
     const float u_cur = uv_cur_pyr[0];
     const float v_cur = uv_cur_pyr[1];
     const int u_cur_i = floorf(u_cur);

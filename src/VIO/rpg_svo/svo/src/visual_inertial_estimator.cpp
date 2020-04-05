@@ -22,7 +22,6 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     initialization_done_(false)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
-  initializeTcamImu();
 
   imu_noise_params_ = new ImuNoiseParams(
     vk::getParam<double>("/hawk/svo/imu0/accelerometer_noise_density"),
@@ -31,6 +30,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     vk::getParam<double>("/hawk/svo/imu0/gyroscope_random_walk"));
 
   // initialize the camera for isam2
+  // TODO: if the images are rectified, should not again use distortion parameters
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera_);
   isam2_K_ = boost::make_shared<gtsam::Cal3DS2>(
       c->fx(), c->fy(), 0.0,
@@ -58,7 +58,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
   // curr_imu_bias_ = gtsam::imuBias::ConstantBias(
   //     (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
-  // TODO: Add in rigid body transformation b/w imu and body frame
+  // TODO: Gravity vector is not exactly aligned with z-axis
   params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
   params_->accelerometerCovariance = white_noise_acc_cov_;
   params_->integrationCovariance   = integration_error_cov_;
@@ -153,7 +153,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   SVO_INFO_STREAM("[Estimator]: graph size = " << graph_->size());
 }
 
-void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
+void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
   if(should_integrate_)
   {
@@ -164,7 +164,6 @@ void VisualInertialEstimator::imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
     integrateSingleMeasurement(msg);
   }
   else if(stage_ != EstimatorStage::PAUSED) {
-    SVO_INFO_STREAM("here"); 
     imu_msgs_.push_back(msg);
   }
 }

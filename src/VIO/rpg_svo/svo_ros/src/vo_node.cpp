@@ -50,6 +50,7 @@ public:
   std::string remote_input_;
   vk::AbstractCamera* cam_;
   bool quit_;
+  ros::Rate rate_;
   VoNode();
   ~VoNode();
   void imgCb(const sensor_msgs::ImageConstPtr& msg);
@@ -63,7 +64,8 @@ VoNode::VoNode() :
   publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", true)),
   remote_input_(""),
   cam_(NULL),
-  quit_(false)
+  quit_(false),
+  rate_(100)
 {
   // Start user input thread in parallel thread that listens to console keys
   if(vk::getParam<bool>("/hawk/svo/accept_console_user_input", true))
@@ -189,16 +191,15 @@ int main(int argc, char **argv)
   ros::Subscriber imu_subscriber_motion_priors_;
   if(svo::Config::useMotionPriors())
   {
-    std::cout << "starting imu callback\n";
     imu_subscriber_motion_priors_ = nh.subscribe(
-      imu_topic, 100, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
+      imu_topic, 10000, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
   }
 
   // start processing callbacks
   while(ros::ok() && !vo_node.quit_)
   {
     ros::spinOnce();
-    // TODO check when last image was processed. when too long ago. publish warning that no msgs are received!
+    vo_node.rate_.sleep();
   }
 
   printf("SVO terminated.\n");

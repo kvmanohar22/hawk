@@ -105,6 +105,7 @@ protected:
   bool reset_integration_;
   bool start_integration_;
   bool prior_updated_;
+  bool first_measurement_done_;
   InitializationType init_type_;
   ImuHelper* imu_helper_;
 

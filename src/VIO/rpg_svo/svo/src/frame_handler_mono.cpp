@@ -67,6 +67,7 @@ void FrameHandlerMono::initialize()
 
   if(Config::useImu())
   {
+    SVO_INFO_STREAM("Using Motion priors for image alignment");
     // Used for motion priors
     R_prev_ = Eigen::Matrix3d::Identity();
     v_prev_ = Vector3d::Zero();
@@ -91,6 +92,7 @@ FrameHandlerMono::~FrameHandlerMono()
 
 void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  SVO_INFO_STREAM_ONCE("Imu callback in progress");
   // TODO: set the initial (R, t) 
   if(start_integration_) {
     const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
@@ -209,9 +211,11 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
     inertial_estimator_->addKeyFrame(new_frame_);
   }
  
-  // in stereo, we get the initial map right here. No second frame processed 
-  if(init_type_ == InitializationType::STEREO) 
-    start_integration_ = true;
+  if(Config::useImu()) {
+    // in stereo, we get the initial map right here. No second frame processed 
+    if(init_type_ == InitializationType::STEREO) 
+      start_integration_ = true;
+  }
   
   return RESULT_IS_KEYFRAME;
 }
@@ -240,12 +244,14 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   klt_homography_init_.reset();
   SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
 
-  if (Config::runInertialEstimator()) {
+  if(Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
-  // if we are here, we are using KLT to bootstrap the map
-  start_integration_ = true;
+  if(Config::useImu()) {
+    // if we are here, we are using KLT to bootstrap the map
+    start_integration_ = true;
+  }
   
   return RESULT_IS_KEYFRAME;
 }

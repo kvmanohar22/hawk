@@ -3,6 +3,7 @@
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
+    <arg name="use_imu" default="false"/>
 
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- Camera topic to subscribe to -->
@@ -10,6 +11,9 @@
 
         <!-- Camera topic to subscribe to -->
         <param name="imu_topic" value="$(arg imu_topic)" type="str" />
+
+        <!-- Whether to run with imu -->
+        <param name="use_imu" value="$(arg use_imu)" type="bool" />
 
         <!-- Camera calibration file -->
         <rosparam file="$(arg calibration)"/>

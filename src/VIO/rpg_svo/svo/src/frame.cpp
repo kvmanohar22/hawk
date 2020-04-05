@@ -208,6 +208,8 @@ bool getSceneDepth(const Frame& frame, double& depth_mean, double& depth_min)
 
 Sophus::SE3 T_c_b()
 {
+  if(!Config::useImu())
+    return Sophus::SE3();
   const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
   Eigen::Matrix<double, 3, 3> R_cam_imu;
   Eigen::Vector3d t_cam_imu;

@@ -9,9 +9,9 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     new_kf_added_(false),
     quit_(false),
     imu_preintegrated_(nullptr),
-    imu_noise_params_(nullptr),
     dt_(Config::dt()),
     correction_count_(0),
+    imu_helper_(nullptr),
     add_factor_to_graph_(false),
     optimization_complete_(false),
     multiple_int_complete_(true),
@@ -23,11 +23,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
-  imu_noise_params_ = new ImuNoiseParams(
-    vk::getParam<double>("/hawk/svo/imu0/accelerometer_noise_density"),
-    vk::getParam<double>("/hawk/svo/imu0/gyroscope_noise_density"),
-    vk::getParam<double>("/hawk/svo/imu0/accelerometer_random_walk"),
-    vk::getParam<double>("/hawk/svo/imu0/gyroscope_random_walk"));
+  imu_helper_ = new ImuHelper();
 
   // initialize the camera for isam2
   // TODO: if the images are rectified, should not again use distortion parameters
@@ -39,35 +35,8 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
 
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
-  prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  prior_bias_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
-
-  white_noise_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_noise_sigma_, 2);
-  white_noise_omg_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->gyro_noise_sigma_, 2);
-  random_walk_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_bias_rw_sigma_, 2);
-  random_walk_omg_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->gyro_bias_rw_sigma_, 2);
-  integration_error_cov_ = gtsam::Matrix33::Identity(3, 3) * 1e-8;
-  bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
-
-  // TODO: Not true. Read from calibrated values
-  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
-  // const double a = imu_noise_params_->accel_bias_rw_sigma_;
-  // const double g = imu_noise_params_->gyro_bias_rw_sigma_;
-  // curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-  //     (gtsam::Vector(6) << a, a, a, g, g, g).finished());
-
-  // TODO: Gravity vector is not exactly aligned with z-axis
-  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
-  params_->accelerometerCovariance = white_noise_acc_cov_;
-  params_->integrationCovariance   = integration_error_cov_;
-  params_->gyroscopeCovariance     = white_noise_omg_cov_;
-  params_->biasAccCovariance       = random_walk_acc_cov_;
-  params_->biasOmegaCovariance     = random_walk_omg_cov_;
-  params_->biasAccOmegaInt         = bias_acc_omega_int_;
-
-  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(params_, curr_imu_bias_);
+  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(
+    imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);
 
   isam2_params_.relinearizeThreshold = 0.01;
@@ -83,7 +52,7 @@ VisualInertialEstimator::~VisualInertialEstimator()
 {
   quit_ = true;
   stopThread();
-  delete imu_noise_params_; 
+  delete imu_helper_; 
   delete graph_; 
   SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator destructed");
 }
@@ -217,16 +186,16 @@ void VisualInertialEstimator::initializePrior()
   initial_values_.clear();
   initial_values_.insert(Symbol::X(correction_count_), curr_pose_);
   initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
-  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);
+  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
 
   // Add in first keyframe's factors
   graph_->resize(0);
   graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
-        Symbol::X(correction_count_), curr_pose_, prior_pose_noise_model_));
+        Symbol::X(correction_count_), curr_pose_, imu_helper_->prior_pose_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
-        Symbol::V(correction_count_), curr_velocity_, prior_vel_noise_model_));
+        Symbol::V(correction_count_), curr_velocity_, imu_helper_->prior_vel_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
-        Symbol::B(correction_count_), curr_imu_bias_, prior_bias_noise_model_));
+        Symbol::B(correction_count_), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
 
   SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
 }
@@ -236,11 +205,11 @@ void VisualInertialEstimator::initializeNewVariables()
   // TODO: Initialize the fused value here?
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
-      curr_state_, curr_imu_bias_);
+      curr_state_, imu_helper_->curr_imu_bias_);
 
   initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
-  initial_values_.insert(Symbol::B(correction_count_), curr_imu_bias_);
+  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
   SVO_INFO_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
 }
 
@@ -303,7 +272,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
-  curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
+  imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF="
       << correction_count_ << " remaining kfs= " << keyframes_.size());
 }
@@ -318,7 +287,7 @@ void VisualInertialEstimator::cleanUp()
 {
   SVO_INFO_STREAM("[Estimator]: Reset integration of IMU");
   SVO_INFO_STREAM("[Estimator]: ------------------------");
-  imu_preintegrated_->resetIntegrationAndSetBias(curr_imu_bias_);
+  imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
   should_integrate_ = true;
 }
 

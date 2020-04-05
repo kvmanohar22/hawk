@@ -2,6 +2,20 @@
 #define SVO_IMU_H_
 
 #include <svo/global.h>
+#include <vikit/params_helper.h>
+
+#include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
+#include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Cal3DS2_Base.h>
+#include <gtsam/navigation/ImuBias.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/ISAM2.h>
 
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/Imu.h>
@@ -13,65 +27,53 @@
 
 namespace svo {
 
-inline static Vector3d geoVector2EigenVector(const geometry_msgs::Vector3& msg)
-{
-  return Vector3d(msg.x, msg.y, msg.z);
-}
+/// Noise parameters from specifications
+struct ImuNoiseParams {
+  double accel_noise_sigma_;
+  double gyro_noise_sigma_;
+  double accel_bias_rw_sigma_;
+  double gyro_bias_rw_sigma_;
 
-/// A single imu data
-struct ImuData {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  ros::Time ts_;           //!< time stamp
-  uint32_t  seq_id_;       //!< sequence number
-  Vector3d  linear_acc_;   //!< linear acceleration
-  Vector3d  angular_vel_;  //!< angular velocity
-
-  /// Initialize from rostopic
-  ImuData(const sensor_msgs::Imu::ConstPtr& msg);
+  ImuNoiseParams(
+      double accel_noise_sigma,
+      double gyro_noise_sigma,
+      double accel_bias_rw_sigma,
+      double gyro_bias_rw_sigma) : 
+          accel_noise_sigma_(accel_noise_sigma),
+          gyro_noise_sigma_(gyro_noise_sigma),
+          accel_bias_rw_sigma_(accel_bias_rw_sigma),
+          gyro_bias_rw_sigma_(gyro_bias_rw_sigma)
+      {}    
 };
-typedef boost::shared_ptr<ImuData> ImuDataPtr;
-typedef std::queue<ImuDataPtr> ImuStream;
+typedef boost::shared_ptr<ImuNoiseParams> ImuNoiseParamsPtr;
 
-/// Container for stream of IMU data 
-class ImuContainer {
+/// Helper class to hold all Imu and integration related parameters
+class ImuHelper
+{
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ImuStream stream_; //!< stream of IMU data
+  typedef gtsam::noiseModel::Diagonal::shared_ptr NoisePtr;
+  typedef boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> CombinedParamsPtr;
 
-  ImuContainer() =default;
- ~ImuContainer() =default;
- 
-  /// callback listening to imu messages 
-  void imu_cb(const sensor_msgs::Imu::ConstPtr& msg); 
+  ImuHelper();
+ ~ImuHelper() {}
 
-  /// TODO: Make this thread-safe!
-  /// Adds a single imu measurement data
-  void add(const ImuDataPtr& imu_msg);
+  gtsam::Matrix33              white_noise_acc_cov_;
+  gtsam::Matrix33              white_noise_omg_cov_;
+  gtsam::Matrix33              random_walk_acc_cov_;
+  gtsam::Matrix33              random_walk_omg_cov_;
+  gtsam::Matrix33              integration_error_cov_;
+  gtsam::Matrix66              bias_acc_omega_int_;
 
-  /// TODO: Make this thread-safe!
-  /// Read IMU data between these two timestamps 
-  ImuStream read(ros::Time& start,
-     ros::Time& end); 
+  NoisePtr                     prior_pose_noise_model_;
+  NoisePtr                     prior_vel_noise_model_;
+  NoisePtr                     prior_bias_noise_model_;
 
-  /// Clear all the messages
-  void clear(); 
-
-  /// Clear all the messages before this time
-  void clear(ros::Time& offset);
-
-  /// How many messages are present?
-  inline size_t size() { return stream_.size(); }
-
-  /// Is the queue empty?
-  inline bool empty() { return stream_.empty(); }
-
-  /// remove first element
-  inline void pop() { stream_.pop(); }
-
+  CombinedParamsPtr            params_;
+  ImuNoiseParamsPtr            imu_noise_params_;
+  gtsam::imuBias::ConstantBias curr_imu_bias_;
 };
-typedef boost::shared_ptr<ImuContainer> ImuContainerPtr;
 
 } // namespace svo
 

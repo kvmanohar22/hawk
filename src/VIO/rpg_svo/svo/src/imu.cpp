@@ -2,45 +2,43 @@
 
 namespace svo {
 
-ImuData::ImuData(const sensor_msgs::Imu::ConstPtr& msg) {
-  ts_          = msg->header.stamp;
-  seq_id_      = msg->header.seq;
-  linear_acc_  = svo::geoVector2EigenVector(msg->linear_acceleration);
-  angular_vel_ = svo::geoVector2EigenVector(msg->angular_velocity);
-}
-
-void ImuContainer::imu_cb(const sensor_msgs::Imu::ConstPtr& msg) {
-  add(boost::make_shared<ImuData>(msg));
-}
-
-void ImuContainer::add(const ImuDataPtr& imu_msg) {
-  stream_.push(imu_msg);
-}
-
-ImuStream ImuContainer::read(ros::Time& start,
-    ros::Time& end)
+ImuHelper::ImuHelper()
 {
-  ImuStream data;
-  if (empty()) {
-    SVO_ERROR_STREAM("Reading from empty IMU stream!");
-  } else {
-    // TODO: Implement reading functionality 
-    data = stream_;
-    clear(); 
-  }
-  return data;
-}
+  imu_noise_params_ = boost::make_shared<ImuNoiseParams>(
+    vk::getParam<double>("/hawk/svo/imu0/accelerometer_noise_density"),
+    vk::getParam<double>("/hawk/svo/imu0/gyroscope_noise_density"),
+    vk::getParam<double>("/hawk/svo/imu0/accelerometer_random_walk"),
+    vk::getParam<double>("/hawk/svo/imu0/gyroscope_random_walk"));
 
-void ImuContainer::clear(ros::Time& offset) {
-  
-}
+  prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+      (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
+  prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  prior_bias_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
 
-void ImuContainer::clear() {
-  while (!stream_.empty()) {
-    stream_.pop();
-  }
-}
+  white_noise_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_noise_sigma_, 2);
+  white_noise_omg_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->gyro_noise_sigma_, 2);
+  random_walk_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_bias_rw_sigma_, 2);
+  random_walk_omg_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->gyro_bias_rw_sigma_, 2);
+  integration_error_cov_ = gtsam::Matrix33::Identity(3, 3) * 1e-8;
+  bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
 
+  // TODO: Not true. Read from calibrated values
+  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
+  // const double a = imu_noise_params_->accel_bias_rw_sigma_;
+  // const double g = imu_noise_params_->gyro_bias_rw_sigma_;
+  // curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+  //     (gtsam::Vector(6) << a, a, a, g, g, g).finished());
+
+  // TODO: Gravity vector is not exactly aligned with z-axis
+  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
+  params_->accelerometerCovariance = white_noise_acc_cov_;
+  params_->integrationCovariance   = integration_error_cov_;
+  params_->gyroscopeCovariance     = white_noise_omg_cov_;
+  params_->biasAccCovariance       = random_walk_acc_cov_;
+  params_->biasOmegaCovariance     = random_walk_omg_cov_;
+  params_->biasAccOmegaInt         = bias_acc_omega_int_;
+
+}
 
 
 } // namespace svo

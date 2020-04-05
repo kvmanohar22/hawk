@@ -22,6 +22,7 @@
 #include <svo/frame_handler_base.h>
 #include <svo/reprojector.h>
 #include <svo/global.h>
+#include <svo/imu.h>
 #include <svo/initialization.h>
 #include <svo/visual_inertial_estimator.h>
 #include <sensor_msgs/Imu.h>
@@ -99,13 +100,13 @@ protected:
   Vector3d  p_curr_; // Position of latest frame in world
 
   VisualInertialEstimator::PreintegrationTypePtr integrator_;
-  VisualInertialEstimator::CombinedParamsPtr     integration_params_;
+  ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
   bool reset_integration_;
   bool start_integration_;
   bool prior_updated_;
   InitializationType init_type_;
-
+  ImuHelper* imu_helper_;
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

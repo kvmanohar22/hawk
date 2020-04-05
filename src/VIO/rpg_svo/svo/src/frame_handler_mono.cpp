@@ -40,7 +40,8 @@ FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
   reset_integration_(false),
   start_integration_(false),
   prior_updated_(false),
-  init_type_(InitializationType::KLT)
+  init_type_(InitializationType::KLT),
+  imu_helper_(nullptr)
 {
   initialize();
 }
@@ -74,12 +75,10 @@ void FrameHandlerMono::initialize()
     p_prev_ = Vector3d::Zero();
 
     /// initialize the integrator
-    /// TODO: Set T b/w world frame and IMU frame in the params 
-    integration_params_ = inertial_estimator_->params();
-    imu_bias_ = inertial_estimator_->imuBias();
+    imu_helper_ = new ImuHelper();
     integrator_ = std::make_shared<gtsam::PreintegrationType>(
-        integration_params_, imu_bias_);
-    integrator_->resetIntegration(); 
+        imu_helper_->params_, imu_helper_->curr_imu_bias_);
+    assert(integrator_);
   }
 }
 
@@ -88,6 +87,8 @@ FrameHandlerMono::~FrameHandlerMono()
   delete depth_filter_;
   if (Config::runInertialEstimator())
     delete inertial_estimator_;
+  if (Config::useMotionPriors())
+    delete imu_helper_;
 }
 
 void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)

@@ -28,6 +28,8 @@
 namespace svo {
 
 int Frame::frame_counter_ = 0;
+Sophus::SE3 Frame::T_c_b_ = frame_utils::T_c_b();
+Sophus::SE3 Frame::T_b_c_ = T_c_b_.inverse();
 
 Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     id_(frame_counter_++),
@@ -202,6 +204,24 @@ bool getSceneDepth(const Frame& frame, double& depth_mean, double& depth_min)
   }
   depth_mean = vk::getMedian(depth_vec);
   return true;
+}
+
+Sophus::SE3 T_c_b()
+{
+  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
+  Eigen::Matrix<double, 3, 3> R_cam_imu;
+  Eigen::Vector3d t_cam_imu;
+  for(size_t i=0; i<3; ++i) {
+    for(size_t j=0; j<4; ++j) {
+      const double v = T[i*4+j]; 
+      if(j == 3) {
+        t_cam_imu(i) = v;
+      } else {
+        R_cam_imu(i, j) = v;
+      } 
+    }
+  }
+  return Sophus::SE3(R_cam_imu, t_cam_imu);
 }
 
 } // namespace frame_utils

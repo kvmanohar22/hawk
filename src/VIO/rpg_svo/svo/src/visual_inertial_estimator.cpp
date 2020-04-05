@@ -88,27 +88,6 @@ VisualInertialEstimator::~VisualInertialEstimator()
   SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator destructed");
 }
 
-void VisualInertialEstimator::initializeTcamImu()
-{
-  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
-  Eigen::Matrix<double, 3, 3> R_cam_imu;
-  Eigen::Vector3d t_cam_imu;
-  for(size_t i=0; i<3; ++i) {
-    for(size_t j=0; j<4; ++j) {
-      const double v = T[i*4+j]; 
-      if(j == 3) {
-        t_cam_imu(i) = v;
-      } else {
-        R_cam_imu(i, j) = v;
-      } 
-    }
-  }
-  T_cam_imu_ = Sophus::SE3(R_cam_imu, t_cam_imu);
-  const gtsam::Rot3 R(T_cam_imu_.rotation_matrix()); 
-  const gtsam::Point3 t(T_cam_imu_.translation());
-  T_cam_imu_gtsam_ = gtsam::Pose3(R, t);
-}
-
 void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
 {
   const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);

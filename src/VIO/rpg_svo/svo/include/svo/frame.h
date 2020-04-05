@@ -20,6 +20,7 @@
 #include <sophus/se3.h>
 #include <vikit/math_utils.h>
 #include <vikit/abstract_camera.h>
+#include <vikit/params_helper.h>
 #include <boost/noncopyable.hpp>
 #include <svo/global.h>
 #include <ros/ros.h>
@@ -42,7 +43,9 @@ class Frame : boost::noncopyable
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    
+
+  static Sophus::SE3            T_c_b_;                 //!< (body frame  ) -> (camera frame)
+  static Sophus::SE3            T_b_c_;                 //!< (camera frame) -> (body frame)
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
   int                           correction_id_;         //!< Used in estimator thread 
@@ -156,6 +159,9 @@ void createImgPyramid(const cv::Mat& img_level_0, int n_levels, ImgPyr& pyr);
 
 /// Get the average depth of the features in the image.
 bool getSceneDepth(const Frame& frame, double& depth_mean, double& depth_min);
+
+/// Read the tranformation matrix T_c_b_
+Sophus::SE3 T_c_b();
 
 } // namespace frame_utils
 } // namespace svo

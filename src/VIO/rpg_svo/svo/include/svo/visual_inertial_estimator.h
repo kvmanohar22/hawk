@@ -56,12 +56,12 @@ struct ImuNoiseParams {
       double accel_noise_sigma,
       double gyro_noise_sigma,
       double accel_bias_rw_sigma,
-      double gyro_bias_rw_sigma)
-  : accel_noise_sigma_(accel_noise_sigma),
-    gyro_noise_sigma_(gyro_noise_sigma),
-    accel_bias_rw_sigma_(accel_bias_rw_sigma),
-    gyro_bias_rw_sigma_(gyro_bias_rw_sigma)
-  {}    
+      double gyro_bias_rw_sigma) : 
+          accel_noise_sigma_(accel_noise_sigma),
+          gyro_noise_sigma_(gyro_noise_sigma),
+          accel_bias_rw_sigma_(accel_bias_rw_sigma),
+          gyro_bias_rw_sigma_(gyro_bias_rw_sigma)
+      {}    
 };
 
 /// Fuses IMU measurements and monocular scale-invariant estimates
@@ -131,9 +131,6 @@ public:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
-  /// Initialize relative transformation b/w camera and IMU
-  void initializeTcamImu();
-
   /// instance functionalities
   inline const CombinedParamsPtr params() const { return params_; }
 
@@ -186,8 +183,6 @@ protected:
   bool                         multiple_int_complete_; //!< Is optimization complete?
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
-  Sophus::SE3                  T_cam_imu_;             //!< Transformation from imu -> camera
-  gtsam::Pose3                 T_cam_imu_gtsam_;       //!< body P sensor
   bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 

@@ -30,16 +30,12 @@ SparseImgAlign::SparseImgAlign(
     int max_level, int min_level, int n_iter,
     Method method, bool display, bool verbose,
     bool use_motion_priors, 
-    bool motion_prior_verbose, 
-    const Matrix3d R_prior,
-    const Vector3d p_prior) :
+    bool motion_prior_verbose) :
         display_(display),
         max_level_(max_level),
         min_level_(min_level),
         use_motion_priors_(use_motion_priors),
-        motion_prior_verbose_(motion_prior_verbose), 
-        R_prior_(R_prior),
-        p_prior_(p_prior)
+        motion_prior_verbose_(motion_prior_verbose)
 {
   n_iter_ = n_iter;
   n_iter_init_ = n_iter_;
@@ -287,7 +283,8 @@ double SparseImgAlign::computeResiduals(
     const Matrix3d Jr = JrInv.inverse();
    
     // compute Jacobian
-    Matrix<double, 6, 6> Jt = Matrix<double, 6, 6>::Zero();;
+    Matrix<double, 6, 6> Jt;
+    Jt.setZero();
     Jt.block(0, 0, 3, 3).noalias() = R.transpose();
     Jt.block(3, 3, 3, 3).noalias() = JrInv.transpose();
 

@@ -48,9 +48,7 @@ public:
       bool display,
       bool verbose,
       bool use_motion_priors = false,
-      bool motion_prior_verbose = false, 
-      const Matrix3d R_prior = Matrix3d::Zero(),
-      const Vector3d p_prior = Vector3d::Zero());
+      bool motion_prior_verbose = false);
 
   size_t run(
       FramePtr ref_frame,
@@ -60,6 +58,9 @@ public:
   /// at the converged state.
   Matrix<double, 6, 6> getFisherInformation();
 
+  // set priors
+  inline void setPriors(const Matrix3d& R, const Vector3d& p) { R_prior_ = R; p_prior_ = p; }
+
 protected:
   FramePtr ref_frame_;            //!< reference frame, has depth for gradient pixels.
   FramePtr cur_frame_;            //!< only the image is known!
@@ -67,11 +68,14 @@ protected:
   bool display_;                  //!< display residual image.
   int max_level_;                 //!< coarsest pyramid level for the alignment.
   int min_level_;                 //!< finest pyramid level for the alignment.
-  bool use_motion_priors_;        //!< Use motion priors
-  bool motion_prior_verbose_;     //!< motion prior verbosity 
   Matrix3d R_prior_;              //!< Rotation prior from gyroscope
   Vector3d p_prior_;              //!< translation prior from gyroscope
 
+public:
+  bool use_motion_priors_;        //!< Use motion priors
+  bool motion_prior_verbose_;     //!< motion prior verbosity 
+
+protected:
   // cache:
   Matrix<double, 6, Dynamic, ColMajor> jacobian_cache_;
   bool have_ref_patch_cache_;

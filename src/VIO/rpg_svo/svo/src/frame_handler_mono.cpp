@@ -65,7 +65,7 @@ void FrameHandlerMono::initialize()
     inertial_estimator_->startThread();
   }
 
-  if(Config::useImu())
+  if(Config::useMotionPriors())
   {
     SVO_INFO_STREAM("Using Motion priors for image alignment");
     // Used for motion priors
@@ -211,7 +211,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
     inertial_estimator_->addKeyFrame(new_frame_);
   }
  
-  if(Config::useImu()) {
+  if(Config::useMotionPriors()) {
     // in stereo, we get the initial map right here. No second frame processed 
     if(init_type_ == InitializationType::STEREO) 
       start_integration_ = true;
@@ -248,7 +248,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
-  if(Config::useImu()) {
+  if(Config::useMotionPriors()) {
     // if we are here, we are using KLT to bootstrap the map
     start_integration_ = true;
   }
@@ -258,7 +258,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
-  if(Config::useImu())
+  if(Config::useMotionPriors())
   {
     // stop the integration and generate priors
     reset_integration_ = true;
@@ -270,7 +270,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
 
   // get motion priors and reset integration
-  if(Config::useImu())
+  if(Config::useMotionPriors())
   {
     SVO_START_TIMER("imu_prior_wait");
     while(ros::ok())
@@ -287,7 +287,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_START_TIMER("sparse_img_align");
   SparseImgAlign img_align(
         Config::kltMaxLevel(), Config::kltMinLevel(), 30, SparseImgAlign::GaussNewton, false, false);
-  if(Config::useImu())
+  if(Config::useMotionPriors())
   {
     img_align.use_motion_priors_ = true;
     img_align.setPriors(R_curr_, p_curr_);

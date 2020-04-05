@@ -63,7 +63,7 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
   // Optimize for change in body transformation rather than camera transfomration
   SE3 T_cur_from_ref;
   if(use_motion_priors_)
-    T_cur_from_ref = Frame::T_b_c_ * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * Frame::T_c_b_;
+    T_cur_from_ref = Config::Tbc() * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * Config::Tcb();
   else
     T_cur_from_ref = cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse();
 
@@ -79,7 +79,7 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
 
   // update the current frames' tranformation
   if(use_motion_priors_)
-    cur_frame_->T_f_w_ = Frame::T_c_b_ * T_cur_from_ref * Frame::T_b_c_ * ref_frame_->T_f_w_;
+    cur_frame_->T_f_w_ = Config::Tcb() * T_cur_from_ref * Config::Tbc() * ref_frame_->T_f_w_;
   else
     cur_frame_->T_f_w_ = T_cur_from_ref * ref_frame_->T_f_w_;
 
@@ -122,8 +122,8 @@ void SparseImgAlign::precomputeReferencePatches()
     // evaluate projection jacobian
     Matrix<double,2,6> frame_jac;
     if(use_motion_priors_) {
-      const Vector3d xyz_ref_body = Frame::T_b_c_ * xyz_ref_cam; // should be in the body frame of reference
-      Frame::jacobian_xyz2uv(xyz_ref_body, frame_jac, Frame::T_c_b_.rotation_matrix());
+      const Vector3d xyz_ref_body = Config::Tbc() * xyz_ref_cam; // should be in the body frame of reference
+      Frame::jacobian_xyz2uv(xyz_ref_body, frame_jac, Config::Tcb().rotation_matrix());
     }
     else
       Frame::jacobian_xyz2uv(xyz_ref_cam, frame_jac);
@@ -211,8 +211,8 @@ double SparseImgAlign::computeResiduals(
 
     Vector2f uv_cur_pyr;
     if(use_motion_priors_) {
-      const Vector3d xyz_ref_body(Frame::T_b_c_ * (*it)->f*depth); // this one is in ref body frame
-      const Vector3d xyz_cur_cam(Frame::T_c_b_ * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
+      const Vector3d xyz_ref_body(Config::Tbc() * (*it)->f*depth); // this one is in ref body frame
+      const Vector3d xyz_cur_cam(Config::Tcb() * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
       uv_cur_pyr = cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale;
     } else {
       const Vector3d xyz_ref((*it)->f*depth); // this one is already in camera frame

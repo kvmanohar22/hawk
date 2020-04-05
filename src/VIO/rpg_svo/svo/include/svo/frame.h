@@ -44,8 +44,6 @@ class Frame : boost::noncopyable
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  static Sophus::SE3            T_c_b_;                 //!< (body frame  ) -> (camera frame)
-  static Sophus::SE3            T_b_c_;                 //!< (camera frame) -> (body frame)
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
   int                           correction_id_;         //!< Used in estimator thread 

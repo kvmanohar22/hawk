@@ -9,7 +9,7 @@
     <include file="$(find svo_ros)/launch/load_svo.launch">
       <arg name="calibration" value="$(arg calibration)"/>
       <arg name="image_topic" value="$(arg image_topic)"/>
-      <arg name="use_imu" value="true"/>
+      <arg name="use_motion_priors" value="true"/>
     </include>
 
     <!-- start rviz -->

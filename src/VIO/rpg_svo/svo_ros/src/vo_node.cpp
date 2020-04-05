@@ -179,11 +179,19 @@ int main(int argc, char **argv)
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
 
-  ros::Subscriber imu_subscriber_;
+  ros::Subscriber imu_subscriber_inertial_;
   if(svo::Config::runInertialEstimator())
   {
-    imu_subscriber_ = nh.subscribe(
+    imu_subscriber_inertial_ = nh.subscribe(
       imu_topic, 100, &svo::VisualInertialEstimator::imuCb, vo_node.vo_->inertialEstimator());
+  }
+
+  ros::Subscriber imu_subscriber_motion_priors_;
+  if(svo::Config::useMotionPriors())
+  {
+    std::cout << "starting imu callback\n";
+    imu_subscriber_motion_priors_ = nh.subscribe(
+      imu_topic, 100, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
   }
 
   // start processing callbacks

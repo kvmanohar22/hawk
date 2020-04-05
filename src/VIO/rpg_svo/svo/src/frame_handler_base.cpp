@@ -151,6 +151,7 @@ void FrameHandlerBase::resetCommon()
   set_start_ = false;
   tracking_quality_ = TRACKING_INSUFFICIENT;
   num_obs_last_ = 0;
+  std::cout << "\n\n\n";
   SVO_INFO_STREAM("RESET");
 }
 

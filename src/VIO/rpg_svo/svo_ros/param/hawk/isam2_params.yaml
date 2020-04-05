@@ -1,5 +1,5 @@
 # change this flag to run inertial estimator
-run_inertial_estimator: true
+run_inertial_estimator: false
 
 # Number of iterations to run whenever the graph is updated with new measurements
 # Note that with increase in this, more time will be consumed

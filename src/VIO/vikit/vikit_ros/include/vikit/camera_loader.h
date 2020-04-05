@@ -104,6 +104,45 @@ bool loadFromRosNs(const std::string& ns,
   return res;
 }
 
+// Loads rigid body transformation b/w body frame and camera frame
+Sophus::SE3 loadBodyToCam()
+{
+  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
+  Eigen::Matrix<double, 3, 3> R_cam_imu;
+  Eigen::Vector3d t_cam_imu;
+  for(size_t i=0; i<3; ++i) {
+    for(size_t j=0; j<4; ++j) {
+      const double v = T[i*4+j]; 
+      if(j == 3) {
+        t_cam_imu(i) = v;
+      } else {
+        R_cam_imu(i, j) = v;
+      } 
+    }
+  }
+  return Sophus::SE3(R_cam_imu, t_cam_imu);
+}
+
+// Loads rigid body transformation b/w body frame and camera frame
+Sophus::SE3 loadBodyToCamInv()
+{
+  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
+  Eigen::Matrix<double, 3, 3> R_cam_imu;
+  Eigen::Vector3d t_cam_imu;
+  for(size_t i=0; i<3; ++i) {
+    for(size_t j=0; j<4; ++j) {
+      const double v = T[i*4+j]; 
+      if(j == 3) {
+        t_cam_imu(i) = v;
+      } else {
+        R_cam_imu(i, j) = v;
+      } 
+    }
+  }
+
+  return Sophus::SE3(R_cam_imu, t_cam_imu).inverse();
+}
+
 } // namespace camera_loader
 } // namespace vk
 

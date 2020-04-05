@@ -170,36 +170,36 @@ int main(int argc, char **argv)
   std::cout << "create vo_node" << std::endl;
   svo::VoNode vo_node;
 
-  // // subscribe to cam msgs
-  // std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
-  // std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu_topic", "imu/data"));
-  // image_transport::ImageTransport it(nh);
-  // image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &svo::VoNode::imgCb, &vo_node);
+  // subscribe to cam msgs
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
+  std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu_topic", "imu/data"));
+  image_transport::ImageTransport it(nh);
+  image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &svo::VoNode::imgCb, &vo_node);
 
-  // // subscribe to remote input
-  // vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
+  // subscribe to remote input
+  vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
 
-  // ros::Subscriber imu_subscriber_inertial_;
-  // if(svo::Config::runInertialEstimator())
-  // {
-  //   imu_subscriber_inertial_ = nh.subscribe(
-  //     imu_topic, 100, &svo::VisualInertialEstimator::imuCb, vo_node.vo_->inertialEstimator());
-  // }
+  ros::Subscriber imu_subscriber_inertial_;
+  if(svo::Config::runInertialEstimator())
+  {
+    imu_subscriber_inertial_ = nh.subscribe(
+      imu_topic, 100, &svo::VisualInertialEstimator::imuCb, vo_node.vo_->inertialEstimator());
+  }
 
-  // ros::Subscriber imu_subscriber_motion_priors_;
-  // if(svo::Config::useMotionPriors())
-  // {
-  //   std::cout << "starting imu callback\n";
-  //   imu_subscriber_motion_priors_ = nh.subscribe(
-  //     imu_topic, 100, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
-  // }
+  ros::Subscriber imu_subscriber_motion_priors_;
+  if(svo::Config::useMotionPriors())
+  {
+    std::cout << "starting imu callback\n";
+    imu_subscriber_motion_priors_ = nh.subscribe(
+      imu_topic, 100, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
+  }
 
-  // // start processing callbacks
-  // while(ros::ok() && !vo_node.quit_)
-  // {
-  //   ros::spinOnce();
-  //   // TODO check when last image was processed. when too long ago. publish warning that no msgs are received!
-  // }
+  // start processing callbacks
+  while(ros::ok() && !vo_node.quit_)
+  {
+    ros::spinOnce();
+    // TODO check when last image was processed. when too long ago. publish warning that no msgs are received!
+  }
 
   printf("SVO terminated.\n");
   return 0;

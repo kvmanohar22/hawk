@@ -121,14 +121,16 @@ void SparseImgAlign::precomputeReferencePatches()
 
     // cannot just take the 3d points coordinate because of the reprojection errors in the reference image!!!
     const double depth(((*it)->point->pos_ - ref_pos).norm());
-    const Vector3d xyz_ref((*it)->f*depth);
+    const Vector3d xyz_ref_cam((*it)->f*depth); // point is in the camera frame of reference
 
     // evaluate projection jacobian
     Matrix<double,2,6> frame_jac;
-    if(use_motion_priors_)
-      Frame::jacobian_xyz2uv(xyz_ref, frame_jac, Frame::T_c_b_.rotation_matrix());
+    if(use_motion_priors_) {
+      const Vector3d xyz_ref_body = Frame::T_b_c_ * xyz_ref_cam; // should be in the body frame of reference
+      Frame::jacobian_xyz2uv(xyz_ref_body, frame_jac, Frame::T_c_b_.rotation_matrix());
+    }
     else
-      Frame::jacobian_xyz2uv(xyz_ref, frame_jac);
+      Frame::jacobian_xyz2uv(xyz_ref_cam, frame_jac);
 
     // compute bilateral interpolation weights for reference image
     const float subpix_u_ref = u_ref-u_ref_i;

@@ -252,24 +252,30 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
-  // stop the integration and generate priors
-  reset_integration_ = true;
-  start_integration_ = false; 
+  if(Config::useImu())
+  {
+    // stop the integration and generate priors
+    reset_integration_ = true;
+    start_integration_ = false; 
+  }
   
   // Set initial pose
   // TODO: Set this initial transformation to the one from IMU? 
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
 
   // get motion priors and reset integration
-  SVO_START_TIMER("imu_prior_wait");
-  while(ros::ok())
+  if(Config::useImu())
   {
-    if(prior_updated_) {
-      prior_updated_ = false;
-      break;
+    SVO_START_TIMER("imu_prior_wait");
+    while(ros::ok())
+    {
+      if(prior_updated_) {
+        prior_updated_ = false;
+        break;
+      }
     }
+    SVO_STOP_TIMER("imu_prior_wait");
   }
-  SVO_STOP_TIMER("imu_prior_wait");
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");

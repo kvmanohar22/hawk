@@ -65,7 +65,11 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
   visible_fts_.resize(ref_patch_cache_.rows, false); // TODO: should it be reset at each level?
 
   // Optimize for change in body transformation rather than camera transfomration
-  SE3 T_cur_from_ref(Frame::T_b_c_ * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * Frame::T_c_b_);
+  SE3 T_cur_from_ref;
+  if(use_motion_priors_)
+    T_cur_from_ref = Frame::T_b_c_ * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * Frame::T_c_b_;
+  else
+    T_cur_from_ref = cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse();
 
   for(level_=max_level_; level_>=min_level_; --level_)
   {
@@ -78,7 +82,10 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
   }
 
   // update the current frames' tranformation
-  cur_frame_->T_f_w_ = Frame::T_c_b_ * T_cur_from_ref * Frame::T_b_c_ * ref_frame_->T_f_w_;
+  if(use_motion_priors_)
+    cur_frame_->T_f_w_ = Frame::T_c_b_ * T_cur_from_ref * Frame::T_b_c_ * ref_frame_->T_f_w_;
+  else
+    cur_frame_->T_f_w_ = T_cur_from_ref * ref_frame_->T_f_w_;
 
   return n_meas_/patch_area_;
 }
@@ -118,7 +125,10 @@ void SparseImgAlign::precomputeReferencePatches()
 
     // evaluate projection jacobian
     Matrix<double,2,6> frame_jac;
-    Frame::jacobian_xyz2uv(xyz_ref, frame_jac, Frame::T_c_b_.rotation_matrix());
+    if(use_motion_priors_)
+      Frame::jacobian_xyz2uv(xyz_ref, frame_jac, Frame::T_c_b_.rotation_matrix());
+    else
+      Frame::jacobian_xyz2uv(xyz_ref, frame_jac);
 
     // compute bilateral interpolation weights for reference image
     const float subpix_u_ref = u_ref-u_ref_i;
@@ -200,9 +210,17 @@ double SparseImgAlign::computeResiduals(
 
     // compute pixel location in cur img
     const double depth = ((*it)->point->pos_ - ref_pos).norm();
-    const Vector3d xyz_ref_body(Frame::T_b_c_ * (*it)->f*depth); // this one is in ref body frame
-    const Vector3d xyz_cur_cam(Frame::T_c_b_ * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
-    const Vector2f uv_cur_pyr(cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale);
+
+    Vector2f uv_cur_pyr;
+    if(use_motion_priors_) {
+      const Vector3d xyz_ref_body(Frame::T_b_c_ * (*it)->f*depth); // this one is in ref body frame
+      const Vector3d xyz_cur_cam(Frame::T_c_b_ * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
+      uv_cur_pyr = cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale;
+    } else {
+      const Vector3d xyz_ref((*it)->f*depth); // this one is already in camera frame
+      const Vector3d xyz_cur_cam(T_cur_from_ref * xyz_ref); // project to curr camera frame
+      uv_cur_pyr = cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale;
+    }
     const float u_cur = uv_cur_pyr[0];
     const float v_cur = uv_cur_pyr[1];
     const int u_cur_i = floorf(u_cur);

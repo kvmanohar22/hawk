@@ -22,12 +22,10 @@ ImuHelper::ImuHelper()
   integration_error_cov_ = gtsam::Matrix33::Identity(3, 3) * 1e-8;
   bias_acc_omega_int_ = gtsam::Matrix66::Identity(6, 6) * 1e-5;
 
-  // TODO: Not true. Read from calibrated values
-  curr_imu_bias_ = gtsam::imuBias::ConstantBias();
-  // const double a = imu_noise_params_->accel_bias_rw_sigma_;
-  // const double g = imu_noise_params_->gyro_bias_rw_sigma_;
-  // curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-  //     (gtsam::Vector(6) << a, a, a, g, g, g).finished());
+  const double a = imu_noise_params_->accel_bias_rw_sigma_;
+  const double g = imu_noise_params_->gyro_bias_rw_sigma_;
+  curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+      (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
   // TODO: Gravity vector is not exactly aligned with z-axis
   params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();

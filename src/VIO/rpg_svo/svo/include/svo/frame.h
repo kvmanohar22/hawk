@@ -149,14 +149,14 @@ public:
 
   // Required in sparse image alignment step
   inline static void jacobian_xyz2uv(
-      const Vector3d& xyz_in_f,
+      const Vector3d& xyz_in_body,
       Matrix<double,2,6>& J,
       const Matrix3d& R_cb)
   {
-    const double x = xyz_in_f[0];
-    const double y = xyz_in_f[1];
-    const double z = xyz_in_f[2];
-    const double z_inv = 1./xyz_in_f[2];
+    const double x = xyz_in_body[0];
+    const double y = xyz_in_body[1];
+    const double z = xyz_in_body[2];
+    const double z_inv = 1./z;
     const double z_inv_2 = z_inv*z_inv;
 
     // Jacobian of projection matrix
@@ -179,9 +179,6 @@ void createImgPyramid(const cv::Mat& img_level_0, int n_levels, ImgPyr& pyr);
 
 /// Get the average depth of the features in the image.
 bool getSceneDepth(const Frame& frame, double& depth_mean, double& depth_min);
-
-/// Read the tranformation matrix T_c_b_
-Sophus::SE3 T_c_b();
 
 } // namespace frame_utils
 } // namespace svo

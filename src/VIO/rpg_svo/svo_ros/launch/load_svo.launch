@@ -15,6 +15,8 @@
         <!-- Whether to run with imu -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />
 
+        <param name="remote_key" value="false" type="bool" />
+
         <!-- Camera calibration file -->
         <rosparam file="$(arg calibration)"/>
 

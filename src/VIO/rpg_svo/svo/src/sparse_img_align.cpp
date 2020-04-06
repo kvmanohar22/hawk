@@ -211,7 +211,7 @@ double SparseImgAlign::computeResiduals(
 
     Vector2f uv_cur_pyr;
     if(use_motion_priors_) {
-      const Vector3d xyz_ref_body(Config::Tbc() * (*it)->f*depth); // this one is in ref body frame
+      const Vector3d xyz_ref_body(Config::Tbc() * ((*it)->f*depth)); // this one is in ref body frame
       const Vector3d xyz_cur_cam(Config::Tcb() * T_cur_from_ref * xyz_ref_body); // project to curr camera frame
       uv_cur_pyr = cur_frame_->cam_->world2cam(xyz_cur_cam).cast<float>() * scale;
     } else {

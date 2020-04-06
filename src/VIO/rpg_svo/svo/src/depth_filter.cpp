@@ -119,8 +119,6 @@ void DepthFilter::initializeSeeds(FramePtr frame)
   feature_detector_->detect(frame.get(), frame->img_pyr_,
                             Config::triangMinCornerScore(), new_features);
 
-  frame->n_new_filters_init_ = new_features.size();
-
   // initialize a seed for every new feature
   seeds_updating_halt_ = true;
   lock_t lock(seeds_mut_); // by locking the updateSeeds function stops
@@ -217,7 +215,6 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
     // check if seed is not already too old
     if((Seed::batch_counter - it->batch_id) > options_.max_n_kfs) {
-      ++seed_status_[it->ftr->frame->id_]->diverged_filters_;
       it = seeds_.erase(it);
       continue;
     }
@@ -268,8 +265,6 @@ void DepthFilter::updateSeeds(FramePtr frame)
       Vector3d xyz_world(it->ftr->frame->T_f_w_.inverse() * (it->ftr->f * (1.0/it->mu)));
       Point* point = new Point(xyz_world, it->ftr);
       it->ftr->point = point;
-      ++it->ftr->frame->n_filters_converged_;
-      ++seed_status_[it->ftr->frame->id_]->converged_filters_;
       /* FIXME it is not threadsafe to add a feature to the frame here.
       if(frame->isKeyframe())
       {
@@ -289,7 +284,6 @@ void DepthFilter::updateSeeds(FramePtr frame)
     else if(isnan(z_inv_min))
     {
       SVO_WARN_STREAM("z_min is NaN");
-      ++seed_status_[it->ftr->frame->id_]->diverged_filters_;
       it = seeds_.erase(it);
     }
     else

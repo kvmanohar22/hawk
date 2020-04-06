@@ -149,21 +149,33 @@ public:
 
   // Required in sparse image alignment step
   inline static void jacobian_xyz2uv(
+      const Vector3d& xyz_in_f,
       const Vector3d& xyz_in_body,
       Matrix<double,2,6>& J,
       const Matrix3d& R_cb)
   {
+    const double c_x = xyz_in_f[0];
+    const double c_y = xyz_in_f[1];
+    const double c_z = xyz_in_f[2];
+    const double c_z_inv = 1./c_z;
+    const double c_z_inv_2 = c_z_inv*c_z_inv;
+
     const double x = xyz_in_body[0];
     const double y = xyz_in_body[1];
     const double z = xyz_in_body[2];
-    const double z_inv = 1./z;
-    const double z_inv_2 = z_inv*z_inv;
 
     // Jacobian of projection matrix
-    const Matrix<double, 2, 3> dPIdX = (Matrix<double, 2, 3>() << z_inv, 0, -x*z_inv_2, 0, z_inv, -y*z_inv_2).finished();
+    const Matrix<double, 2, 3> dPIdX = (
+        Matrix<double, 2, 3>() << 
+        c_z_inv, 0      , -c_x*c_z_inv_2, 
+        0      , c_z_inv, -c_y*c_z_inv_2).finished();
 
     // skew symmetric matrix representation of vector
-    const Matrix<double, 3, 3> X_skew = (Matrix<double, 3, 3>() << 0, -z, y, z, 0, -x, -y, x, 0).finished();
+    const Matrix<double, 3, 3> X_skew = (
+        Matrix<double, 3, 3>() << 
+         0, -z,  y, 
+         z,  0, -x,
+        -y,  x, 0).finished();
 
     J.topLeftCorner(2, 3).noalias()  = -dPIdX * R_cb;
     J.topRightCorner(2, 3).noalias() =  dPIdX * R_cb * X_skew;

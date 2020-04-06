@@ -258,7 +258,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   if(Config::useMotionPriors())
   {
     // stop the integration
-    start_integration_ = false; 
+    start_integration_ = false;
     R_curr_ = integrator_->deltaRij().matrix();
     p_curr_ = integrator_->deltaPij();
 

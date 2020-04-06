@@ -123,7 +123,7 @@ void SparseImgAlign::precomputeReferencePatches()
     Matrix<double,2,6> frame_jac;
     if(use_motion_priors_) {
       const Vector3d xyz_ref_body = Config::Tbc() * xyz_ref_cam; // should be in the body frame of reference
-      Frame::jacobian_xyz2uv(xyz_ref_body, frame_jac, Config::Tcb().rotation_matrix());
+      Frame::jacobian_xyz2uv(xyz_ref_cam, xyz_ref_body, frame_jac, Config::Tcb().rotation_matrix());
     }
     else
       Frame::jacobian_xyz2uv(xyz_ref_cam, frame_jac);

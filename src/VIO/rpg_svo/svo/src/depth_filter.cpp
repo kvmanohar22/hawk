@@ -69,17 +69,6 @@ void DepthFilter::startThread()
 
 void DepthFilter::stopThread()
 {
-#ifdef SVO_ANALYSIS
-  std::ofstream f("/tmp/svo.log4", std::ios::app);
-  for (const auto& itr: seed_status_) {
-    f << "id=" << itr.first << " "
-      << "init=" << itr.second->init_filters_ << " "
-      << "converged=" << itr.second->converged_filters_ << " "
-      << "diverged=" << itr.second->diverged_filters_
-      << "\n";
-  }
-#endif
-
   SVO_INFO_STREAM("DepthFilter stop thread invoked.");
   if(thread_ != NULL)
   {
@@ -143,12 +132,6 @@ void DepthFilter::initializeSeeds(FramePtr frame)
   if(options_.verbose)
     SVO_INFO_STREAM("DepthFilter: Initialized "<<new_features.size()<<" new seeds");
   seeds_updating_halt_ = false;
-
-#ifdef SVO_ANALYSIS
-  std::ofstream f("/tmp/depth_filter.log", std::ios::app);
-  f << frame->id_ << " " << frame->fts_.size() << " " << new_features.size() << std::endl;
-  seed_status_[frame->id_] = std::make_shared<SeedConvergence>(SeedConvergence(frame->id_, new_features.size()));
-#endif
 }
 
 void DepthFilter::removeKeyframe(FramePtr frame)

@@ -171,12 +171,6 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   new_frame_.reset(new Frame(cam_, img.clone(), ts));
   SVO_STOP_TIMER("pyramid_creation");
 
-#ifdef SVO_ANALYSIS
-  std::ofstream f("/tmp/svo.log2", std::ios::app);
-  f << "id=" << new_frame_->id_ << " " << "n_obs_last=" << num_obs_last_ << " ";
-  f.close();
-#endif
-
   // process frame
   UpdateResult res = RESULT_FAILURE;
   if(stage_ == STAGE_DEFAULT_FRAME)
@@ -192,18 +186,6 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
-
-#ifdef SVO_ANALYSIS
-  size_t null_points=0;
-  for(Features::iterator it=last_frame_->fts_.begin(); it!=last_frame_->fts_.end(); ++it)
-  {
-    if((*it)->point == NULL)
-      ++null_points;
-  }
-  // std::ofstream f2("/tmp/svo.log2", std::ios::app);
-  // f2 << "null=" << null_points << " ";
-  // f2.close();
-#endif
 
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
@@ -321,12 +303,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     tracking_quality_ = TRACKING_INSUFFICIENT;
     return RESULT_FAILURE;
   }
-
-#ifdef SVO_ANALYSIS
-  std::ofstream f3("/tmp/svo.log2", std::ios::app);
-  f3 << "n_tracked=" << repr_n_new_references << " "; // These are the #features tracked i.e, these have valid 3D correspondances
-  f3.close();
-#endif
 
   // pose optimization
   SVO_START_TIMER("pose_optimizer");

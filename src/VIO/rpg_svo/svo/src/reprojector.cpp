@@ -144,12 +144,6 @@ void Reprojector::reprojectMap(
       break;
   }
   SVO_STOP_TIMER("feature_align");
-
-#ifdef SVO_ANALYSIS
-  std::ofstream f("/tmp/svo.log2", std::ios::app);
-  f << "map=" << tot_mapoints << " candidates=" << n_candidates << " " << "total=" << tot_mapoints+n_candidates << " ";
-  f.close();
-#endif
 }
 
 bool Reprojector::pointQualityComparator(Candidate& lhs, Candidate& rhs)

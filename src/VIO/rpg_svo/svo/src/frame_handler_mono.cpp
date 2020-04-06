@@ -42,7 +42,8 @@ FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
   prior_updated_(false),
   first_measurement_done_(false),
   init_type_(InitializationType::KLT),
-  imu_helper_(nullptr)
+  imu_helper_(nullptr),
+  n_integrated_measurements_(0)
 {
   initialize();
 }
@@ -94,29 +95,31 @@ FrameHandlerMono::~FrameHandlerMono()
 
 void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  static gtsam::Matrix9 A; 
+  static gtsam::Matrix93 B, C;
+
   SVO_INFO_STREAM_ONCE("Imu callback in progress");
-  // TODO: set the initial (R, t) 
   if(start_integration_) {
-    SVO_INFO_STREAM("Imu integration started");
+    if(!imu_msgs_.empty()) {
+      SVO_INFO_STREAM("Integrating " << imu_msgs_.size() << " at once");
+      std::list<sensor_msgs::Imu::ConstPtr>::const_iterator itr;
+      for(itr=imu_msgs_.begin(); itr!=imu_msgs_.end(); ++itr) {
+        const Eigen::Vector3d acc = ros2eigen((*itr)->linear_acceleration);
+        const Eigen::Vector3d omg = ros2eigen((*itr)->angular_velocity);
+        integrator_->update(
+          acc, omg, Config::dt(), &A, &B, &C);
+      }
+      n_integrated_measurements_ += imu_msgs_.size();
+      imu_msgs_.clear();
+    }
     const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
     const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
-    static gtsam::Matrix9 A; 
-    static gtsam::Matrix93 B, C; 
     integrator_->update(acc, omg, Config::dt(), &A, &B, &C);
-  } else {
-    if(!first_measurement_done_) {
-      SVO_INFO_STREAM("Discarding measurements");
-      return;
+    ++n_integrated_measurements_;
+  } else { // just so we don't miss any measurements
+    if(first_measurement_done_) {
+      imu_msgs_.push_back(msg);
     }
-    SVO_INFO_STREAM("Imu integration stopped: " << prior_updated_);
-    R_curr_ = integrator_->deltaRij().matrix();
-    p_curr_ = integrator_->deltaPij();
-    prior_updated_ = true;   
-    SVO_INFO_STREAM("Imu integration stopped: " << prior_updated_);
-
-    // TODO: Need to reset bias after certain number of keyframes as well 
-    integrator_->resetIntegration();
-    start_integration_ = true; 
   }
 }
 
@@ -264,7 +267,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
     start_integration_ = true;
     first_measurement_done_ = true;
   }
-  
+
   return RESULT_IS_KEYFRAME;
 }
 
@@ -272,33 +275,23 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
   if(Config::useMotionPriors())
   {
-    // stop the integration and generate priors
+    // stop the integration
     start_integration_ = false; 
-    SVO_INFO_STREAM("Stopped IMU integration.");
+    R_curr_ = integrator_->deltaRij().matrix();
+    p_curr_ = integrator_->deltaPij();
+
+    // reset and start the integration
+    integrator_->resetIntegration();
+    SVO_INFO_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
+    n_integrated_measurements_ = 0;
+    start_integration_ = true;
   }
 
   // Set initial pose
   // TODO: Set this initial transformation to the one from IMU? 
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
-  // get motion priors and reset integration
-  if(Config::useMotionPriors())
-  {
-    SVO_START_TIMER("imu_prior_wait");
-    while(true)
-    {
-      // SVO_INFO_STREAM("Waiting for IMU measurements: " << prior_updated_);
-      if(prior_updated_) {
-        SVO_INFO_STREAM("Waiting for IMU measurements done. Break");
-        prior_updated_ = false;
-        break;
-      }
-      ros::Duration(1e-1).sleep();
-    }
-    SVO_STOP_TIMER("imu_prior_wait");
-  }
 
   // sparse image align
-  SVO_INFO_STREAM("Starting sparse image alignment");
   SVO_START_TIMER("sparse_img_align");
   SparseImgAlign img_align(
         Config::kltMaxLevel(), Config::kltMinLevel(), 30, SparseImgAlign::GaussNewton, false, false);

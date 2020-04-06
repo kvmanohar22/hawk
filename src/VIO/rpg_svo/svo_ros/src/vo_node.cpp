@@ -65,7 +65,7 @@ VoNode::VoNode() :
   remote_input_(""),
   cam_(NULL),
   quit_(false),
-  rate_(100)
+  rate_(300)
 {
   // Start user input thread in parallel thread that listens to console keys
   if(vk::getParam<bool>("/hawk/svo/accept_console_user_input", true))

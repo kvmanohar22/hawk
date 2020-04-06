@@ -108,6 +108,8 @@ protected:
   bool first_measurement_done_;
   InitializationType init_type_;
   ImuHelper* imu_helper_;
+  std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
+  size_t n_integrated_measurements_;
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

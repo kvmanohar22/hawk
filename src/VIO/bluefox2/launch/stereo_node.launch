@@ -30,7 +30,7 @@
     <arg name="height" default="480"/>
 
     <!-- Trigger mode (ctm): 1=on demand (default), 3=hardware trigger -->     
-    <arg name="ctm" default="1"/> 
+    <arg name="ctm" default="-1"/> 
     <arg name="cts" default="-1"/>
 
     <!-- Node Settings -->

@@ -9,9 +9,7 @@
     <include file="$(find bluefox2)/launch/mavros.launch"/>
 
     <!-- Start camera driver -->
-    <include file="$(find bluefox2)/launch/single_node.launch">
-        <arg name="record_cameras" value="$(arg record_cameras)"/>
-        <arg name="device" value="$(arg device)"/>
+    <include file="$(find bluefox2)/launch/stereo_node.launch">
         <arg name="expose_us" value="$(arg expose_us)"/>
         <arg name="view" value="$(arg view)"/>
         <arg name="rate" value="$(arg rate)"/>

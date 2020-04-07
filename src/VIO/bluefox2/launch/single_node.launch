@@ -11,7 +11,6 @@
     <arg name="camera_name" default="camera_0"/>
     <arg name="camera" default="$(arg camera_name)"/>
     <arg name="frame_id" default="$(arg camera)"/>
-    <arg name="calib_url" default="$(find svo_ros)/param/hawk/camera_0.yaml"/>
     <arg name="fps" default="$(arg rate)"/>
 
     <arg name="idpf" default="2"/>
@@ -47,7 +46,6 @@
         <param name="identifier" type="string" value="$(arg serial)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="camera_name" type="string" value="$(arg camera_name)"/>
-        <param name="calib_url" type="string" value="$(arg calib_url)"/>
         <param name="fps" type="double" value="$(arg fps)"/>
         <param name="idpf" type="int" value="$(arg idpf)"/>
         <param name="aec" type="bool" value="$(arg aec)"/>
@@ -73,28 +71,10 @@
            if="$(arg record_cameras)">
     </node>
 
-    <!-- Proc -->
-    <node if="$(arg proc)"
-        pkg="image_proc" type="image_proc" name="image_proc" ns="hawk/$(arg camera)">
-    </node>
-
     <!-- View -->
     <node if="$(arg view)"
         pkg="image_view" type="image_view" name="viewer" ns="hawk"
         args="image:=/hawk/camera_0/image_raw  _autosize:=true _window_name:=hawk" output="$(arg output)">
     </node>
 
-    <!-- Calib -->
-    <group if="$(arg calib)">
-        <arg name="pattern" default="chessboard"/>
-        <arg name="size"/>
-        <arg name="square"/>
-        <arg name="num_dist_coeff" default="2"/>
-        <node pkg="camera_calibration" type="cameracalibrator.py"
-            name="calibrator" output="screen"
-            args="-p $(arg pattern) -s $(arg size) -q $(arg square)
-            -k $(arg num_dist_coeff)
-            image:=/$(arg camera)/image_raw camera:=/$(arg camera)">
-        </node>
-    </group>
 </launch>

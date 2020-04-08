@@ -2,10 +2,10 @@
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "bluefox2_stereo");
-  ros::NodeHandle pnh("~");
+  ros::NodeHandle pnh("~"), nh;
 
   try {
-    bluefox2::StereoNode stereo_node(pnh);
+    bluefox2::StereoNode stereo_node(pnh, nh);
     stereo_node.Run();
     ros::spin();
     stereo_node.End();

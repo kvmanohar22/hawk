@@ -49,6 +49,7 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector2d)
   #define SVO_WARN_STREAM_ONCE(x) ROS_WARN_STREAM_ONCE(x)
   #define SVO_WARN_STREAM_THROTTLE(rate, x) ROS_WARN_STREAM_THROTTLE(rate, x)
   #define SVO_ERROR_STREAM(x) ROS_ERROR_STREAM(x)
+  #define SVO_FATAL_STREAM(x) ROS_FATAL_STREAM(x)
 #else
   #define SVO_INFO_STREAM(x) std::cerr<<"\033[0;0m[INFO] "<<x<<"\033[0;0m"<<std::endl;
   #ifdef SVO_DEBUG_OUTPUT

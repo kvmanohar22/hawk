@@ -1,13 +1,31 @@
 <launch>
 
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
-    <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
 
+    <!-- flag to choose the camera rig type: choose between monocular and stereo -->
+    <arg name="rig" default="monocular"/>
+
+    <!-- monocular image topic -->
+    <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+
+    <!-- stereo image topics -->
+    <arg name="left_image_topic"  default="/hawk/stereo/left/image_raw"/>
+    <arg name="right_image_topic" default="/hawk/stereo/right/image_raw"/>
+
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
-        <!-- Camera topic to subscribe to -->
+        <!-- camera rig type -->
+        <param name="rig" value="$(arg rig)" type="str" />
+
+        <!-- Camera topic to subscribe to [monocular case]-->
         <param name="cam_topic" value="$(arg image_topic)" type="str" />
+
+        <!-- Left camera topic to subscribe to [stereo case]-->
+        <param name="left_cam_topic" value="$(arg left_image_topic)" type="str" />
+
+        <!-- Right camera topic to subscribe to [stereo case]-->
+        <param name="right_cam_topic" value="$(arg right_image_topic)" type="str" />
 
         <!-- Camera topic to subscribe to -->
         <param name="imu_topic" value="$(arg imu_topic)" type="str" />

@@ -12,12 +12,12 @@
         <arg name="rate" value="$(arg rate)"/>
         <arg name="request" value="100"/>
         <arg name="gain_db" value="12.0"/>
-        <arg name="hdr" value="true"/>
+        <arg name="hdr" value="false"/>
         <arg name="mm" value="3"/>
         <arg name="aec" value="false"/>
         <arg name="agc" value="false"/>
-        <arg name="ctm" value="1"/>
-        <arg name="cts" value="0"/>
+        <arg name="ctm" value="0"/>
+        <arg name="cts" value="-1"/>
     </include>
 
 </launch>

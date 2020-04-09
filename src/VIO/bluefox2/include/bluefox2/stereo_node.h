@@ -25,6 +25,11 @@ class StereoNode : public camera_base::CameraNodeBase<Bluefox2DynConfig> {
   void AcquireOnce();
   void imu_ts_cb(const mavros_msgs::CamIMUStamp::ConstPtr& msg);
 
+  void threadedAcquisition(
+    boost::shared_ptr<Bluefox2Ros>& camera,
+    ros::Time& ts
+  );
+
  private:
   boost::shared_ptr<Bluefox2Ros> left_ros_;
   boost::shared_ptr<Bluefox2Ros> right_ros_;

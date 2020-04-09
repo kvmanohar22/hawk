@@ -71,6 +71,13 @@ bool StereoNode::fifoLook(TriggerPacket_t &pkt){
   return true;
 }
 
+void StereoNode::threadedAcquisition(
+  boost::shared_ptr<Bluefox2Ros>& camera,
+  ros::Time& time_stamp)
+{
+  camera->PublishCamera(time_stamp);
+}
+
 void StereoNode::Acquire() {
   if (ctm == 3) { // hardware triggering
     const static auto expose_us = left_ros_->camera().GetExposeUs();
@@ -91,8 +98,16 @@ void StereoNode::Acquire() {
       // check if we need to skip it if one trigger packet was lost
       if (pkt.triggerCounter == nextTriggerCounter) {
         fifoRead(pkt);
-        left_ros_->PublishCamera(pkt.triggerTime + half_expose_duration + offset_time);
-        right_ros_->PublishCamera(pkt.triggerTime + half_expose_duration + offset_time);
+
+        // start threaded readout of images
+        ros::Time img_timestamp = pkt.triggerTime + half_expose_duration + offset_time;
+        boost::thread thread_l(&StereoNode::threadedAcquisition, this, left_ros_, img_timestamp);
+        boost::thread thread_r(&StereoNode::threadedAcquisition, this, right_ros_, img_timestamp);
+
+        // wait until both the images are readout
+        thread_l.join();
+        thread_r.join();
+
       } else {
          ROS_WARN("trigger not in sync (seq expected %10u, got %10u)!",
           nextTriggerCounter, pkt.triggerCounter);

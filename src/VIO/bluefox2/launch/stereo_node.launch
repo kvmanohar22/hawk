@@ -29,6 +29,9 @@
     <arg name="mm" default="0"/>
     <arg name="jpeg_quality" default="80"/>
 
+    <!-- imu camera calibration time offset -->
+    <arg name="offset_imu_cam" value="-0.054312982326380425"/>
+
     <!-- resolution of the camera -->
     <arg name="width" default="752"/>
     <arg name="height" default="480"/>
@@ -43,6 +46,8 @@
 
     <!-- Node -->
     <node pkg="bluefox2" type="bluefox2_stereo_node" name="$(arg camera)" output="$(arg output)" ns="hawk">
+        <param name="offset_imu_cam" type="double" value="$(arg offset_imu_cam)"/>
+
         <param name="left/camera_name" type="string" value="$(arg left_camera_name)"/>
         <param name="left/identifier" type="string" value="$(arg left)"/>
 

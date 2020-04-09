@@ -71,6 +71,12 @@ bool StereoNode::fifoLook(TriggerPacket_t &pkt){
   return true;
 }
 
+void StereoNode::threadedRequest(
+  boost::shared_ptr<Bluefox2Ros>& camera)
+{
+  camera->RequestSingle();
+}
+
 void StereoNode::threadedAcquisition(
   boost::shared_ptr<Bluefox2Ros>& camera,
   ros::Time& time_stamp)
@@ -85,8 +91,11 @@ void StereoNode::Acquire() {
     const static auto offset_time = ros::Duration(offset_from_kalibr_imu_cam_);
 
     while (is_acquire() && ros::ok()) {
-      left_ros_->RequestSingle();
-      right_ros_->RequestSingle();
+      boost::thread thread_l(&StereoNode::threadedRequest, this, left_ros_);
+      boost::thread thread_r(&StereoNode::threadedRequest, this, right_ros_);
+
+      thread_l.join();
+      thread_r.join();
 
       // wait for new trigger packet to receive
       bluefox2::TriggerPacket_t pkt;

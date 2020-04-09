@@ -13,6 +13,7 @@ StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
       fifoWritePos(0),
       offset_from_kalibr_imu_cam_(0)
 {
+  ros::param::get("/hawk/stereo/offset_imu_cam", offset_from_kalibr_imu_cam_);
   pnh.param("ctm", ctm, 1);
 
   if (ctm == 3) { // hardware triggering

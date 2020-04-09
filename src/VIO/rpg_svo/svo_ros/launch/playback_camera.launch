@@ -2,12 +2,23 @@
   <arg name="bag_path" default=""/>
   <arg name="output" default="screen"/>
   <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+ 
+  <arg name="left_image_topic" default="/hawk/stereo/left/image_raw"/>
+  <arg name="right_image_topic" default="/hawk/stereo/right/image_raw"/>
+
+  <!-- set this to true if using stereo -->
+  <arg name="stereo" default="false"/>
 
   <!-- play rosbag -->
   <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)" output="screen"/>
 
   <!-- image viewer -->
-  <node pkg="image_view" type="image_view" name="viewer"
-    args="image:=$(arg image_topic) _autosize:=true _window_name:=hawk"
+  <node pkg="image_view" type="image_view" name="left"
+    args="image:=$(arg left_image_topic) _autosize:=true _window_name:=left"
+    output="$(arg output)"/>
+
+  <!-- image viewer -->
+  <node pkg="image_view" type="image_view" name="right"
+    args="image:=$(arg right_image_topic) _autosize:=true _window_name:=right"
     output="$(arg output)"/>
 </launch>

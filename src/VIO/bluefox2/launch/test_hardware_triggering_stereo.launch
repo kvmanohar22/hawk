@@ -19,7 +19,7 @@
         <arg name="mm" value="3"/>
         <arg name="aec" value="false"/>
         <arg name="agc" value="false"/>
-        <arg name="ctm" value="-1"/>
+        <arg name="ctm" value="3"/>
         <arg name="cts" value="0"/>
     </include>
 

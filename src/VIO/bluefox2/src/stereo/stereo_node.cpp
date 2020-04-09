@@ -15,7 +15,7 @@ StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
 {
   pnh.param("ctm", ctm, 1);
 
-  if (ctm == -1) { // hardware triggering [master-slave]
+  if (ctm == 3) { // hardware triggering [master-slave]
     ROS_WARN_STREAM("Launching bluefox2 in hardware trig mode");
     imu_ts_sub_ = nh.subscribe<mavros_msgs::CamIMUStamp>(
       "/mavros/cam_imu_sync/cam_imu_stamp", 1000, &bluefox2::StereoNode::imu_ts_cb, this);
@@ -72,7 +72,7 @@ bool StereoNode::fifoLook(TriggerPacket_t &pkt){
 }
 
 void StereoNode::Acquire() {
-  if (ctm == -1) { // hardware triggering [master-slave]
+  if (ctm == 3) { // hardware triggering [master-slave]
     const static auto expose_us = left_ros_->camera().GetExposeUs();
     const static auto half_expose_duration = ros::Duration(expose_us * 1e-6 / 2);
     const static auto offset_time = ros::Duration(offset_from_kalibr_imu_cam_);

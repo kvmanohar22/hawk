@@ -10,7 +10,7 @@ Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix)
   // Some hack for getting hardware sync to work
   ros::NodeHandle cnh(nh, prefix);
   std::string mode;
-  cnh.param<std::string>("mode", mode, "");
+  nh.param<std::string>("mode", mode, "");
 
   if (mode == "master") {
     bluefox2_.SetMaster();
@@ -20,9 +20,8 @@ Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix)
 
   // Set mirror mode on construction
   int mm;
-  cnh.param<int>("mm", mm, 0);
-  ROS_WARN_STREAM(">>>>>>>>>>>>> mm = " << mm); 
-  bluefox2_.SetMM(3);
+  cnh.param<int>("/hawk/stereo/mm", mm, 0);
+  bluefox2_.SetMM(mm);
 }
 
 bool Bluefox2Ros::Grab(const sensor_msgs::ImagePtr& image_msg,

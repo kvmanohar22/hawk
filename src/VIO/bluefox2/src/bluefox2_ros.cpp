@@ -21,7 +21,8 @@ Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix)
   // Set mirror mode on construction
   int mm;
   cnh.param<int>("mm", mm, 0);
-  bluefox2_.SetMM(mm);
+  ROS_WARN_STREAM(">>>>>>>>>>>>> mm = " << mm); 
+  bluefox2_.SetMM(3);
 }
 
 bool Bluefox2Ros::Grab(const sensor_msgs::ImagePtr& image_msg,

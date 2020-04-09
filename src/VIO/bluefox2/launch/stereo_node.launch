@@ -3,14 +3,18 @@
     <arg name="rate" default="90"/>
 
     <!-- Camera Settings -->
-    <arg name="left" default="26807563"/>
-    <arg name="right" default="26807580"/>
-    <arg name="left_camera_name" default="camera_0"/>
-    <arg name="right_camera_name" default="camera_1"/>
+    <arg name="left" default="26807580"/>
+    <arg name="right" default="26807563"/>
+    <arg name="left_camera_name" default="camera_1"/>
+    <arg name="right_camera_name" default="camera_0"/>
     <arg name="camera" default="stereo"/>
     <arg name="frame_id" default="$(arg camera)"/>
     <arg name="fps" default="$(arg rate)"/>
 
+    <!-- Record data? -->
+    <arg name="record_cameras" default="false"/>
+
+    <!-- other parameters -->
     <arg name="idpf" default="2"/>
     <arg name="aec" default="false"/>
     <arg name="expose_us" default="15000"/>
@@ -61,20 +65,25 @@
         <param name="request" type="int" value="$(arg request)"/>
         <param name="width" type="int" value="$(arg width)"/>
         <param name="height" type="int" value="$(arg height)"/>
-        <param name="mm" type="int" value="$(arg mm)"/>
+        <param name="mm" type="int" value="3"/>
         <param name="image_raw/compressed/jpeg_quality" type="int" value="$(arg jpeg_quality)"/>
+    </node>
+
+    <node pkg="rosbag" type="record" name="rosbag"
+           args="record -o /home/$(env USER)/ /hawk/stereo/left/image_raw /hawk/stereo/right/image_raw /mavros/imu/data_raw"
+           if="$(arg record_cameras)">
     </node>
 
     <!-- Left View -->
     <node if="$(arg view)"
         pkg="image_view" type="image_view" name="viewer_left" ns="hawk"
-        args="image:=/hawk/stereo/left/image_raw  _autosize:=true _window_name:=hawk" output="$(arg output)">
+        args="image:=/hawk/stereo/left/image_raw  _autosize:=true _window_name:=left" output="$(arg output)">
     </node>
 
     <!-- Right View -->
     <node if="$(arg view)"
         pkg="image_view" type="image_view" name="viewer_right" ns="hawk"
-        args="image:=/hawk/stereo/right/image_raw  _autosize:=true _window_name:=hawk" output="$(arg output)">
+        args="image:=/hawk/stereo/right/image_raw  _autosize:=true _window_name:=right" output="$(arg output)">
     </node>
 
 </launch>

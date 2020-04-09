@@ -11,7 +11,7 @@ StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
       nextTriggerCounter(0),
       fifoReadPos(0),
       fifoWritePos(0),
-      offset_from_kalibr_imu_cam_(-0.08687706081999683)
+      offset_from_kalibr_imu_cam_(0)
 {
   pnh.param("ctm", ctm, 1);
 

@@ -2,16 +2,13 @@
 
 ## Contents
 - [Setup](#setup)
-- [Usage](#usage)
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
-- [FAQ](#faq)
-- [What could have gone wrong?](#dig)
 
 <a name="setup"></a>
 ## Setup
 
-#### Clone
+### Clone
 
 ```bash
 cd ~
@@ -20,7 +17,7 @@ cd hawk_ws
 git clone git@github.com:kvmanohar22/hawk.git
 ```
 
-#### Install dependencies
+### Install dependencies
 
 - Ubuntu setup
   - Set the environment variable `HAWK_PX4_FIRMWARE` to the source of `px4/Firmware` in `scripts/load_px4_firmware`.
@@ -38,7 +35,7 @@ git clone git@github.com:kvmanohar22/hawk.git
 - Install GTSAM as outlined [here](https://github.com/borglab/gtsam)
   - **IMPORTANT**: Disable the flag `GTSAM_TANGENT_PREINTEGRATION` which is ON by default.
 
-#### Build
+### Build
 
 **Note:** For the sake of uniformity, use **only** bash shell.
 
@@ -52,33 +49,21 @@ echo "source devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-<a name="usage"></a>
-## Usage
-
-To load px4 firmware as ROS environment,
-
-```
-source scripts/load_px4_env.sh
-```
-
-The above assumes that `firmware` is located at `$USER/src/Firmware`. If not change line 3 in the above file.
-
 <a name="conventions"></a>
 ## Naming conventions
 This sections briefly describes the naming conventions for ROS nodes, topics and so on.
 
-- All nodes must fall under the global name `hawk`. eg: for camera_0, `/hawk/camera_0` i.e, it follows hierarchical structure. This ensures there is no conflict across modules.
+- All nodes must fall under the global name `hawk`. eg: for camera_0, `/hawk/camera_0`
 
 ### Camera conventions
-- Camera 1 node: `/hawk/camera_0`
-- Camera 2 node: `/hawk/camera_1`
-- Raw image data for camera 1 topic: `/hawk/camera_0/image_raw`
-- Raw image data for camera 2 topic: `/hawk/camera_1/image_raw`
-- To start the single node, run the following (this launches viewer using ROS's `image_view` node)
-
-```bash
-roslaunch bluefox2 single_node.launch
-``` 
+- Monocular
+  - Camera node: `/hawk/camera_0`
+  - Raw image data topic: `/hawk/camera_0/image_raw`
+- Stereo
+  - Camera left node: `/hawk/stereo/left/`
+  - Camera right node: `/hawk/stereo/right/`
+  - Raw image data for the left camera: `/hawk/stereo/left/image_raw`
+  - Raw image data for the right camera: `/hawk/stereo/right/image_raw`
 
 <a name="launch"></a>
 ## Launch files
@@ -91,14 +76,30 @@ roslaunch bluefox2 single_node.launch
   - ```bash
       roslaunch bluefox2 test_continuous_triggering.launch device:=26807580
     ```
-  - In the above case, images will be published on the topic `/hawk/camera_0/image_raw`
+  - And the images will be published over the same topic
 
 - Launch camera node with hardware triggering enabled
   - ```bash
       roslaunch bluefox2 test_hardware_triggering.launch
     ```
+  - Very similar to the previous launch except we also start `mavros` node that publishes image sequence ids
   - Trigger interval has to be specified in QGC
   - Exposure time and other camera specific parameters have to be specified in the launch file
+  - **IMPORTANT**: Make sure you have connected FTDI from autopilot to the computer running mavros!
+
+- Launch stereo node with continuous triggering
+  - ```bash
+      roslaunch bluefox2 test_continuous_triggering_stereo.launch
+    ```
+  - Images will be published over the topics `/hawk/stereo/left/image_raw` and `/hawk/stereo/right/image_raw`
+
+- Launch stereo node with hardware triggering enabled
+  - ```bash
+      roslaunch bluefox2 test_hardware_triggering_stereo.launch
+    ```
+  - Similar to monocular hardware triggering
+  - Imu readings will be published over the topic `/mavros/imu/data_raw`
+  - Imu data and image data are time synchronized (hardware-level) upto sub-millisecond accuracy
 
 - Visualize camera data from a bagfile
   - ```bash
@@ -130,25 +131,3 @@ roslaunch bluefox2 single_node.launch
   - Change the exposure in the above launch file
   - **WARNING**: Pass in the right calibration file (`calibration:=/path/to/calibration`)
   - **WARNING**: Set the proper device. Defaults to `camera_1` (`device:=<serial number>`)
-
-
-<a name="faq"></a>
-## FAQ
-1. **Unable to update to the new firmware**
-   Disconnect all the RC pheripherals from pixhawk
-2. **Issues related to Eigen alignment**
-   Read the following article and fix accordingly: [link](https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html)
-
-<a name="dig"></a>
-## What could have gone wrong
-This is a list of things that we are optimistic about and stopped working on this and moved forward. If at any point in the future some part of the pipeline does not run as expected, dig on these first;
-
-- **[2020/03/21]** Camera internal calibration (As the legend says, the frame should be moved and not the camera!)
-- **[2020/03/22]** Camera-IMU calibration
-  - We are stopping with IMU noise parameters analysis (white noise and bias) along with camera-imu external calibration here.
-  - Validation of imu noise is not done. The results from matlab have been used.
-  - ~~Further the noise parameters are not multiplied by any factor such as 10 or 100. Although this was advised to be done.~~ Good results were obtained. Checkout `calibration/imu` directory.
-  - There is an offset in time synchronization and this seems quite unlikely given we are doing hardware triggering. What could have gone wrong here?
-  - Looks like the above could be caused by setting `hdr=true`. Validate this.
-  - Use timeoffset-padding in calibrating camera-imu?
-- In continuous triggering, `rate.sleep()` looses some frames regularly. What is the correct way to implement this?

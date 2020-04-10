@@ -22,6 +22,9 @@ In the following experiments, we want to test what's the actual time offset. Is 
 `furgale_iros13.pdf`: Read this paper for information about how the actual calibration is done
 `IMU_Noise_and_Characterization.pdf`: IMU noise parameters derivation from Allan deviation lecture presentation
 
-## Currently used
-- Use the parameters from `09-final-time_offset_from_05_final_1/scale_100`, since the errors and biases are well within the bounds.
+## Change Log
+- **Currently Used [2020/03/01]**
+  - Use the parameters from `09-final-time_offset_from_05_final_1/scale_100`, since the errors and biases are well within the bounds.
 
+- **Currently Used [2020/04/10]**
+  - Use the parameters from `stereo3/run2` for both intrinsics and extrinsics calibration

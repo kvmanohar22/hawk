@@ -26,6 +26,17 @@
 namespace svo {
 namespace initialization {
 
+KltHomographyInit::KltHomographyInit(FrameHandlerBase::InitType init_type)
+  : init_type_(init_type),
+    baseline_set_(false)
+{}
+
+void KltHomographyInit::setBaseline(const Sophus::SE3& T_cur_from_ref)
+{
+  T_cur_from_ref_ = T_cur_from_ref;
+  baseline_set_ = true;
+}
+
 InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 {
   reset();
@@ -50,13 +61,26 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 
   double disparity = vk::getMedian(disparities_);
   SVO_INFO_STREAM("Init: KLT "<<disparity<<"px average disparity.");
-  if(disparity < Config::initMinDisparity())
-    return NO_KEYFRAME;
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR) {
+    if(disparity < Config::initMinDisparity())
+      return NO_KEYFRAME;
+  }
 
-  computeHomography(
-      f_ref_, f_cur_,
-      frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-      inliers_, xyz_in_cur_, T_cur_from_ref_);
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR) {
+    computeHomography(
+        f_ref_, f_cur_,
+        frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+        inliers_, xyz_in_cur_, T_cur_from_ref_);
+  } else {
+    if(!baseline_set_) {
+      SVO_ERROR_STREAM("Baseline is not set. Cannot compute initial map");
+      return FAILURE;
+    }
+    computeInitialMap(
+        f_ref_, f_cur_,
+        frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+        inliers_, xyz_in_cur_, T_cur_from_ref_);
+  }
   SVO_INFO_STREAM("Init: Homography RANSAC "<<inliers_.size()<<" inliers.");
 
   if(inliers_.size() < Config::initMinInliers())
@@ -65,15 +89,21 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     return FAILURE;
   }
 
-  // Rescale the map such that the mean scene depth is equal to the specified scale
-  vector<double> depth_vec;
-  for(size_t i=0; i<xyz_in_cur_.size(); ++i)
-    depth_vec.push_back((xyz_in_cur_[i]).z());
-  double scene_depth_median = vk::getMedian(depth_vec);
-  double scale = Config::mapScale()/scene_depth_median;
   frame_cur->T_f_w_ = T_cur_from_ref_ * frame_ref_->T_f_w_;
-  frame_cur->T_f_w_.translation() =
-      -frame_cur->T_f_w_.rotation_matrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
+  double scale;
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+  {
+    // Rescale the map such that the mean scene depth is equal to the specified scale
+    vector<double> depth_vec;
+    for(size_t i=0; i<xyz_in_cur_.size(); ++i)
+      depth_vec.push_back((xyz_in_cur_[i]).z());
+    double scene_depth_median = vk::getMedian(depth_vec);
+    scale = Config::mapScale()/scene_depth_median;
+    frame_cur->T_f_w_.translation() =
+        -frame_cur->T_f_w_.rotation_matrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
+  }
+  else
+    scale = 1.0;
 
   // For each inlier create 3D point and add feature in both frames
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
@@ -192,6 +222,33 @@ void computeHomography(
                      reprojection_threshold, focal_length,
                      xyz_in_cur, inliers, outliers);
   T_cur_from_ref = Homography.T_c2_from_c1;
+}
+
+void computeInitialMap(
+    const vector<Vector3d>& f_ref,
+    const vector<Vector3d>& f_cur,
+    double focal_length,
+    double reprojection_threshold,
+    vector<int>& inliers,
+    vector<Vector3d>& xyz_in_cur,
+    const SE3& T_cur_from_ref)
+{
+  vector<Vector2d > uv_ref(f_ref.size());
+  vector<Vector2d > uv_cur(f_cur.size());
+  for(size_t i=0, i_max=f_ref.size(); i<i_max; ++i)
+  {
+    uv_ref[i] = vk::project2d(f_ref[i]);
+    uv_cur[i] = vk::project2d(f_cur[i]);
+  }
+
+  const Matrix3d R_c2_c1 = T_cur_from_ref.rotation_matrix();
+  const Vector3d t_c2_c1 = T_cur_from_ref.translation();
+
+  vector<int> outliers;
+  vk::computeInliers(f_cur, f_ref,
+                     R_c2_c1, t_c2_c1,
+                     reprojection_threshold, focal_length,
+                     xyz_in_cur, inliers, outliers);
 }
 
 

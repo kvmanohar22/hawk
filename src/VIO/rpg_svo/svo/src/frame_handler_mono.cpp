@@ -23,6 +23,7 @@
 #include <svo/pose_optimizer.h>
 #include <svo/sparse_img_align.h>
 #include <vikit/performance_monitor.h>
+#include <vikit/camera_loader.h>
 #include <svo/depth_filter.h>
 #include <boost/thread.hpp>
 #ifdef USE_BUNDLE_ADJUSTMENT
@@ -31,21 +32,52 @@
 
 namespace svo {
 
-FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
-  FrameHandlerBase(),
+SE3 FrameHandlerMono::T_c0_b_;
+SE3 FrameHandlerMono::T_c1_b_;
+
+SE3 FrameHandlerMono::T_b_c0_;
+SE3 FrameHandlerMono::T_b_c1_;
+
+SE3 FrameHandlerMono::T_c0_c1_;
+SE3 FrameHandlerMono::T_c1_c0_;
+
+FrameHandlerMono::FrameHandlerMono(
+    vk::AbstractCamera* cam,
+    FrameHandlerBase::InitType init_type) :
+  FrameHandlerBase(init_type),
   cam_(cam),
   reprojector_(cam_, map_),
+  klt_homography_init_(init_type),
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
   reset_integration_(false),
   start_integration_(false),
   prior_updated_(false),
   first_measurement_done_(false),
-  init_type_(InitializationType::KLT),
   imu_helper_(nullptr),
   n_integrated_measurements_(0)
 {
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
+  else
+    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
+
   initialize();
+
+  // load extrinsic calibration parameters
+  loadCalibration();
+}
+
+void FrameHandlerMono::loadCalibration()
+{
+  T_c0_b_ = vk::camera_loader::loadT("/hawk/svo/cam0/T_cam_imu");
+  T_c1_b_ = vk::camera_loader::loadT("/hawk/svo/cam1/T_cam_imu");
+
+  T_b_c0_ = T_c0_b_.inverse();
+  T_b_c1_ = T_c1_b_.inverse();
+
+  T_c1_c0_ = vk::camera_loader::loadT("/hawk/svo/cam1/T_c1_c0");
+  T_c0_c1_ = T_c1_c0_.inverse();
 }
 
 void FrameHandlerMono::initialize()

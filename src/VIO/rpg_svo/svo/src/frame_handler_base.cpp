@@ -34,14 +34,15 @@ namespace svo
 vk::PerformanceMonitor* g_permon = NULL;
 #endif
 
-FrameHandlerBase::FrameHandlerBase() :
+FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   stage_(STAGE_PAUSED),
   set_reset_(false),
   set_start_(false),
   acc_frame_timings_(10),
   acc_num_obs_(10),
   num_obs_last_(0),
-  tracking_quality_(TRACKING_INSUFFICIENT)
+  tracking_quality_(TRACKING_INSUFFICIENT),
+  init_type_(init_type)
 {
 #ifdef SVO_TRACE
   // Initialize Performance Monitor

@@ -30,19 +30,14 @@
 
 namespace svo {
 
-enum class InitializationType
-{
-  KLT,
-  STEREO
-};
-
 /// Monocular Visual Odometry Pipeline as described in the SVO paper.
 class FrameHandlerMono : public FrameHandlerBase
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   
-  FrameHandlerMono(vk::AbstractCamera* cam);
+  FrameHandlerMono(vk::AbstractCamera* cam,
+    FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
   virtual ~FrameHandlerMono();
 
   /// imu callback function
@@ -51,8 +46,11 @@ public:
   /// Provide an image.
   void addImage(const cv::Mat& img, double timestamp);
 
-  /// Provide an image.
+  /// Provide an image. Monocular initialization
   void addImage(const cv::Mat& img, ros::Time ts);
+
+  /// Stereo initialization
+  void addImage(const cv::Mat& imgl, const cv::Mat& imgr, ros::Time ts);
 
   /// Set the first frame (used for synthetic datasets in benchmark node)
   void setFirstFrame(const FramePtr& first_frame);
@@ -80,6 +78,16 @@ public:
       const cv::Mat& img,
       const double timestamp);
 
+public:
+  static SE3 T_c0_b_; // imu -> camera0
+  static SE3 T_c1_b_; // imu -> camera1
+
+  static SE3 T_b_c0_; // camera0 -> imu
+  static SE3 T_b_c1_; // camera1 -> imu
+
+  static SE3 T_c1_c0_; // camera0 -> camera1
+  static SE3 T_c0_c1_; // camera1 -> camera0
+  
 protected:
   vk::AbstractCamera* cam_;                     //!< Camera model, can be ATAN, Pinhole or Ocam (see vikit).
   Reprojector reprojector_;                     //!< Projects points from other keyframes into the current frame
@@ -106,7 +114,6 @@ protected:
   bool start_integration_;
   bool prior_updated_;
   bool first_measurement_done_;
-  InitializationType init_type_;
   ImuHelper* imu_helper_;
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
@@ -114,11 +121,17 @@ protected:
   /// Initialize the visual odometry algorithm.
   virtual void initialize();
 
+  /// Helper to load the calibration.
+  virtual void loadCalibration();
+
   /// Processes the first frame and sets it as a keyframe.
   virtual UpdateResult processFirstFrame();
 
   /// Processes all frames after the first frame until a keyframe is selected.
   virtual UpdateResult processSecondFrame();
+
+  /// Processes the first two frames for stereo initialization
+  virtual UpdateResult processFirstAndSecondFrame(const cv::Mat& imgr);
 
   /// Processes all frames after the first two keyframes.
   virtual UpdateResult processFrame();

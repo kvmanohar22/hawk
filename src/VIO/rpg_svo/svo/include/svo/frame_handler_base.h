@@ -60,7 +60,12 @@ public:
     RESULT_FAILURE
   };
 
-  FrameHandlerBase();
+  enum class InitType {
+    MONOCULAR,
+    STEREO
+  };
+
+  FrameHandlerBase(InitType init_type);
 
   virtual ~FrameHandlerBase();
 
@@ -95,6 +100,7 @@ protected:
   vk::RingBuffer<size_t> acc_num_obs_;          //!< Number of observed features of the last 10 frames, used to give some user feedback on the tracking performance.
   size_t num_obs_last_;                         //!< Number of observations in the previous frame.
   TrackingQuality tracking_quality_;            //!< An estimate of the tracking quality based on the number of tracked features.
+  InitType init_type_;                          //!< Initialization type
 
   /// Before a frame is processed, this function is called.
   bool startFrameProcessingCommon(const double timestamp);

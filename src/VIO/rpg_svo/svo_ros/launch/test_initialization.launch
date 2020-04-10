@@ -1,0 +1,18 @@
+<launch>
+    <arg name="bag_path" default=""/>
+    <arg name="start" default="0"/>
+
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start)"/>
+
+    <!-- start rviz -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+
+    <!-- Start initialization node -->
+    <node pkg="svo_ros" type="initialization" name="svo" output="screen" ns="hawk">
+      <param name="use_motion_priors" value="false"/>
+      <rosparam file="$(find svo_ros)/param/hawk/camchain.yaml"/>
+      <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
+    </node>
+
+</launch>

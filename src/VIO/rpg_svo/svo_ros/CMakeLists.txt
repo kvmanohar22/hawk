@@ -83,3 +83,6 @@ TARGET_LINK_LIBRARIES(vo svo_visualizer)
 
 ADD_EXECUTABLE(feature_detection src/test_feature_detection.cpp)
 TARGET_LINK_LIBRARIES(feature_detection svo_visualizer)
+
+ADD_EXECUTABLE(initialization src/test_initialization.cpp)
+TARGET_LINK_LIBRARIES(initialization svo_visualizer)

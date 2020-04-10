@@ -223,6 +223,47 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
 }
 
+void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const ros::Time ts)
+{
+  if(init_type_ != FrameHandlerBase::InitType::STEREO) {
+    SVO_ERROR_STREAM("Initilization step not set to STEREO");
+    return;
+  }
+
+  if(!startFrameProcessingCommon(ts.toSec()))
+    return;
+
+  // some cleanup from last iteration, can't do before because of visualization
+  core_kfs_.clear();
+  overlap_kfs_.clear();
+
+  // create new frame
+  SVO_START_TIMER("pyramid_creation");
+  new_frame_.reset(new Frame(cam_, imgl.clone(), ts));
+  SVO_STOP_TIMER("pyramid_creation");
+
+  // process frame
+  UpdateResult res = RESULT_FAILURE;
+  if(stage_ == STAGE_DEFAULT_FRAME)
+    res = processFrame();
+  else if(stage_ == STAGE_FIRST_FRAME)
+    res = processFirstAndSecondFrame(imgr);
+  else if(stage_ == STAGE_RELOCALIZING) {
+    // TODO: Initialize on the fly using stereo matching
+    res = relocalizeFrame(SE3(Matrix3d::Identity(), Vector3d::Zero()),
+                          map_.getClosestKeyframe(last_frame_));
+  }
+
+  // FIXME: We don't want to overwrite the last frame in the case of initialization
+
+  // set last frame
+  last_frame_ = new_frame_;
+  new_frame_.reset();
+
+  // finish processing
+  finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
+}
+
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
@@ -239,12 +280,12 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
  
   if(Config::useMotionPriors()) {
     // in stereo, we get the initial map right here. No second frame processed 
-    if(init_type_ == InitializationType::STEREO) {
+    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
       start_integration_ = true;
       first_measurement_done_ = true;
     }
   }
-  
+
   return RESULT_IS_KEYFRAME;
 }
 
@@ -281,6 +322,59 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
     start_integration_ = true;
     first_measurement_done_ = true;
   }
+
+  return RESULT_IS_KEYFRAME;
+}
+
+FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
+  const cv::Mat& imgr)
+{
+  // process the first image
+  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
+    return RESULT_NO_KEYFRAME;
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+  stage_ = STAGE_SECOND_FRAME;
+  SVO_INFO_STREAM("Init: Selected first frame.");
+
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
+ 
+  if(Config::useMotionPriors()) {
+    // in stereo, we get the initial map right here. No second frame processed 
+    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
+      start_integration_ = true;
+      first_measurement_done_ = true;
+    }
+  }
+
+  // Reset the frames
+  last_frame_ = new_frame_;
+  new_frame_.reset(new Frame(cam_, imgr.clone(), last_frame_->ros_ts_));
+
+  // set baseline for computing map
+  klt_homography_init_.setBaseline(FrameHandlerMono::T_c1_c0_);
+
+  // Process second frame
+  initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
+  if(res == initialization::FAILURE)
+    return RESULT_FAILURE;
+  else if(res == initialization::NO_KEYFRAME)
+    return RESULT_NO_KEYFRAME;
+
+  // two-frame bundle adjustment
+#ifdef USE_BUNDLE_ADJUSTMENT
+  ba::twoViewBA(new_frame_.get(), map_.lastKeyframe().get(), Config::lobaThresh(), &map_);
+#endif
+
+  // add frame to map
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+  stage_ = STAGE_DEFAULT_FRAME;
+  klt_homography_init_.reset();
+  SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
 
   return RESULT_IS_KEYFRAME;
 }

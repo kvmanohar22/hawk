@@ -5,8 +5,7 @@ SET(TRACE TRUE)
 SET(HAVE_G2O FALSE) 
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
-SET(SVO_ANALYSIS TRUE) # Writes log data that can be analyzed. Disable this in Release mode
-SET(SVO_BUILD_TESTS FALSE) # Enable this to build tests
+SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
 ################################################################################
 
 SET(PROJECT_NAME svo)
@@ -29,9 +28,6 @@ IF(USE_ROS)
 ENDIF()
 IF(DEBUG_OUTPUT)
   ADD_DEFINITIONS(-DSVO_DEBUG_OUTPUT)
-ENDIF()
-IF(SVO_ANALYSIS)
-  ADD_DEFINITIONS(-DSVO_ANALYSIS)
 ENDIF()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
@@ -159,5 +155,5 @@ IF(SVO_BUILD_TESTS)
   TARGET_LINK_LIBRARIES(test_sparse_img_align svo)
 
   ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
-  TARGET_LINK_LIBRARIES(test_pose_optimizer svo) 
+  TARGET_LINK_LIBRARIES(test_pose_optimizer svo)
 ENDIF(SVO_BUILD_TESTS)

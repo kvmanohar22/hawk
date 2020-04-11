@@ -58,7 +58,10 @@ LIST(APPEND SOURCEFILES src/atan_camera.cpp
                         src/user_input_thread.cpp
                         src/pinhole_camera.cpp
                         src/homography.cpp
-                        src/img_align.cpp)
+                        src/img_align.cpp
+                        src/ORBExtractor.cpp
+                        src/ORBMatcher.cpp
+                        src/stereo.cpp)
 
 # Create vikit library
 ADD_LIBRARY(${PROJECT_NAME} SHARED ${SOURCEFILES})

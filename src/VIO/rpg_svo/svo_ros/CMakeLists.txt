@@ -86,3 +86,6 @@ TARGET_LINK_LIBRARIES(feature_detection svo_visualizer)
 
 ADD_EXECUTABLE(initialization src/test_initialization.cpp)
 TARGET_LINK_LIBRARIES(initialization svo_visualizer)
+
+ADD_EXECUTABLE(stereo_initialization src/test_stereo_initialization.cpp)
+TARGET_LINK_LIBRARIES(stereo_initialization svo_visualizer)

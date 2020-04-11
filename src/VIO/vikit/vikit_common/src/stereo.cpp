@@ -9,7 +9,7 @@ StereoInitialization::StereoInitialization(
     cam1_(cam1),
     T_c1_c0_(T_c1_c0)
 {
-  int nFeatures = 500;
+  int nFeatures = 1000;
   float fScaleFactor = 1.2;
   int nLevels = 8;
   int fIniThFAST = 20;
@@ -296,7 +296,7 @@ void StereoInitialization::initialize()
   mb  = mbf / fx;
 
   boost::thread thread_l(&StereoInitialization::extractORB, this, 0, imgl_rect);
-  boost::thread thread_r(&StereoInitialization::extractORB, this, 0, imgr_rect);
+  boost::thread thread_r(&StereoInitialization::extractORB, this, 1, imgr_rect);
   thread_l.join();
   thread_r.join();
 

@@ -25,7 +25,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   StereoInitialization(AbstractCamera* cam0, AbstractCamera* cam1, Sophus::SE3& T_c1_c0);
-  ~StereoInitialization() {}
+  ~StereoInitialization();
 
   // The system requires that the images are rectified
   void rectifyImage(

@@ -8,7 +8,25 @@ StereoInitialization::StereoInitialization(
   : cam0_(cam0),
     cam1_(cam1),
     T_c1_c0_(T_c1_c0)
-{}
+{
+  int nFeatures = 500;
+  float fScaleFactor = 1.2;
+  int nLevels = 8;
+  int fIniThFAST = 20;
+  int fMinThFAST = 7;
+  mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+  mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+
+  // initialization
+  mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
+  mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
+}
+
+StereoInitialization::~StereoInitialization()
+{
+  delete mpORBextractorLeft;
+  delete mpORBextractorRight;
+}
 
 void StereoInitialization::setImages(
   const cv::Mat& imgl, const cv::Mat& imgr)
@@ -242,10 +260,6 @@ void StereoInitialization::triangulate()
 
 void StereoInitialization::initialize()
 {
-  // initialization
-  mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
-  mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
-
   // Rectification parameters
   cv::Mat R1, R2, P1, P2, Q;
   const cv::Mat K1 = dynamic_cast<vk::PinholeCamera*>(cam0_)->cvK();
@@ -281,16 +295,8 @@ void StereoInitialization::initialize()
   mbf = P2.at<double>(0, 3);
   mb  = mbf / fx;
 
-  int nFeatures = 500;
-  float fScaleFactor = 1.2;
-  int nLevels = 8;
-  int fIniThFAST = 20;
-  int fMinThFAST = 7;
-  mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
-  mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
-
-  boost::thread thread_l(&StereoInitialization::extractORB, this, 0, imgl_);
-  boost::thread thread_r(&StereoInitialization::extractORB, this, 0, imgr_);
+  boost::thread thread_l(&StereoInitialization::extractORB, this, 0, imgl_rect);
+  boost::thread thread_r(&StereoInitialization::extractORB, this, 0, imgr_rect);
   thread_l.join();
   thread_r.join();
 
@@ -298,8 +304,8 @@ void StereoInitialization::initialize()
   std::cout << "Extracted " << N << " features in the left image" << std::endl;
 
   cv::Mat imgc;
-  cv::cvtColor(imgl_, imgc, cv::COLOR_GRAY2BGR);
-  for(size_t i=0; i<N; ++i) {
+  cv::cvtColor(imgl_rect, imgc, cv::COLOR_GRAY2BGR);
+  for(int i=0; i<N; ++i) {
     const float u = mvKeys[i].pt.x;
     const float v = mvKeys[i].pt.y;
     cv::rectangle(imgc, cv::Point2f(u-1, v-1), cv::Point2f(u+1, v+1), cv::Scalar(0,255,0), cv::FILLED);

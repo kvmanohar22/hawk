@@ -51,7 +51,7 @@ InitializationTest::InitializationTest() :
 
   vo_ = new svo::FrameHandlerMono(cam0_, FrameHandlerBase::InitType::STEREO);
 
-  init_ = new vk::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c1_c0_);
+  init_ = new vk::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c1_c0_, true);
 }
 
 InitializationTest::~InitializationTest()

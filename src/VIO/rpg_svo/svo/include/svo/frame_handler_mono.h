@@ -27,6 +27,7 @@
 #include <svo/visual_inertial_estimator.h>
 #include <sensor_msgs/Imu.h>
 #include <gtsam/navigation/ImuFactor.h>
+#include <vikit/stereo.h>
 
 namespace svo {
 
@@ -37,6 +38,9 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   
   FrameHandlerMono(vk::AbstractCamera* cam,
+    FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
+
+  FrameHandlerMono(vk::AbstractCamera* cam0, vk::AbstractCamera* cam1,
     FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
   virtual ~FrameHandlerMono();
 
@@ -87,6 +91,7 @@ public:
   
 protected:
   vk::AbstractCamera* cam_;                     //!< Camera model, can be ATAN, Pinhole or Ocam (see vikit).
+  vk::AbstractCamera* cam1_;                    //!< Second camera when using stereo initialization
   Reprojector reprojector_;                     //!< Projects points from other keyframes into the current frame
   FramePtr new_frame_;                          //!< Current frame.
   FramePtr last_frame_;                         //!< Last frame, not necessarily a keyframe.
@@ -115,6 +120,9 @@ protected:
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
 
+  vk::StereoInitialization* stereo_init_;   //!< Initializer in case of stereo camera rig
+
+
   /// Initialize the visual odometry algorithm.
   virtual void initialize();
 
@@ -128,7 +136,7 @@ protected:
   virtual UpdateResult processSecondFrame();
 
   /// Processes the first two frames for stereo initialization
-  virtual UpdateResult processFirstAndSecondFrame(const cv::Mat& imgr);
+  virtual UpdateResult processFirstAndSecondFrame(const cv::Mat& imgl, const cv::Mat& imgr);
 
   /// Processes all frames after the first two keyframes.
   virtual UpdateResult processFrame();

@@ -20,11 +20,23 @@
 
 namespace vk {
 
+/// Container to hold references to 2D-3D
+struct Feature {
+  cv::KeyPoint kpt_;
+  Eigen::Vector3d xyz_;
+  Feature(const cv::KeyPoint& kpt, const Eigen::Vector3d& xyz)
+  : kpt_(kpt),
+    xyz_(xyz)
+  {}
+};
+
+
+/// Main stereo initilizer
 class StereoInitialization {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  StereoInitialization(AbstractCamera* cam0, AbstractCamera* cam1, Sophus::SE3& T_c1_c0);
+  StereoInitialization(AbstractCamera* cam0, AbstractCamera* cam1, Sophus::SE3& T_c1_c0, bool verbose=false);
   ~StereoInitialization();
 
   // The system requires that the images are rectified
@@ -39,16 +51,18 @@ public:
   void computeStereoMatches();
 
   Eigen::Vector3d UnprojectStereo(const int& i);
-  void triangulate();
+  void triangulate(const Sophus::SE3& R1);
 
-  void initialize();
+  bool initialize();
 
   ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
   std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
+  std::vector<cv::KeyPoint> mvKeysUn;
   cv::Mat mDescriptors, mDescriptorsRight;
   std::vector<float> mvuRight;
   std::vector<float> mvDepth;
   int N;
+  bool verbose_;
   vector<float> mvScaleFactors;
   vector<float> mvInvScaleFactors;
 
@@ -57,6 +71,7 @@ public:
   Sophus::SE3& T_c1_c0_; // left -> right
   cv::Mat imgl_;
   cv::Mat imgr_;
+  std::list<Feature*> features_;
 
   float fx, fy, cx, cy;
   float invfx, invfy;

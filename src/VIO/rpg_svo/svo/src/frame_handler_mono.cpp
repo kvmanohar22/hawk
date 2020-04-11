@@ -46,6 +46,36 @@ FrameHandlerMono::FrameHandlerMono(
     FrameHandlerBase::InitType init_type) :
   FrameHandlerBase(init_type),
   cam_(cam),
+  cam1_(nullptr),
+  reprojector_(cam_, map_),
+  klt_homography_init_(init_type),
+  depth_filter_(NULL),
+  inertial_estimator_(nullptr),
+  reset_integration_(false),
+  start_integration_(false),
+  prior_updated_(false),
+  first_measurement_done_(false),
+  imu_helper_(nullptr),
+  n_integrated_measurements_(0)
+{
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
+  else
+    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
+
+  initialize();
+
+  // load extrinsic calibration parameters
+  loadCalibration();
+}
+
+FrameHandlerMono::FrameHandlerMono(
+    vk::AbstractCamera* cam0,
+    vk::AbstractCamera* cam1,
+    FrameHandlerBase::InitType init_type) :
+  FrameHandlerBase(init_type),
+  cam_(cam0),
+  cam1_(cam1),
   reprojector_(cam_, map_),
   klt_homography_init_(init_type),
   depth_filter_(NULL),
@@ -210,17 +240,19 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
   // process frame
   UpdateResult res = RESULT_FAILURE;
-  if(stage_ == STAGE_DEFAULT_FRAME)
+  if(stage_ == STAGE_DEFAULT_FRAME) {
     res = processFrame();
-  else if(stage_ == STAGE_FIRST_FRAME)
-    res = processFirstAndSecondFrame(imgr);
-  else if(stage_ == STAGE_RELOCALIZING) {
+  } else if(stage_ == STAGE_FIRST_FRAME) {
+    res = processFirstAndSecondFrame(imgl, imgr);
+  
+    // finish processing
+    finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
+    return;
+  } else if(stage_ == STAGE_RELOCALIZING) {
     // TODO: Initialize on the fly using stereo matching
     res = relocalizeFrame(SE3(Matrix3d::Identity(), Vector3d::Zero()),
                           map_.getClosestKeyframe(last_frame_));
   }
-
-  // FIXME: We don't want to overwrite the last frame in the case of initialization
 
   // set last frame
   last_frame_ = new_frame_;
@@ -293,54 +325,46 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 }
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
-  const cv::Mat& imgr)
+  const cv::Mat& imgl, const cv::Mat& imgr)
 {
-  // process the first image
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
-  if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
-    return RESULT_NO_KEYFRAME;
+  stereo_init_ = new vk::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c1_c0_);
+  stereo_init_->setImages(imgl, imgr);
+  
+  // FIXME: Handle when the initialization fails
+  stereo_init_->initialize();
+
+  if(Config::useMotionPriors()) {
+    // in stereo, we get the initial map right here. No second frame processed 
+    start_integration_ = true;
+    first_measurement_done_ = true;
+  }
+
+  // generate new frame's 3D points
+  std::list<vk::Feature*>::const_iterator itr=stereo_init_->features_.begin();
+  for(; itr!=stereo_init_->features_.end(); ++itr) {
+    Point* new_point = new Point((*itr)->xyz_);
+    Vector2d px((*itr)->kpt_.pt.x, (*itr)->kpt_.pt.y);
+    Vector3d f = new_frame_->cam_->cam2world(px);
+    
+    Feature* ftr_cur(new Feature(new_frame_.get(), new_point, px, f, 0));
+    new_frame_->addFeature(ftr_cur);
+    new_point->addFrameRef(ftr_cur);
+  } 
+
   new_frame_->setKeyframe();
   map_.addKeyframe(new_frame_);
-  stage_ = STAGE_SECOND_FRAME;
-  SVO_INFO_STREAM("Init: Selected first frame.");
+  SVO_INFO_STREAM("Init: Initialized map with " << new_frame_->fts_.size() << " points");
 
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
-  }
- 
-  if(Config::useMotionPriors()) {
-    // in stereo, we get the initial map right here. No second frame processed 
-    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
-      start_integration_ = true;
-      first_measurement_done_ = true;
-    }
   }
 
   // Reset the frames
   last_frame_ = new_frame_;
   new_frame_.reset(new Frame(cam_, imgr.clone(), last_frame_->ros_ts_));
 
-  // set baseline for computing map
-  klt_homography_init_.setBaseline(FrameHandlerMono::T_c1_c0_);
-
-  // Process second frame
-  initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
-  if(res == initialization::FAILURE)
-    return RESULT_FAILURE;
-  else if(res == initialization::NO_KEYFRAME)
-    return RESULT_NO_KEYFRAME;
-
-  // two-frame bundle adjustment
-#ifdef USE_BUNDLE_ADJUSTMENT
-  ba::twoViewBA(new_frame_.get(), map_.lastKeyframe().get(), Config::lobaThresh(), &map_);
-#endif
-
-  // add frame to map
-  new_frame_->setKeyframe();
-  map_.addKeyframe(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
-  klt_homography_init_.reset();
-  SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
 
   return RESULT_IS_KEYFRAME;
 }
@@ -349,6 +373,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
   if(Config::useMotionPriors())
   {
+    // FIXME: Not threadsafe
     // stop the integration
     start_integration_ = false;
     R_curr_ = integrator_->deltaRij().matrix();

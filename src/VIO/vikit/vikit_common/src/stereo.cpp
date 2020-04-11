@@ -4,8 +4,10 @@ namespace vk {
 
 StereoInitialization::StereoInitialization(
   AbstractCamera* cam0, AbstractCamera* cam1,
-  Sophus::SE3& T_c1_c0)
-  : cam0_(cam0),
+  Sophus::SE3& T_c1_c0,
+  bool verbose)
+  : verbose_(verbose),
+    cam0_(cam0),
     cam1_(cam1),
     T_c1_c0_(T_c1_c0)
 {
@@ -26,6 +28,10 @@ StereoInitialization::~StereoInitialization()
 {
   delete mpORBextractorLeft;
   delete mpORBextractorRight;
+
+  std::for_each(features_.begin(), features_.end(), [&](Feature* ftr) {
+    delete ftr;
+  });
 }
 
 void StereoInitialization::setImages(
@@ -240,25 +246,41 @@ Eigen::Vector3d StereoInitialization::UnprojectStereo(const int &i)
   return point;
 }
 
-void StereoInitialization::triangulate()
+void StereoInitialization::triangulate(const Sophus::SE3& T)
 {
-  size_t count = 0;
-  if(N>500)
+  float error_b=0;
+  float error_a=0;
+  if(N > 500)
   {
-    for(int i=0; i<N;i++)
+    for(int i = 0; i < N; i++)
     {
-      float z = mvDepth[i];
-      if(z>0)
+      const float z = mvDepth[i];
+
+      const cv::KeyPoint kpt_before = mvKeys[i];
+      const cv::KeyPoint kpt_after = mvKeysUn[i];
+      const Vector2d px_b(kpt_before.pt.x, kpt_before.pt.y);
+      const Vector2d px_a(kpt_after.pt.x, kpt_after.pt.y);
+      if(z > 0)
       {
-        Eigen::Vector3d xyz = UnprojectStereo(i);
-        ++count;
+        Vector3d xyz_before = UnprojectStereo(i);
+        Vector3d xyz_after  = T * xyz_before;
+        features_.push_back(new Feature(kpt_after, xyz_after));
+
+        const Vector2d uv_b = dynamic_cast<vk::PinholeCamera*>(cam0_)->world2cam(xyz_before);
+        const Vector2d uv_a = dynamic_cast<vk::PinholeCamera*>(cam0_)->world2cam(xyz_after);
+        error_b += (px_b-uv_b).squaredNorm();
+        error_a += (px_a-uv_a).squaredNorm();
       }
     }
   }
-  std::cout << "Initialized map with " << count << " 3D points" << std::endl;
+  if(verbose_) {
+    std::cout << "Initialized map with " << features_.size() << " 3D points" << std::endl;
+    std::cout << "Reprojected error (before) = " << error_b << " px" << std::endl;
+    std::cout << "Reprojected error (after) = " << error_a << " px" << std::endl;
+  }
 }
 
-void StereoInitialization::initialize()
+bool StereoInitialization::initialize()
 {
   // Rectification parameters
   cv::Mat R1, R2, P1, P2, Q;
@@ -301,21 +323,52 @@ void StereoInitialization::initialize()
   thread_r.join();
 
   N = mvKeys.size();
-  std::cout << "Extracted " << N << " features in the left image" << std::endl;
-
-  cv::Mat imgc;
-  cv::cvtColor(imgl_rect, imgc, cv::COLOR_GRAY2BGR);
-  for(int i=0; i<N; ++i) {
-    const float u = mvKeys[i].pt.x;
-    const float v = mvKeys[i].pt.y;
-    cv::rectangle(imgc, cv::Point2f(u-1, v-1), cv::Point2f(u+1, v+1), cv::Scalar(0,255,0), cv::FILLED);
-  }
-  cv::imshow("left", imgc);
-  cv::waitKey(0);
+  if(verbose_)
+    std::cout << "Extracted " << N << " features in the left image" << std::endl;
 
   computeStereoMatches();
 
-  triangulate();
+  Eigen::Matrix3d Rt; // Rotates back points into actual left camera frame (unRectified)
+  cv::Mat R1T(3,3, CV_64F);
+  for(size_t i=0;i<3;++i) {
+    for(size_t j=0;j<3;++j) {
+      // Note that we want the inverse of rotation
+      Rt(j,i) = R1.at<double>(i,j);
+      R1T.at<double>(j, i) = Rt.coeff(j, i);
+    }
+  }
+
+  // distort the images back to the original frame
+  cv::Mat mat(N,2,CV_32F);
+  for(int i=0; i<N; i++)
+  {
+    mat.at<float>(i,0)=mvKeys[i].pt.x;
+    mat.at<float>(i,1)=mvKeys[i].pt.y;
+  }
+
+  // Undistort points
+  mat=mat.reshape(2);
+  cv::Mat P1Inv(3, 4, CV_64F);
+  R1T.copyTo(P1Inv.rowRange(0, 3).colRange(0, 3));
+  cv::undistortPoints(mat, mat, K1, D1, R1T, P1Inv);
+  mat=mat.reshape(1);
+
+  // Fill undistorted keypoint vector
+  mvKeysUn.resize(N);
+  for(int i=0; i<N; i++)
+  {
+    cv::KeyPoint kp = mvKeys[i];
+    kp.pt.x = mat.at<float>(i,0);
+    kp.pt.y = mat.at<float>(i,1);
+    mvKeysUn[i] = kp;
+  }
+
+  Sophus::SE3 T(Rt, Eigen::Vector3d::Zero());
+  triangulate(T);
+
+  if(features_.size() > 200)
+    return true;
+  return false;
 }
 
 } // namespace vk

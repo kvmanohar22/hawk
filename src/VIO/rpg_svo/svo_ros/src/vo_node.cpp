@@ -123,7 +123,7 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   }
 
   processUserActions();
-  vo_->addImage(img, msg->header.stamp.toSec());
+  vo_->addImage(img, msg->header.stamp);
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)

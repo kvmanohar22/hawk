@@ -155,40 +155,6 @@ void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
   }
 }
 
-void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
-{
-  if(!startFrameProcessingCommon(timestamp))
-    return;
-
-  // some cleanup from last iteration, can't do before because of visualization
-  core_kfs_.clear();
-  overlap_kfs_.clear();
-
-  // create new frame
-  SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, img.clone(), timestamp));
-  SVO_STOP_TIMER("pyramid_creation");
-
-  // process frame
-  UpdateResult res = RESULT_FAILURE;
-  if(stage_ == STAGE_DEFAULT_FRAME)
-    res = processFrame();
-  else if(stage_ == STAGE_SECOND_FRAME)
-    res = processSecondFrame();
-  else if(stage_ == STAGE_FIRST_FRAME)
-    res = processFirstFrame();
-  else if(stage_ == STAGE_RELOCALIZING)
-    res = relocalizeFrame(SE3(Matrix3d::Identity(), Vector3d::Zero()),
-                          map_.getClosestKeyframe(last_frame_));
-
-  // set last frame
-  last_frame_ = new_frame_;
-  new_frame_.reset();
-
-  // finish processing
-  finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
-}
-
 void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 {
   if(!startFrameProcessingCommon(ts.toSec()))

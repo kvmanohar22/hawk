@@ -43,9 +43,6 @@ public:
   /// imu callback function
   void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
 
-  /// Provide an image.
-  void addImage(const cv::Mat& img, double timestamp);
-
   /// Provide an image. Monocular initialization
   void addImage(const cv::Mat& img, ros::Time ts);
 

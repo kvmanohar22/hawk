@@ -17,7 +17,7 @@ class StereoInitialization {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  StereoInitialization(vk::AbstractCamera* cam0, vk::AbstractCamera* cam1, Sophus::SE3& T_c1_c0, bool verbose=false);
+  StereoInitialization(vk::AbstractCamera* cam0, vk::AbstractCamera* cam1, Sophus::SE3& T_c0_c1, bool verbose=false);
   ~StereoInitialization();
 
   inline void setRefFrame(FramePtr& frame) { ref_frame_ = frame; }
@@ -36,13 +36,13 @@ public:
 
   vk::AbstractCamera* cam0_;      //<! left camera
   vk::AbstractCamera* cam1_;      //<! right camera
-  Sophus::SE3&        T_c1_c0_;   //<! left -> right
+  Sophus::SE3&        T_c0_c1_;   //<! left -> right
   FramePtr            ref_frame_; //!< ref frame
 
-  vector<cv::Point2f> px_ref_;  //!< keypoints in the reference image
+  vector<cv::Point2f> px_ref_;    //!< keypoints in the reference image
   vector<Vector3d>     f_ref_;    //!< bearing vectors
 
-  vector<cv::Point2f> px_cur_;  //!< keypoints in the current image
+  vector<cv::Point2f> px_cur_;    //!< keypoints in the current image
   vector<Vector3d>     f_cur_;    //!< bearing vectors
   bool                verbose_;
 };

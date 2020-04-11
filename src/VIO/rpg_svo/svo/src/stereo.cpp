@@ -2,36 +2,19 @@
 #include <svo/feature_detection.h>
 #include <svo/config.h>
 #include <svo/feature.h>
+#include <svo/point.h>
 
 namespace svo {
 
 StereoInitialization::StereoInitialization(
   vk::AbstractCamera* cam0, vk::AbstractCamera* cam1,
-  Sophus::SE3& T_c1_c0,
+  Sophus::SE3& T_c0_c1,
   bool verbose) :
     cam0_(cam0),
     cam1_(cam1),
-    T_c1_c0_(T_c1_c0),
+    T_c0_c1_(T_c0_c1),
     verbose_(verbose)
-{
-  // Rectification parameters
-  cv::Mat R1, R2, P1, P2, Q;
-  const cv::Mat K1 = dynamic_cast<vk::PinholeCamera*>(cam0_)->cvK();
-  const cv::Mat D1 = dynamic_cast<vk::PinholeCamera*>(cam0_)->cvD();
-  const cv::Mat K2 = dynamic_cast<vk::PinholeCamera*>(cam1_)->cvK();
-  const cv::Mat D2 = dynamic_cast<vk::PinholeCamera*>(cam1_)->cvD();
-  const Eigen::Matrix<double, 3, 3> R = T_c1_c0_.rotation_matrix();
-  const Eigen::Vector3d t = T_c1_c0_.translation();
-
-  cv::Mat R_c1_c0(3,3,CV_64F);
-  for(size_t i=0;i<3;++i)
-    for(size_t j=0;j<3;++j)
-      R_c1_c0.at<double>(i,j) = R.coeff(i,j);
-
-  cv::Mat t_c1_c0(3,1,CV_64F);
-  for(size_t i=0;i<3;++i)
-    t_c1_c0.at<double>(i) = t(i);
-}
+{}
 
 StereoInitialization::~StereoInitialization()
 {
@@ -145,29 +128,25 @@ bool StereoInitialization::initialize()
   }
 
   vector<int> outliers, inliers;
-  vector<Vector3d> xyz_in_cur;
+  vector<Vector3d> xyz_in_c1; // in c1
   vk::computeInliers(f_cur_, f_ref_,
-                     T_c1_c0_.rotation_matrix(), T_c1_c0_.translation(),
+                     T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
                      ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-                     xyz_in_cur, inliers, outliers);
+                     xyz_in_c1, inliers, outliers);
 
   int count=0;
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
-    if(ref_frame_->cam_->isInFrame(px_cur.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur[*it].z() > 0)
+    if(ref_frame_->cam_->isInFrame(px_cur.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_c1[*it].z() > 0)
     {
-      // Vector3d pos = T_world_cur * (xyz_in_cur_[*it]*scale);
-      // Point* new_point = new Point(pos);
+      Vector3d pos = T_c0_c1_ * (xyz_in_c1[*it]);
+      Point* new_point = new Point(pos);
 
-      // Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
-      // frame_cur->addFeature(ftr_cur);
-      // new_point->addFrameRef(ftr_cur);
-
-      // Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
-      // frame_ref_->addFeature(ftr_ref);
-      // new_point->addFrameRef(ftr_ref);
+      Feature* ftr_ref(new Feature(ref_frame_.get(), new_point, px_ref, f_ref_[*it], 0));
+      ref_frame_->addFeature(ftr_ref);
+      new_point->addFrameRef(ftr_ref);
       ++count;
     }
   }

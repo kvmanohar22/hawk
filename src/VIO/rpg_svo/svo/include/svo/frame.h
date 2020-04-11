@@ -67,7 +67,7 @@ public:
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts);
-  Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, ros::Time ts);
+  Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
 
   /// Initialize new frame and create image pyramid.

@@ -50,7 +50,7 @@ InitializationTest::InitializationTest() :
 
   vo_ = new svo::FrameHandlerMono(cam0_, FrameHandlerBase::InitType::STEREO);
 
-  init_ = new svo::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c1_c0_, true);
+  init_ = new svo::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c0_c1_, true);
 }
 
 InitializationTest::~InitializationTest()
@@ -70,7 +70,7 @@ void InitializationTest::test()
   const cv::Mat imgr = cv::imread(imgr_file.c_str(), CV_8UC1);
 
   FramePtr new_frame;
-  new_frame.reset(new svo::Frame(cam0_, imgl, imgr, ros::Time::now()));
+  new_frame.reset(new svo::Frame(cam0_, imgl, imgr, ros::Time::now().toSec()));
   init_->setRefFrame(new_frame);
   init_->initialize();
 }

@@ -49,6 +49,7 @@ public:
   ros::Subscriber sub_remote_key_;
   std::string remote_input_;
   vk::AbstractCamera* cam_;
+  vk::AbstractCamera* cam1_;
   bool quit_;
   ros::Rate rate_;
   VoNode();
@@ -83,6 +84,10 @@ VoNode::VoNode() :
   if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
     throw std::runtime_error("Camera model not correctly specified.");
 
+  // Create Camera
+  if(!vk::camera_loader::loadFromRosNs("svo", "cam1", cam1_))
+    throw std::runtime_error("Camera model not correctly specified.");
+
   // Get initial position and orientation
   visualizer_.T_world_from_vision_ = Sophus::SE3(
       vk::rpy2dcm(Vector3d(vk::getParam<double>("/hawk/svo/init_rx", 0.0),
@@ -93,7 +98,7 @@ VoNode::VoNode() :
                       vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
 
   // Init VO and start
-  vo_ = new svo::FrameHandlerMono(cam_);
+  vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::STEREO);
   vo_->start();
 }
 
@@ -154,7 +159,18 @@ void VoNode::imgStereoCb(
     ROS_ERROR("cv_bridge exception right message: %s", e.what());
   }
 
-  // TODO: Process the stereo images
+  processUserActions();
+  vo_->addImage(l_img, r_img, l_msg->header.stamp);
+  visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
+
+  if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
+    visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
+
+  if(publish_dense_input_)
+    visualizer_.exportToDense(vo_->lastFrame());
+
+  if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
+    usleep(100000);
 }
 
 void VoNode::processUserActions()
@@ -204,8 +220,8 @@ int main(int argc, char **argv)
   // subscribe to message topics
   std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu_topic", "imu/data"));
   std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
-  std::string left_cam_topic(vk::getParam<std::string>("/hawk/stereo/left_image_topic", "camera/image_raw"));
-  std::string right_cam_topic(vk::getParam<std::string>("/hawk/stereo/right_image_topic", "camera/image_raw"));
+  std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/left_image_topic", "camera/image_raw"));
+  std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/right_image_topic", "camera/image_raw"));
 
 
   message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 1);

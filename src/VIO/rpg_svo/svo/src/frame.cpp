@@ -57,10 +57,10 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts) :
   initFrame(img);
 }
 
-Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, ros::Time ts) :
+Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, double ts) :
     id_(frame_counter_++),
     correction_id_(-1),
-    ros_ts_(ts),
+    timestamp_(ts),
     cam_(cam),
     key_pts_(5),
     is_keyframe_(false),

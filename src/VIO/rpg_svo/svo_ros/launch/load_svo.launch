@@ -22,10 +22,10 @@
         <param name="cam_topic" value="$(arg image_topic)" type="str" />
 
         <!-- Left camera topic to subscribe to [stereo case]-->
-        <param name="left_cam_topic" value="$(arg left_image_topic)" type="str" />
+        <param name="left_image_topic" value="$(arg left_image_topic)" type="str" />
 
         <!-- Right camera topic to subscribe to [stereo case]-->
-        <param name="right_cam_topic" value="$(arg right_image_topic)" type="str" />
+        <param name="right_image_topic" value="$(arg right_image_topic)" type="str" />
 
         <!-- Camera topic to subscribe to -->
         <param name="imu_topic" value="$(arg imu_topic)" type="str" />

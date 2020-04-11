@@ -57,6 +57,21 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts) :
   initFrame(img);
 }
 
+Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, ros::Time ts) :
+    id_(frame_counter_++),
+    correction_id_(-1),
+    ros_ts_(ts),
+    cam_(cam),
+    key_pts_(5),
+    is_keyframe_(false),
+    v_kf_(NULL),
+    n_new_filters_init_(0),
+    n_filters_converged_(0)
+{
+  initFrame(imgl, img_pyr_);
+  initFrame(imgr, img_pyr_right_);
+}
+
 Frame::~Frame()
 {
   std::for_each(fts_.begin(), fts_.end(), [&](Feature* i){delete i;});
@@ -73,6 +88,19 @@ void Frame::initFrame(const cv::Mat& img)
 
   // Build Image Pyramid
   frame_utils::createImgPyramid(img, max(Config::nPyrLevels(), Config::kltMaxLevel()+1), img_pyr_);
+}
+
+void Frame::initFrame(const cv::Mat& img, ImgPyr& img_pyr)
+{
+  // check image
+  if(img.empty() || img.type() != CV_8UC1 || img.cols != cam_->width() || img.rows != cam_->height())
+    throw std::runtime_error("Frame: provided image has not the same size as the camera model or image is not grayscale");
+
+  // Set keypoints to NULL
+  std::for_each(key_pts_.begin(), key_pts_.end(), [&](Feature* ftr){ ftr=NULL; });
+
+  // Build Image Pyramid
+  frame_utils::createImgPyramid(img, max(Config::nPyrLevels(), Config::kltMaxLevel()+1), img_pyr);
 }
 
 void Frame::setKeyframe()

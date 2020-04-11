@@ -73,6 +73,8 @@ public:
 
   inline const Matrix3d& K() const { return K_; };
   inline const Matrix3d& K_inv() const { return K_inv_; };
+  inline const cv::Mat cvK() const { return cvK_.clone(); };
+  inline const cv::Mat cvD() const { return cvD_.clone(); };
   inline double fx() const { return fx_; };
   inline double fy() const { return fy_; };
   inline double cx() const { return cx_; };

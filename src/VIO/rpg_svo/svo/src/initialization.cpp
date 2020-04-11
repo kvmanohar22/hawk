@@ -56,6 +56,20 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_);
   SVO_INFO_STREAM("Init: KLT tracked "<< disparities_.size() <<" features");
 
+  // debug
+  auto img_r = frame_ref_->img();
+  cv::Mat img_rgb = cv::Mat(img_r.size(), CV_8UC3);
+  cv::cvtColor(img_r, img_rgb, cv::COLOR_GRAY2RGB);
+  // std::for_each(px_ref_.begin(), px_ref_.end(), [&](cv::Point2f px){
+  //   cv::rectangle(img_rgb, cv::Point2f(px.x-2, px.y-2), cv::Point2f(px.x+2, px.y+2), cv::Scalar(0,255,0), cv::FILLED);
+  // });
+  for(size_t i=0; i<px_ref_.size(); ++i) {
+    cv::rectangle(img_rgb, cv::Point2f(px_ref_[i].x-2, px_ref_[i].y-2), cv::Point2f(px_ref_[i].x+2, px_ref_[i].y+2), cv::Scalar(255,0,0), cv::FILLED);
+    cv::line(img_rgb, px_ref_[i], px_cur_[i], cv::Scalar(0, 255, 0));
+  }
+  cv::imshow("ref_img", img_rgb);
+  cv::waitKey(0);
+
   if(disparities_.size() < Config::initMinTracked())
     return FAILURE;
 

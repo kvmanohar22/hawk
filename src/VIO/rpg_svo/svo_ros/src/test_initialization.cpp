@@ -2,6 +2,7 @@
 #include <string>
 #include <svo/frame_handler_mono.h>
 #include <svo/map.h>
+#include <svo/feature.h>
 #include <svo/config.h>
 #include <svo/visual_inertial_estimator.h>
 #include <svo_ros/visualizer.h>
@@ -84,10 +85,25 @@ void InitializationTest::imgStereoCb(
     ROS_ERROR("cv_bridge exception right message: %s", e.what());
   }
 
+  cv::imwrite("/home/kv/left.png", l_img);
+  cv::imwrite("/home/kv/right.png", r_img);
+
   // This creates initial map
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
 
-  std::cout << "#core kfs = " << vo_->coreKeyframes().size() << std::endl;
+  std::cout << "#map kfs = " << vo_->map().keyframes_.size() << std::endl;
+
+  auto kf = vo_->lastFrame();
+  const auto fts = kf->fts_;
+  const auto img = kf->img();
+  cv::Mat img_rgb = cv::Mat(img.size(), CV_8UC3);
+  cv::cvtColor(img, img_rgb, cv::COLOR_GRAY2RGB);
+
+  std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
+    cv::rectangle(img_rgb, cv::Point2f(i->px[0]-2, i->px[1]-2), cv::Point2f(i->px[0]+2, i->px[1]+2), cv::Scalar(0,255,0), cv::FILLED);
+  });
+  cv::imshow("Initialized ref_img", img_rgb);
+  cv::waitKey(1);
 
   visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
   visualizer_.exportToDense(vo_->lastFrame());

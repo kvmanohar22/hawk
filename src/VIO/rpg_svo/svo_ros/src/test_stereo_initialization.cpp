@@ -4,7 +4,7 @@
 #include <svo/map.h>
 #include <svo/feature.h>
 #include <svo/config.h>
-#include <svo/visual_inertial_estimator.h>
+#include <svo/stereo.h>
 #include <svo_ros/visualizer.h>
 #include <vikit/params_helper.h>
 #include <sensor_msgs/Image.h>
@@ -20,7 +20,6 @@
 #include <vikit/abstract_camera.h>
 #include <vikit/camera_loader.h>
 #include <vikit/user_input_thread.h>
-#include <vikit/stereo.h>
 
 namespace svo {
 
@@ -31,7 +30,7 @@ public:
   vk::AbstractCamera* cam0_;
   vk::AbstractCamera* cam1_;
   svo::FrameHandlerMono* vo_;
-  vk::StereoInitialization* init_;
+  svo::StereoInitialization* init_;
 
   InitializationTest();
   ~InitializationTest();
@@ -51,7 +50,7 @@ InitializationTest::InitializationTest() :
 
   vo_ = new svo::FrameHandlerMono(cam0_, FrameHandlerBase::InitType::STEREO);
 
-  init_ = new vk::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c1_c0_, true);
+  init_ = new svo::StereoInitialization(cam0_, cam1_, FrameHandlerMono::T_c1_c0_, true);
 }
 
 InitializationTest::~InitializationTest()
@@ -70,8 +69,9 @@ void InitializationTest::test()
   const cv::Mat imgl = cv::imread(imgl_file.c_str(), CV_8UC1);
   const cv::Mat imgr = cv::imread(imgr_file.c_str(), CV_8UC1);
 
-  init_->setImages(imgl, imgr);
-
+  FramePtr new_frame;
+  new_frame.reset(new svo::Frame(cam0_, imgl, imgr, ros::Time::now()));
+  init_->setRefFrame(new_frame);
   init_->initialize();
 }
 

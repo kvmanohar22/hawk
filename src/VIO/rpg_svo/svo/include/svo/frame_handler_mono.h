@@ -27,7 +27,7 @@
 #include <svo/visual_inertial_estimator.h>
 #include <sensor_msgs/Imu.h>
 #include <gtsam/navigation/ImuFactor.h>
-#include <vikit/stereo.h>
+#include <svo/stereo.h>
 
 namespace svo {
 
@@ -120,7 +120,7 @@ protected:
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
 
-  vk::StereoInitialization* stereo_init_;   //!< Initializer in case of stereo camera rig
+  StereoInitialization* stereo_init_;   //!< Initializer in case of stereo camera rig
 
 
   /// Initialize the visual odometry algorithm.

@@ -73,9 +73,17 @@ bool StereoInitialization::initialize()
   vector<cv::KeyPoint> kps_ref, kps_cur;
 
   boost::thread thread_l(&StereoInitialization::detectFeatures,
-    this, ref_frame_->img_pyr_, std::ref(kps_ref), std::ref(f_ref), std::ref(descriptors_l));
+                         this,
+                         ref_frame_->img_pyr_,
+                         std::ref(kps_ref),
+                         std::ref(f_ref),
+                         std::ref(descriptors_l));
   boost::thread thread_r(&StereoInitialization::detectFeatures,
-    this, ref_frame_->img_pyr_right_, std::ref(kps_cur), std::ref(f_cur), std::ref(descriptors_r));
+                         this,
+                         ref_frame_->img_pyr_right_,
+                         std::ref(kps_cur),
+                         std::ref(f_cur),
+                         std::ref(descriptors_r));
   thread_l.join();
   thread_r.join();
 
@@ -157,7 +165,7 @@ bool StereoInitialization::initialize()
     cv::waitKey(0);
   }
 
-  vector<Vector2d > uv_ref(f_ref_.size());
+/*  vector<Vector2d > uv_ref(f_ref_.size());
   vector<Vector2d > uv_cur(f_cur_.size());
   for(size_t i=0, i_max=f_ref_.size(); i<i_max; ++i)
   {
@@ -179,17 +187,21 @@ bool StereoInitialization::initialize()
 
   std::cout << "H t = " << T_cur_from_ref.translation().transpose() << std::endl;
   std::cout << "C t = " << T_c0_c1_.inverse().translation().transpose() << std::endl;
-
-  // vector<int> outliers, inliers;
-  // vector<Vector3d> xyz_in_cur; // in c1
-  // vk::computeInliers(f_cur_,  // c1
-  //                    f_ref_,  // c0
-  //                    T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
-  //                    ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-  //                    xyz_in_cur, inliers, outliers);
+*/
+  vector<int> outliers, inliers;
+  vector<Vector3d> xyz_in_cur; // in c1
+  double tot_error = vk::computeInliers(
+                     f_cur_,  // c1
+                     f_ref_,  // c0
+                     T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
+                     ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+                     xyz_in_cur, inliers, outliers);
+  std::cout << "total error = " << tot_error << std::endl;
+  SE3 T_ref_from_cur = T_c0_c1_;
 
   int count=0;
-  double error=0;
+  double e1=0;
+  double e2=0;
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
@@ -204,14 +216,18 @@ bool StereoInitialization::initialize()
       new_point->addFrameRef(ftr_ref);
       ++count;
 
-      const Vector2d uv = ref_frame_->cam_->world2cam(pos);
-      error += (uv-px_ref).norm();
+      const Vector2d uv_ref = ref_frame_->cam_->world2cam(pos);
+      const Vector2d uv_cur = ref_frame_->cam1_->world2cam(xyz_in_cur[*it]);
+      e1 += (uv_ref-px_ref).norm();
+      e2 += (uv_cur-px_cur).norm();
     }
   }
   if(verbose_) {
     std::cout << "Triangulated initial map with " << count << " points\n"
-              << "total error = " << error <<"\n"
-              << "avg error = " << error/count <<"\n";
+              << "total e1 = " << e1 <<"\n"
+              << "avg e1 = " << e1/count <<"\n"
+              << "total e2 = " << e2 <<"\n"
+              << "avg e2 = " << e2/count <<"\n";
   }
 
   return true;

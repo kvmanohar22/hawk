@@ -12,6 +12,14 @@
 
 namespace svo {
 
+/// Matcher to use to compute corresponding points
+enum class MatcherType {
+  BRISK,
+  BRISK_EPILINE,
+  DIRECT_EPILINE
+};
+
+
 /// Main stereo initilizer
 class StereoInitialization {
 public:
@@ -30,21 +38,30 @@ public:
     cv::Mat& descriptors);
 
   /// match the descriptors
-  void match(cv::Mat& descriptors_l, cv::Mat& descriptors_r, vector<cv::DMatch>& good_matches);
+  void match();
 
   bool initialize();
 
-  vk::AbstractCamera* cam_l_;      //<! left camera
-  vk::AbstractCamera* cam_r_;      //<! right camera
-  Sophus::SE3&        T_cl_cr_;   //<! left -> right
-  FramePtr            ref_frame_; //!< ref frame
+private:
+  void briskMatcher();
+  void briskEpilineMatcher();
+  void directMatcher();
 
-  vector<cv::Point2f> px_l_;    //!< keypoints in the left stereo image
-  vector<Vector3d>     f_l_;    //!< bearing vectors
-
-  vector<cv::Point2f> px_r_;    //!< keypoints in the right stereo image
-  vector<Vector3d>     f_r_;    //!< bearing vectors
+public:
+  vk::AbstractCamera* cam_l_;        //!< left camera
+  vk::AbstractCamera* cam_r_;        //!< right camera
+  Sophus::SE3&        T_cl_cr_;      //!< left -> right
+  FramePtr            ref_frame_;    //!< ref frame
+  vector<cv::Point2f> px_l_;         //!< keypoints in the left stereo image
+  vector<Vector3d>     f_l_;         //!< bearing vectors
+  vector<cv::Point2f> px_r_;         //!< keypoints in the right stereo image
+  vector<Vector3d>     f_r_;         //!< bearing vectors
   bool                verbose_;
+  MatcherType         matcher_type_; 
+
+  cv::Mat             descriptors_l; //!< Used in brisk descriptor matching
+  cv::Mat             descriptors_r;
+  vector<cv::DMatch>  good_matches;
 };
 
 } // namespace svo

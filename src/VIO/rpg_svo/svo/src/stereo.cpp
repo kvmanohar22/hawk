@@ -14,7 +14,8 @@ StereoInitialization::StereoInitialization(
     cam_l_(caml),
     cam_r_(camr),
     T_cl_cr_(T_cl_cr),
-    verbose_(verbose)
+    verbose_(verbose),
+    matcher_type_(MatcherType::BRISK)
 {}
 
 StereoInitialization::~StereoInitialization()
@@ -47,15 +48,14 @@ void StereoInitialization::detectFeatures(
   descriptor->compute(img, kps, descriptors);
 }
 
-void StereoInitialization::match(cv::Mat& descriptors_l, cv::Mat& descriptors_r,
-  std::vector<cv::DMatch>& good_matches)
+void StereoInitialization::briskMatcher()
 {
   std::vector<std::vector<cv::DMatch> > knn_matches;
   cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce-Hamming");
   matcher->knnMatch(descriptors_l, descriptors_r, knn_matches, 2);
 
   // filter the matches
-  const float ratio_thresh = 0.87f;
+  const float ratio_thresh = 0.4f;
   for(size_t i = 0; i < knn_matches.size(); i++)
   {
     if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
@@ -65,10 +65,22 @@ void StereoInitialization::match(cv::Mat& descriptors_l, cv::Mat& descriptors_r,
   }
 }
 
+void StereoInitialization::match()
+{
+  switch(matcher_type_) {
+    case MatcherType::BRISK:
+      briskMatcher();
+      break;
+    case MatcherType::BRISK_EPILINE:
+      break;
+    case MatcherType::DIRECT_EPILINE:
+      break;
+  }
+}
+
 bool StereoInitialization::initialize()
 {
   // 1. Extract features.
-  cv::Mat descriptors_l, descriptors_r;
   vector<Vector3d> f_l, f_r;
   vector<cv::KeyPoint> kps_l, kps_r;
 
@@ -118,8 +130,7 @@ bool StereoInitialization::initialize()
   }
 
   // 2. Match & filter
-  std::vector<cv::DMatch> good_matches;
-  match(descriptors_l, descriptors_r, good_matches);
+  match();
 
   if(verbose_) {
     std::cout << "Number of matches detected = " << good_matches.size() << "\n";
@@ -165,39 +176,15 @@ bool StereoInitialization::initialize()
     cv::imshow("matches", newimg);
     cv::waitKey(0);
   }
-/*
-  vector<Vector2d > uv_ref(f_l_.size());
-  vector<Vector2d > uv_cur(f_r_.size());
-  for(size_t i=0, i_max=f_l_.size(); i<i_max; ++i)
-  {
-    uv_ref[i] = vk::project2d(f_l_[i]);
-    uv_cur[i] = vk::project2d(f_r_[i]);
-  }
-  double focal_length = ref_frame_->cam_->errorMultiplier2();
-  double reprojection_threshold = Config::poseOptimThresh();
-  vk::Homography Homography(uv_ref, uv_cur, focal_length, reprojection_threshold);
-  Homography.computeSE3fromMatches();
-  vector<int> outliers, inliers;
-  vector<Vector3d> xyz_in_r;
-  vk::computeInliers(f_r_, f_l_,
-                     Homography.T_c2_from_c1.rotation_matrix(), Homography.T_c2_from_c1.translation(),
-                     reprojection_threshold, focal_length,
-                     xyz_in_r, inliers, outliers);
-  const SE3 T_cur_from_ref = Homography.T_c2_from_c1;
-  const SE3 T_ref_from_cur = T_cur_from_ref.inverse();
-
-  std::cout << "H t = " << T_cur_from_ref.translation().transpose() << std::endl;
-  std::cout << "C t = " << T_cl_cr_.inverse().translation().transpose() << std::endl;
-*/
-
 
   vector<int> outliers, inliers;
   vector<Vector3d> xyz_in_r; // right image
+  const SE3 T_cr_cl = T_cl_cr_.inverse();
   double tot_error = vk::computeInliers(
                      f_r_,  // right
                      f_l_,  // left
-                     T_cl_cr_.rotation_matrix(),
-                     T_cl_cr_.translation(),
+                     T_cr_cl.rotation_matrix(),
+                     T_cr_cl.translation(),
                      Config::poseOptimThresh(),
                      ref_frame_->cam_->errorMultiplier2(),
                      xyz_in_r,
@@ -214,23 +201,16 @@ bool StereoInitialization::initialize()
     Vector2d px_l(px_l_[*it].x, px_l_[*it].y);
     if(ref_frame_->camR_->isInFrame(px_r.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_l.cast<int>(), 10) && xyz_in_r[*it].z() > 0)
     {
-      Vector3d pos_l = T_cl_cr_.inverse() * xyz_in_r[*it];
+      Vector3d pos_l = T_cl_cr_ * xyz_in_r[*it];
       Point* new_point = new Point(pos_l);
 
       Feature* ftr_left(new Feature(ref_frame_.get(), new_point, px_l, f_l_[*it], 0));
       ref_frame_->addFeature(ftr_left);
       new_point->addFrameRef(ftr_left);
       ++count;
-/*
-      const Vector2d uv_l = ref_frame_->cam_->world2cam(pos_l);
-      const Vector2d uv_r = ref_frame_->cam_->world2cam(xyz_in_r[*it]);
-      el += (uv_l-px_l).norm();
-      er += (uv_r-px_r).norm();
-*/
+
       er += vk::reprojError(f_r_[*it], xyz_in_r[*it], ref_frame_->cam_->errorMultiplier2());
       el += vk::reprojError(f_l_[*it], T_cl_cr_.inverse() * xyz_in_r[*it], ref_frame_->cam_->errorMultiplier2());
-      // el += ref_frame_->cam_->errorMultiplier2() * (vk::project2d(f_l_[*it])-vk::project2d(T_cl_cr_ * xyz_in_r[*it])).norm();
-      // er += ref_frame_->cam_->errorMultiplier2() * (vk::project2d(f_r_[*it])-vk::project2d(xyz_in_r[*it])).norm();
     }
   }
   if(verbose_) {

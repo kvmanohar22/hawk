@@ -78,6 +78,12 @@ bool StereoInitialization::initialize()
   thread_l.join();
   thread_r.join();
 
+  // bearing vectors in cur image should be wrt second camera
+  for(size_t i=0; i<f_cur.size(); ++i) {
+    Vector2d px(kps_cur[i].pt.x, kps_cur[i].pt.y);
+    f_cur[i] = ref_frame_->cam1_->cam2world(px);
+  }
+
   if(verbose_) {
     std::cout << "Number of features detected (ref) = " << kps_ref.size() << "\n";
     std::cout << "Number of features detected (cur) = " << kps_cur.size() << "\n";

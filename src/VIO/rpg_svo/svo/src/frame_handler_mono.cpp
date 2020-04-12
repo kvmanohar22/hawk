@@ -235,7 +235,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
   // create new frame
   SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, imgl.clone(), imgr.clone(), ts.toSec()));
+  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), ts.toSec()));
   SVO_STOP_TIMER("pyramid_creation");
 
   // process frame
@@ -368,7 +368,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   }
 
   // Set initial pose
-  // TODO: Set this initial transformation to the one from IMU? 
+  // TODO: Set this initial transformation to the one from IMU?
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
 
   // sparse image align

@@ -50,6 +50,7 @@ public:
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   ros::Time                     ros_ts_;                //!< ROS time stamp
   vk::AbstractCamera*           cam_;                   //!< Camera model.
+  vk::AbstractCamera*           cam1_;                  //!< Camera model (stereo).
   Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.
@@ -67,7 +68,7 @@ public:
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts);
-  Frame(vk::AbstractCamera* cam, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
+  Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
 
   /// Initialize new frame and create image pyramid.

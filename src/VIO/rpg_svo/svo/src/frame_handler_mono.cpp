@@ -325,7 +325,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
  
   // stereo initialization
   stereo_init_ = new svo::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c0_c1_);
-  stereo_init_->setRefFrame(new_frame_);  
+  stereo_init_->setRefFrame(new_frame_);
 
   if(stereo_init_->initialize())
     SVO_INFO_STREAM("Init: Initialization successful");

@@ -127,9 +127,28 @@ bool StereoInitialization::initialize()
     px_cur_.push_back(kps_cur[r_idx].pt);
   }
 
+  if(verbose_) {
+    std::cout << "Number of matches detected = " << good_matches.size() << "\n";
+    cv::Mat img_matches;
+    cv::Mat imgl = ref_frame_->img();
+    cv::Mat imgr = ref_frame_->imgRight();
+
+    cv::Mat newimg(imgl.rows, imgl.cols*2, imgl.type());
+    imgl.copyTo(newimg.rowRange(0, imgl.rows).colRange(0, imgl.cols));
+    imgr.copyTo(newimg.rowRange(0, imgl.rows).colRange(imgl.cols, 2*imgl.cols));
+    cv::cvtColor(newimg, newimg, cv::COLOR_GRAY2BGR);
+    for(size_t i=0; i<px_ref_.size(); ++i) {
+      cv::Point2f newpt = px_cur_[i]+cv::Point2f(imgl.cols, 0);
+      cv::line(newimg, px_ref_[i], newpt, cv::Scalar(0, 255, 0), 1);
+    }
+    cv::imshow("matches", newimg);
+    cv::waitKey(0);
+  }
+
   vector<int> outliers, inliers;
   vector<Vector3d> xyz_in_c1; // in c1
-  vk::computeInliers(f_cur_, f_ref_,
+  vk::computeInliers(f_cur_,  // c1
+                     f_ref_,  // c0
                      T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
                      ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
                      xyz_in_c1, inliers, outliers);

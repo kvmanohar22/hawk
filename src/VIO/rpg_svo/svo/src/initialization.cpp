@@ -53,7 +53,8 @@ InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 
 InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 {
-  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_);
+  bool is_monocular = init_type_ == FrameHandlerBase::InitType::MONOCULAR;
+  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_, false);
   SVO_INFO_STREAM("Init: KLT tracked "<< disparities_.size() <<" features");
 
   if(disparities_.size() < Config::initMinTracked())
@@ -127,12 +128,15 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       frame_ref_->addFeature(ftr_ref);
       new_point->addFrameRef(ftr_ref);
 
-      const Vector2d uv = frame_ref_->cam_->world2cam(pos_cur);
-      error += (uv-px_cur).norm();
+      const Vector2d uv = frame_ref_->cam_->world2cam(pos);
+      error += (uv-px_ref).norm();
       ++count;
     }
   }
-  std::cout << "total error = " << error << " avg = " << error/count << std::endl;
+  std::cout << "total error = " << error << "\t" 
+            << "avg = " << error/count << "\t"
+            << "3D points = " << count << std::endl;
+
   return SUCCESS;
 }
 
@@ -169,7 +173,8 @@ void trackKlt(
     vector<cv::Point2f>& px_cur,
     vector<Vector3d>& f_ref,
     vector<Vector3d>& f_cur,
-    vector<double>& disparities)
+    vector<double>& disparities,
+    bool is_monocular)
 {
   const double klt_win_size = 30.0;
   const int klt_max_iter = 30;
@@ -178,7 +183,10 @@ void trackKlt(
   vector<float> error;
   vector<float> min_eig_vec;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, klt_max_iter, klt_eps);
-  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], frame_cur->img_pyr_[0],
+  cv::Mat img_cur = frame_cur->img_pyr_[0];
+  if(!is_monocular)
+    img_cur = frame_cur->img_pyr_right_[0];
+  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], img_cur,
                            px_ref, px_cur,
                            status, error,
                            cv::Size2i(klt_win_size, klt_win_size),
@@ -198,7 +206,11 @@ void trackKlt(
       f_ref_it = f_ref.erase(f_ref_it);
       continue;
     }
-    f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
+    if(is_monocular)
+      f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
+    else
+      f_cur.push_back(frame_cur->c2f_stereo(px_cur_it->x, px_cur_it->y));
+
     disparities.push_back(Vector2d(px_ref_it->x - px_cur_it->x, px_ref_it->y - px_cur_it->y).norm());
     ++px_ref_it;
     ++px_cur_it;
@@ -241,16 +253,9 @@ void computeInitialMap(
     vector<Vector3d>& xyz_in_cur,
     const SE3& T_cur_from_ref)
 {
-  vector<Vector2d > uv_ref(f_ref.size());
-  vector<Vector2d > uv_cur(f_cur.size());
-  for(size_t i=0, i_max=f_ref.size(); i<i_max; ++i)
-  {
-    uv_ref[i] = vk::project2d(f_ref[i]);
-    uv_cur[i] = vk::project2d(f_cur[i]);
-  }
-
-  const Matrix3d R_c2_c1 = T_cur_from_ref.rotation_matrix();
-  const Vector3d t_c2_c1 = T_cur_from_ref.translation();
+  const SE3 T_ref_from_cur = T_cur_from_ref.inverse();
+  const Matrix3d R_c2_c1 = T_ref_from_cur.rotation_matrix();
+  const Vector3d t_c2_c1 = T_ref_from_cur.translation();
 
   vector<int> outliers;
   vk::computeInliers(f_cur, f_ref,

@@ -118,6 +118,9 @@ public:
   /// Transforms pixel coordinates (c) to frame unit sphere coordinates (f).
   inline Vector3d c2f(const double x, const double y) const { return cam_->cam2world(x, y); }
 
+  /// Transforms pixel coordinates (c) to frame unit sphere coordinates (f).
+  inline Vector3d c2f_stereo(const double x, const double y) const { return camR_->cam2world(x, y); }
+
   /// Transforms point coordinates in world-frame (w) to camera-frams (f).
   inline Vector3d w2f(const Vector3d& xyz_w) const { return T_f_w_ * xyz_w; }
 

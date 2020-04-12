@@ -100,7 +100,7 @@ VoNode::VoNode() :
   // Init VO and start
   std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
   if(rig_type == "stereo")
-    vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::STEREO);
+    vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::MONOCULAR);
   else
     vo_ = new svo::FrameHandlerMono(cam_, cam1_);
   vo_->start();

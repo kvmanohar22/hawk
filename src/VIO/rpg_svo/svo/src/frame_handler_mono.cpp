@@ -321,7 +321,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+/*  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
  
   // stereo initialization
   stereo_init_ = new svo::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c0_c1_, true);
@@ -348,6 +348,49 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   stage_ = STAGE_DEFAULT_FRAME;
 
   return RESULT_IS_KEYFRAME;
+*/
+
+  // process the first image
+  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+
+  if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
+    return RESULT_NO_KEYFRAME;
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+  stage_ = STAGE_SECOND_FRAME;
+  SVO_INFO_STREAM("Init: Selected first frame.");
+
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
+ 
+  if(Config::useMotionPriors()) {
+    // in stereo, we get the initial map right here. No second frame processed 
+    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
+      start_integration_ = true;
+      first_measurement_done_ = true;
+    }
+  }
+
+  // Reset the frames
+  last_frame_ = new_frame_;
+  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), last_frame_->timestamp_));
+
+  // set baseline for computing map
+  klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
+
+  // Process second frame
+  initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
+  stage_ = STAGE_DEFAULT_FRAME;
+
+  // revert back the frames
+  new_frame_.reset();
+  new_frame_ = last_frame_;
+
+  if(res == initialization::FAILURE)
+    return RESULT_FAILURE;
+  else if(res == initialization::NO_KEYFRAME)
+    return RESULT_NO_KEYFRAME;
 }
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()

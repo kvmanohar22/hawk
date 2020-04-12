@@ -72,7 +72,8 @@ void trackKlt(
     vector<cv::Point2f>& px_cur,
     vector<Vector3d>& f_ref,
     vector<Vector3d>& f_cur,
-    vector<double>& disparities);
+    vector<double>& disparities,
+    bool is_monocular=true);
 
 void computeHomography(
     const vector<Vector3d>& f_ref,

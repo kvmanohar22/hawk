@@ -54,7 +54,7 @@ void StereoInitialization::match(cv::Mat& descriptors_l, cv::Mat& descriptors_r,
   matcher->knnMatch(descriptors_l, descriptors_r, knn_matches, 2);
 
   // filter the matches
-  const float ratio_thresh = 0.7f;
+  const float ratio_thresh = 0.85f;
   for(size_t i = 0; i < knn_matches.size(); i++)
   {
     if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
@@ -66,12 +66,17 @@ void StereoInitialization::match(cv::Mat& descriptors_l, cv::Mat& descriptors_r,
 
 bool StereoInitialization::initialize()
 {
-  // 1. Extract features. TODO: use threading
+  // 1. Extract features.
   cv::Mat descriptors_l, descriptors_r;
   vector<Vector3d> f_ref, f_cur;
   vector<cv::KeyPoint> kps_ref, kps_cur;
-  detectFeatures(ref_frame_->img_pyr_,       kps_ref, f_ref, descriptors_l);
-  detectFeatures(ref_frame_->img_pyr_right_, kps_cur, f_cur, descriptors_r);
+
+  boost::thread thread_l(&StereoInitialization::detectFeatures,
+    this, ref_frame_->img_pyr_, std::ref(kps_ref), std::ref(f_ref), std::ref(descriptors_l));
+  boost::thread thread_r(&StereoInitialization::detectFeatures,
+    this, ref_frame_->img_pyr_right_, std::ref(kps_cur), std::ref(f_cur), std::ref(descriptors_r));
+  thread_l.join();
+  thread_r.join();
 
   if(verbose_) {
     std::cout << "Number of features detected (ref) = " << kps_ref.size() << "\n";

@@ -98,7 +98,11 @@ VoNode::VoNode() :
                       vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
 
   // Init VO and start
-  vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::STEREO);
+  std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
+  if(rig_type == "stereo")
+    vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::STEREO);
+  else
+    vo_ = new svo::FrameHandlerMono(cam_, cam1_);
   vo_->start();
 }
 
@@ -119,13 +123,13 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
 
-  // WARNING: Use this with caution
-  uint8_t *data = (uint8_t*)img.data;
-  for(int i=0; i<img.rows;++i) {
-    for (int j=0; j<img.cols;++j) {
-      data[i*img.cols+j] *= 2;
-    }
-  }
+  // // WARNING: Use this with caution
+  // uint8_t *data = (uint8_t*)img.data;
+  // for(int i=0; i<img.rows;++i) {
+  //   for (int j=0; j<img.cols;++j) {
+  //     data[i*img.cols+j] *= 2;
+  //   }
+  // }
 
   processUserActions();
   vo_->addImage(img, msg->header.stamp);
@@ -223,9 +227,8 @@ int main(int argc, char **argv)
   std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/left_image_topic", "camera/image_raw"));
   std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/right_image_topic", "camera/image_raw"));
 
-
-  message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 1);
-  message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 1);
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 50);
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 50);
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_policy;
   message_filters::Synchronizer<sync_policy> sync(sync_policy(5), subscriber_left, subscriber_right);
 

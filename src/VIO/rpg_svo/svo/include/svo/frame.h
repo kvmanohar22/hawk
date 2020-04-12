@@ -49,8 +49,8 @@ public:
   int                           correction_id_;         //!< Used in estimator thread 
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   ros::Time                     ros_ts_;                //!< ROS time stamp
-  vk::AbstractCamera*           cam_;                   //!< Camera model.
-  vk::AbstractCamera*           cam1_;                  //!< Camera model (stereo).
+  vk::AbstractCamera*           cam_;                   //!< Camera model. (left stereo)
+  vk::AbstractCamera*           camR_;                  //!< Camera model (right stereo).
   Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.

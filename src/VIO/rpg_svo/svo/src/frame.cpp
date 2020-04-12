@@ -62,7 +62,7 @@ Frame::Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& i
     correction_id_(-1),
     timestamp_(ts),
     cam_(cam),
-    cam1_(cam1),
+    camR_(cam1),
     key_pts_(5),
     is_keyframe_(false),
     v_kf_(NULL),

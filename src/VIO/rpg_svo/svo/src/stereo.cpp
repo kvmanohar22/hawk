@@ -8,12 +8,12 @@
 namespace svo {
 
 StereoInitialization::StereoInitialization(
-  vk::AbstractCamera* cam0, vk::AbstractCamera* cam1,
-  Sophus::SE3& T_c0_c1,
+  vk::AbstractCamera* caml, vk::AbstractCamera* camr,
+  Sophus::SE3& T_cl_cr,
   bool verbose) :
-    cam0_(cam0),
-    cam1_(cam1),
-    T_c0_c1_(T_c0_c1),
+    cam_l_(caml),
+    cam_r_(camr),
+    T_cl_cr_(T_cl_cr),
     verbose_(verbose)
 {}
 
@@ -69,47 +69,47 @@ bool StereoInitialization::initialize()
 {
   // 1. Extract features.
   cv::Mat descriptors_l, descriptors_r;
-  vector<Vector3d> f_ref, f_cur;
-  vector<cv::KeyPoint> kps_ref, kps_cur;
+  vector<Vector3d> f_l, f_r;
+  vector<cv::KeyPoint> kps_l, kps_r;
 
   boost::thread thread_l(&StereoInitialization::detectFeatures,
                          this,
                          ref_frame_->img_pyr_,
-                         std::ref(kps_ref),
-                         std::ref(f_ref),
+                         std::ref(kps_l),
+                         std::ref(f_l),
                          std::ref(descriptors_l));
   boost::thread thread_r(&StereoInitialization::detectFeatures,
                          this,
                          ref_frame_->img_pyr_right_,
-                         std::ref(kps_cur),
-                         std::ref(f_cur),
+                         std::ref(kps_r),
+                         std::ref(f_r),
                          std::ref(descriptors_r));
   thread_l.join();
   thread_r.join();
 
   // bearing vectors in cur image should be wrt second camera
-  for(size_t i=0; i<f_cur.size(); ++i) {
-    Vector2d px(kps_cur[i].pt.x, kps_cur[i].pt.y);
-    f_cur[i] = ref_frame_->cam1_->cam2world(px);
+  for(size_t i=0; i<f_r.size(); ++i) {
+    Vector2d px(kps_r[i].pt.x, kps_r[i].pt.y);
+    f_r[i] = ref_frame_->camR_->cam2world(px);
   }
 
   if(verbose_) {
-    std::cout << "Number of features detected (ref) = " << kps_ref.size() << "\n";
-    std::cout << "Number of features detected (cur) = " << kps_cur.size() << "\n";
+    std::cout << "Number of features detected (l) = " << kps_l.size() << "\n";
+    std::cout << "Number of features detected (r) = " << kps_r.size() << "\n";
     // ref image
     cv::Mat fts_img_l;
     cv::Mat imgl = ref_frame_->img();
     cv::cvtColor(imgl, fts_img_l, cv::COLOR_GRAY2BGR);
-    for(size_t i=0; i<kps_ref.size(); ++i) {
-      const auto px = kps_ref[i].pt;
+    for(size_t i=0; i<kps_l.size(); ++i) {
+      const auto px = kps_l[i].pt;
       cv::rectangle(fts_img_l, cv::Point2f(px.x-2, px.y-2), cv::Point2f(px.x+2, px.y+2), cv::Scalar(0,255,0), cv::FILLED);
     }
     // cur image
     cv::Mat fts_img_r;
     cv::Mat imgr = ref_frame_->imgRight();
     cv::cvtColor(imgr, fts_img_r, cv::COLOR_GRAY2BGR);
-    for(size_t i=0; i<kps_cur.size(); ++i) {
-      const auto px = kps_cur[i].pt;
+    for(size_t i=0; i<kps_r.size(); ++i) {
+      const auto px = kps_r[i].pt;
       cv::rectangle(fts_img_r, cv::Point2f(px.x-2, px.y-2), cv::Point2f(px.x+2, px.y+2), cv::Scalar(0,255,0), cv::FILLED);
     }
     cv::imshow("features left", fts_img_l);
@@ -126,25 +126,26 @@ bool StereoInitialization::initialize()
     cv::Mat img_matches;
     cv::Mat imgl = ref_frame_->img();
     cv::Mat imgr = ref_frame_->imgRight();
-    cv::drawMatches(imgl, kps_ref, imgr, kps_cur, good_matches, img_matches, cv::Scalar::all(-1),
+    cv::drawMatches(imgl, kps_l, imgr, kps_r, good_matches, img_matches, cv::Scalar::all(-1),
       cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
     cv::imshow("matches", img_matches);
     cv::waitKey(0);
   }
 
-  f_ref_.reserve(good_matches.size());
-  f_cur_.reserve(good_matches.size());
-  px_ref_.reserve(good_matches.size());
-  px_cur_.reserve(good_matches.size());
+  f_l_.reserve(good_matches.size());
+  f_r_.reserve(good_matches.size());
+  px_l_.reserve(good_matches.size());
+  px_r_.reserve(good_matches.size());
   for(size_t i=0; i<good_matches.size(); ++i)
   {
+    // TODO: Is the association right?
     int l_idx = good_matches[i].queryIdx;
     int r_idx = good_matches[i].trainIdx;
 
-    f_ref_.push_back(f_ref[l_idx]);
-    f_cur_.push_back(f_cur[r_idx]);
-    px_ref_.push_back(kps_ref[l_idx].pt);
-    px_cur_.push_back(kps_cur[r_idx].pt);
+    f_l_.push_back(f_l[l_idx]);
+    f_r_.push_back(f_r[r_idx]);
+    px_l_.push_back(kps_l[l_idx].pt);
+    px_r_.push_back(kps_r[r_idx].pt);
   }
 
   if(verbose_) {
@@ -157,77 +158,78 @@ bool StereoInitialization::initialize()
     imgl.copyTo(newimg.rowRange(0, imgl.rows).colRange(0, imgl.cols));
     imgr.copyTo(newimg.rowRange(0, imgl.rows).colRange(imgl.cols, 2*imgl.cols));
     cv::cvtColor(newimg, newimg, cv::COLOR_GRAY2BGR);
-    for(size_t i=0; i<px_ref_.size(); ++i) {
-      cv::Point2f newpt = px_cur_[i]+cv::Point2f(imgl.cols, 0);
-      cv::line(newimg, px_ref_[i], newpt, cv::Scalar(0, 255, 0), 1);
+    for(size_t i=0; i<px_l_.size(); ++i) {
+      cv::Point2f newpt = px_r_[i]+cv::Point2f(imgl.cols, 0);
+      cv::line(newimg, px_l_[i], newpt, cv::Scalar(0, 255, 0), 1);
     }
     cv::imshow("matches", newimg);
     cv::waitKey(0);
   }
 
-/*  vector<Vector2d > uv_ref(f_ref_.size());
-  vector<Vector2d > uv_cur(f_cur_.size());
-  for(size_t i=0, i_max=f_ref_.size(); i<i_max; ++i)
+/*  vector<Vector2d > uv_ref(f_l_.size());
+  vector<Vector2d > uv_cur(f_r_.size());
+  for(size_t i=0, i_max=f_l_.size(); i<i_max; ++i)
   {
-    uv_ref[i] = vk::project2d(f_ref_[i]);
-    uv_cur[i] = vk::project2d(f_cur_[i]);
+    uv_ref[i] = vk::project2d(f_l_[i]);
+    uv_cur[i] = vk::project2d(f_r_[i]);
   }
   double focal_length = ref_frame_->cam_->errorMultiplier2();
   double reprojection_threshold = Config::poseOptimThresh();
   vk::Homography Homography(uv_ref, uv_cur, focal_length, reprojection_threshold);
   Homography.computeSE3fromMatches();
   vector<int> outliers, inliers;
-  vector<Vector3d> xyz_in_cur;
-  vk::computeInliers(f_cur_, f_ref_,
+  vector<Vector3d> xyz_in_r;
+  vk::computeInliers(f_r_, f_l_,
                      Homography.T_c2_from_c1.rotation_matrix(), Homography.T_c2_from_c1.translation(),
                      reprojection_threshold, focal_length,
-                     xyz_in_cur, inliers, outliers);
+                     xyz_in_r, inliers, outliers);
   const SE3 T_cur_from_ref = Homography.T_c2_from_c1;
   const SE3 T_ref_from_cur = T_cur_from_ref.inverse();
 
   std::cout << "H t = " << T_cur_from_ref.translation().transpose() << std::endl;
   std::cout << "C t = " << T_c0_c1_.inverse().translation().transpose() << std::endl;
 */
+
   vector<int> outliers, inliers;
-  vector<Vector3d> xyz_in_cur; // in c1
+  vector<Vector3d> xyz_in_r; // right image
   double tot_error = vk::computeInliers(
-                     f_cur_,  // c1
-                     f_ref_,  // c0
-                     T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
+                     f_r_,  // right
+                     f_l_,  // left
+                     T_cl_cr_.rotation_matrix(), T_cl_cr_.translation(),
                      ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-                     xyz_in_cur, inliers, outliers);
+                     xyz_in_r, inliers, outliers);
   std::cout << "total error = " << tot_error << std::endl;
-  SE3 T_ref_from_cur = T_c0_c1_;
+  const SE3 T_ref_from_cur = T_cl_cr_;
 
   int count=0;
-  double e1=0;
-  double e2=0;
+  double el=0;
+  double er=0;
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end(); ++it)
   {
-    Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
-    Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
-    if(ref_frame_->cam_->isInFrame(px_cur.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur[*it].z() > 0)
+    Vector2d px_r(px_r_[*it].x, px_r_[*it].y);
+    Vector2d px_l(px_l_[*it].x, px_l_[*it].y);
+    if(ref_frame_->camR_->isInFrame(px_r.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_l.cast<int>(), 10) && xyz_in_r[*it].z() > 0)
     {
-      Vector3d pos = T_ref_from_cur * xyz_in_cur[*it];
-      Point* new_point = new Point(pos);
+      Vector3d pos_l = T_ref_from_cur * xyz_in_r[*it];
+      Point* new_point = new Point(pos_l);
 
-      Feature* ftr_ref(new Feature(ref_frame_.get(), new_point, px_ref, f_ref_[*it], 0));
-      ref_frame_->addFeature(ftr_ref);
-      new_point->addFrameRef(ftr_ref);
+      Feature* ftr_left(new Feature(ref_frame_.get(), new_point, px_l, f_l_[*it], 0));
+      ref_frame_->addFeature(ftr_left);
+      new_point->addFrameRef(ftr_left);
       ++count;
 
-      const Vector2d uv_ref = ref_frame_->cam_->world2cam(pos);
-      const Vector2d uv_cur = ref_frame_->cam1_->world2cam(xyz_in_cur[*it]);
-      e1 += (uv_ref-px_ref).norm();
-      e2 += (uv_cur-px_cur).norm();
+      const Vector2d uv_l = ref_frame_->cam_->world2cam(pos_l);
+      const Vector2d uv_r = ref_frame_->camR_->world2cam(xyz_in_r[*it]);
+      el += (uv_l-px_l).norm();
+      er += (uv_r-px_r).norm();
     }
   }
   if(verbose_) {
     std::cout << "Triangulated initial map with " << count << " points\n"
-              << "total e1 = " << e1 <<"\n"
-              << "avg e1 = " << e1/count <<"\n"
-              << "total e2 = " << e2 <<"\n"
-              << "avg e2 = " << e2/count <<"\n";
+              << "total el = " << el <<"\n"
+              << "avg el = " << el/count <<"\n"
+              << "total er = " << er <<"\n"
+              << "avg er = " << er/count <<"\n";
   }
 
   return true;

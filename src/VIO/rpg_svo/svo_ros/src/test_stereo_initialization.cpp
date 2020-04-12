@@ -70,7 +70,7 @@ void InitializationTest::test()
   const cv::Mat imgr = cv::imread(imgr_file.c_str(), CV_8UC1);
 
   FramePtr new_frame;
-  new_frame.reset(new svo::Frame(cam0_, imgl, imgr, ros::Time::now().toSec()));
+  new_frame.reset(new svo::Frame(cam0_, cam1_, imgl, imgr, ros::Time::now().toSec()));
   init_->setRefFrame(new_frame);
   init_->initialize();
 }

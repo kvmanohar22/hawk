@@ -324,7 +324,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
  
   // stereo initialization
-  stereo_init_ = new svo::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c0_c1_);
+  stereo_init_ = new svo::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c0_c1_, true);
   stereo_init_->setRefFrame(new_frame_);
 
   if(stereo_init_->initialize())

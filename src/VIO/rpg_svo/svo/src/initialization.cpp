@@ -107,13 +107,16 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 
   // For each inlier create 3D point and add feature in both frames
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
+  double error=0;
+  int count=0;
   for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
     if(frame_ref_->cam_->isInFrame(px_cur.cast<int>(), 10) && frame_ref_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur_[*it].z() > 0)
     {
-      Vector3d pos = T_world_cur * (xyz_in_cur_[*it]*scale);
+      Vector3d pos_cur = xyz_in_cur_[*it]*scale;
+      Vector3d pos = T_world_cur * pos_cur;
       Point* new_point = new Point(pos);
 
       Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
@@ -123,8 +126,13 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
       frame_ref_->addFeature(ftr_ref);
       new_point->addFrameRef(ftr_ref);
+
+      const Vector2d uv = frame_ref_->cam_->world2cam(pos_cur);
+      error += (uv-px_cur).norm();
+      ++count;
     }
   }
+  std::cout << "total error = " << error << " avg = " << error/count << std::endl;
   return SUCCESS;
 }
 

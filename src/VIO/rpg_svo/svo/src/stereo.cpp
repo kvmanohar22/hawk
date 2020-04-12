@@ -54,7 +54,7 @@ void StereoInitialization::match(cv::Mat& descriptors_l, cv::Mat& descriptors_r,
   matcher->knnMatch(descriptors_l, descriptors_r, knn_matches, 2);
 
   // filter the matches
-  const float ratio_thresh = 0.85f;
+  const float ratio_thresh = 0.3f;
   for(size_t i = 0; i < knn_matches.size(); i++)
   {
     if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
@@ -165,6 +165,7 @@ bool StereoInitialization::initialize()
                      xyz_in_c1, inliers, outliers);
 
   int count=0;
+  double error=0;
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
@@ -178,12 +179,16 @@ bool StereoInitialization::initialize()
       ref_frame_->addFeature(ftr_ref);
       new_point->addFrameRef(ftr_ref);
       ++count;
+
+      const Vector2d uv = ref_frame_->cam_->world2cam(pos);
+      error += (uv-px_ref).norm();
     }
   }
   if(verbose_) {
-    std::cout << "Triangulated initial map with " << count << " points\n";
+    std::cout << "Triangulated initial map with " << count << " points\n"
+              << "total error = " << error <<"\n"
+              << "avg error = " << error/count <<"\n";
   }
-
 
   return true;
 }

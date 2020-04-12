@@ -54,7 +54,7 @@ InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 {
   bool is_monocular = init_type_ == FrameHandlerBase::InitType::MONOCULAR;
-  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_, false);
+  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_, is_monocular);
   SVO_INFO_STREAM("Init: KLT tracked "<< disparities_.size() <<" features");
 
   if(disparities_.size() < Config::initMinTracked())
@@ -110,19 +110,28 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
   double error=0;
   int count=0;
+  int zneg=0;
   for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
+    if(xyz_in_cur_[*it].z() < 0)
+      ++zneg;
     if(frame_ref_->cam_->isInFrame(px_cur.cast<int>(), 10) && frame_ref_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur_[*it].z() > 0)
     {
       Vector3d pos_cur = xyz_in_cur_[*it]*scale;
-      Vector3d pos = T_world_cur * pos_cur;
+      Vector3d pos;
+      if(is_monocular)
+        pos = T_world_cur * pos_cur;
+      else
+        pos = T_cur_from_ref_.inverse() * pos_cur;
       Point* new_point = new Point(pos);
 
-      Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
-      frame_cur->addFeature(ftr_cur);
-      new_point->addFrameRef(ftr_cur);
+      if(is_monocular) { // we only add the current features in this case
+        Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
+        frame_cur->addFeature(ftr_cur);
+        new_point->addFrameRef(ftr_cur);
+      }
 
       Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
       frame_ref_->addFeature(ftr_ref);
@@ -135,6 +144,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   }
   std::cout << "total error = " << error << "\t" 
             << "avg = " << error/count << "\t"
+            << "zneg = " << zneg << "\t"
             << "3D points = " << count << std::endl;
 
   return SUCCESS;
@@ -245,21 +255,21 @@ void computeHomography(
 }
 
 void computeInitialMap(
-    const vector<Vector3d>& f_ref,
-    const vector<Vector3d>& f_cur,
+    const vector<Vector3d>& f_ref, // cl
+    const vector<Vector3d>& f_cur, // cr
     double focal_length,
     double reprojection_threshold,
     vector<int>& inliers,
     vector<Vector3d>& xyz_in_cur,
     const SE3& T_cur_from_ref)
 {
-  const SE3 T_ref_from_cur = T_cur_from_ref.inverse();
+  const SE3 T_ref_from_cur = T_cur_from_ref; // T_cl_cr
   const Matrix3d R_c2_c1 = T_ref_from_cur.rotation_matrix();
   const Vector3d t_c2_c1 = T_ref_from_cur.translation();
 
   vector<int> outliers;
   vk::computeInliers(f_cur, f_ref,
-                     R_c2_c1, t_c2_c1,
+                     R_c2_c1, t_c2_c1, // T_cr_cl
                      reprojection_threshold, focal_length,
                      xyz_in_cur, inliers, outliers);
 }

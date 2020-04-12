@@ -25,6 +25,8 @@
 
         <!-- Left camera topic to subscribe to [stereo case]-->
         <param name="left_image_topic" value="$(arg left_image_topic)" type="str" />
+        
+        <param name="poseoptim_thresh" value="5.0" type="double" />
 
         <!-- Right camera topic to subscribe to [stereo case]-->
         <param name="right_image_topic" value="$(arg right_image_topic)" type="str" />

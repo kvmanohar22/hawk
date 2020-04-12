@@ -55,7 +55,7 @@ void StereoInitialization::briskMatcher()
   matcher->knnMatch(descriptors_l, descriptors_r, knn_matches, 2);
 
   // filter the matches
-  const float ratio_thresh = 0.4f;
+  const float ratio_thresh = 0.8f;
   for(size_t i = 0; i < knn_matches.size(); i++)
   {
     if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
@@ -63,6 +63,8 @@ void StereoInitialization::briskMatcher()
       good_matches.push_back(knn_matches[i][0]);
     }
   }
+
+  // TODO: Filter the outliers using epipolar constraints
 }
 
 void StereoInitialization::match()
@@ -190,7 +192,7 @@ bool StereoInitialization::initialize()
                      xyz_in_r,
                      inliers,
                      outliers);
-  std::cout << "total error = " << tot_error << "#inliers = " << inliers.size() << std::endl;
+  std::cout << "total error = " << tot_error << "\t #inliers = " << inliers.size() << std::endl;
 
   int count=0;
   double el=0;
@@ -210,7 +212,7 @@ bool StereoInitialization::initialize()
       ++count;
 
       er += vk::reprojError(f_r_[*it], xyz_in_r[*it], ref_frame_->cam_->errorMultiplier2());
-      el += vk::reprojError(f_l_[*it], T_cl_cr_.inverse() * xyz_in_r[*it], ref_frame_->cam_->errorMultiplier2());
+      el += vk::reprojError(f_l_[*it],         pos_l, ref_frame_->cam_->errorMultiplier2());
     }
   }
   if(verbose_) {
@@ -220,7 +222,7 @@ bool StereoInitialization::initialize()
               << "total er = " << er <<"\n"
               << "avg er = " << er/count <<"\n"
               << "total = " << el+er << "\n"
-              << "avg total = " << (el+er)/count 
+              << "avg total = " << (el+er)/count << "\n"
               << "count = " << count << std::endl;
   }
 

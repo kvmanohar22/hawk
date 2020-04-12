@@ -3,6 +3,7 @@
 #include <svo/config.h>
 #include <svo/feature.h>
 #include <svo/point.h>
+#include <vikit/homography.h>
 
 namespace svo {
 
@@ -156,13 +157,36 @@ bool StereoInitialization::initialize()
     cv::waitKey(0);
   }
 
+  vector<Vector2d > uv_ref(f_ref_.size());
+  vector<Vector2d > uv_cur(f_cur_.size());
+  for(size_t i=0, i_max=f_ref_.size(); i<i_max; ++i)
+  {
+    uv_ref[i] = vk::project2d(f_ref_[i]);
+    uv_cur[i] = vk::project2d(f_cur_[i]);
+  }
+  double focal_length = ref_frame_->cam_->errorMultiplier2();
+  double reprojection_threshold = Config::poseOptimThresh();
+  vk::Homography Homography(uv_ref, uv_cur, focal_length, reprojection_threshold);
+  Homography.computeSE3fromMatches();
   vector<int> outliers, inliers;
-  vector<Vector3d> xyz_in_c1; // in c1
-  vk::computeInliers(f_cur_,  // c1
-                     f_ref_,  // c0
-                     T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
-                     ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-                     xyz_in_c1, inliers, outliers);
+  vector<Vector3d> xyz_in_cur;
+  vk::computeInliers(f_cur_, f_ref_,
+                     Homography.T_c2_from_c1.rotation_matrix(), Homography.T_c2_from_c1.translation(),
+                     reprojection_threshold, focal_length,
+                     xyz_in_cur, inliers, outliers);
+  const SE3 T_cur_from_ref = Homography.T_c2_from_c1;
+  const SE3 T_ref_from_cur = T_cur_from_ref.inverse();
+
+  std::cout << "H t = " << T_cur_from_ref.translation().transpose() << std::endl;
+  std::cout << "C t = " << T_c0_c1_.inverse().translation().transpose() << std::endl;
+
+  // vector<int> outliers, inliers;
+  // vector<Vector3d> xyz_in_cur; // in c1
+  // vk::computeInliers(f_cur_,  // c1
+  //                    f_ref_,  // c0
+  //                    T_c0_c1_.rotation_matrix(), T_c0_c1_.translation(),
+  //                    ref_frame_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+  //                    xyz_in_cur, inliers, outliers);
 
   int count=0;
   double error=0;
@@ -170,9 +194,9 @@ bool StereoInitialization::initialize()
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
-    if(ref_frame_->cam_->isInFrame(px_cur.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_c1[*it].z() > 0)
+    if(ref_frame_->cam_->isInFrame(px_cur.cast<int>(), 10) && ref_frame_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur[*it].z() > 0)
     {
-      Vector3d pos = T_c0_c1_ * (xyz_in_c1[*it]);
+      Vector3d pos = T_ref_from_cur * xyz_in_cur[*it];
       Point* new_point = new Point(pos);
 
       Feature* ftr_ref(new Feature(ref_frame_.get(), new_point, px_ref, f_ref_[*it], 0));

@@ -7,6 +7,8 @@
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
 
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find svo_ros)/cfg/rosconsole.conf"/>
+
     <!-- monocular image topic -->
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
 

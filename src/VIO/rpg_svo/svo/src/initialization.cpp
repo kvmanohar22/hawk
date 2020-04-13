@@ -33,7 +33,7 @@ KltHomographyInit::KltHomographyInit(FrameHandlerBase::InitType init_type)
 
 void KltHomographyInit::setBaseline(const Sophus::SE3& T_cur_from_ref)
 {
-  T_cur_from_ref_ = T_cur_from_ref;
+  T_cl_cr_ = T_cur_from_ref;
   baseline_set_ = true;
 }
 
@@ -80,7 +80,10 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     computeInitialMap(
         f_ref_, f_cur_,
         frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-        inliers_, xyz_in_cur_, T_cur_from_ref_);
+        inliers_, xyz_in_cur_, T_cl_cr_);
+
+    // remove outliers
+    removeOutliersEpipolar(f_ref_, f_cur_, inliers_);
   }
   SVO_INFO_STREAM("Init: Homography RANSAC "<<inliers_.size()<<" inliers.");
 
@@ -106,25 +109,13 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   else
     scale = 1.0;
 
-  std::ofstream ofs;
-  ofs.open("/tmp/init.ply");
-  ofs << "ply" << std::endl
-      << "format ascii 1.0" << std::endl
-    << "element vertex " << std::endl
-    << "property float x" << std::endl
-    << "property float y" << std::endl
-    << "property float z" << std::endl
-    << "property uchar blue" << std::endl
-    << "property uchar green" << std::endl
-    << "property uchar red" << std::endl
-    << "end_header" << std::endl;
-
-
   // For each inlier create 3D point and add feature in both frames
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
   double error=0;
   int count=0;
   int zneg=0;
+  vector<double> depth_vec;
+  depth_vec.reserve(inliers_.size());
   for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
@@ -139,10 +130,11 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
         pos = T_world_cur * pos_cur;
       else
       {
-        // pos = T_cur_from_ref_.inverse() * pos_cur;
-        pos = T_cur_from_ref_ * pos_cur;
+        pos = T_cl_cr_.inverse() * pos_cur;
+        // pos = T_cl_cr_ * pos_cur;
       }
       Point* new_point = new Point(pos);
+      depth_vec.push_back(pos.z());
 
       if(is_monocular) { // we only add the current features in this case
         Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
@@ -157,13 +149,13 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       const Vector2d uv = frame_ref_->cam_->world2cam(pos);
       error += (uv-px_ref).norm();
       ++count;
-      ofs << pos.transpose() << std::endl;
     }
   }
   std::cout << "total error = " << error << "\t" 
             << "avg = " << error/count << "\t"
             << "zneg = " << zneg << "\t"
             << "fts  = " << frame_ref_->fts_.size() << "\t"
+            << "median z  = " << vk::getMedian(depth_vec) << "\t"
             << "3D points = " << count << std::endl;
 
   return SUCCESS;
@@ -173,6 +165,40 @@ void KltHomographyInit::reset()
 {
   px_cur_.clear();
   frame_ref_.reset();
+}
+
+void KltHomographyInit::removeOutliersEpipolar(
+    vector<Vector3d>& f_ref,
+    vector<Vector3d>& f_cur,
+    vector<int>& inliers)
+{
+  const Matrix3d R = T_cl_cr_.rotation_matrix();
+  const Vector3d t = T_cl_cr_.translation();
+  // skew symmetric form of t in (R, t)
+  Matrix3d tx;
+  tx(0, 0) =  0;
+  tx(0, 1) = -t(2);
+  tx(0, 2) =  t(1);
+  tx(1, 0) =  t(2);
+  tx(1, 1) =  0;
+  tx(1, 2) = -t(0);
+  tx(2, 0) = -t(1);
+  tx(2, 1) =  t(0);
+  tx(2, 2) =  0;
+  const Matrix3d E = R * tx;
+  const int N = inliers.size();
+  vector<double> e_vec;
+  e_vec.reserve(N);
+  for(vector<int>::iterator it=inliers.begin(); it!=inliers.end();) {
+    double e = f_ref[*it].transpose() * E * f_cur[*it];
+    if(e > 0.1)
+      it = inliers.erase(it);
+    else
+      ++it;
+    e_vec.push_back(e);
+  }
+  SVO_DEBUG_STREAM("Removed " << N-inliers.size() << " from epipolar constraints");
+  SVO_DEBUG_STREAM("Average epipolar error = " << vk::getMedian(e_vec));
 }
 
 void detectFeatures(
@@ -280,15 +306,15 @@ void computeInitialMap(
     double reprojection_threshold,
     vector<int>& inliers,
     vector<Vector3d>& xyz_in_cur,
-    const SE3& T_cur_from_ref)
+    const SE3& T_cl_cr)
 {
-  const SE3 T_ref_from_cur = T_cur_from_ref.inverse(); // T_cl_cr
-  const Matrix3d R_c2_c1 = T_ref_from_cur.rotation_matrix();
-  const Vector3d t_c2_c1 = T_ref_from_cur.translation();
-
+  // const SE3 T = T_cl_cr.inverse(); // correct
+  const SE3 T = T_cl_cr; // in-correct
+  const Matrix3d R = T.rotation_matrix();
+  const Vector3d t = T.translation();
   vector<int> outliers;
   vk::computeInliers(f_cur, f_ref,
-                     R_c2_c1, t_c2_c1, // T_cr_cl
+                     R, t,
                      reprojection_threshold, focal_length,
                      xyz_in_cur, inliers, outliers);
 }

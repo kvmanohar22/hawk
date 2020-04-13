@@ -80,8 +80,8 @@ public:
       const double timestamp);
 
 public:
-  static SE3 T_c0_b_; // imu -> camera0
-  static SE3 T_c1_b_; // imu -> camera1
+  static SE3 T_c0_b_; // imu -> camera0 (left stereo)
+  static SE3 T_c1_b_; // imu -> camera1 (right stereo)
 
   static SE3 T_b_c0_; // camera0 -> imu
   static SE3 T_b_c1_; // camera1 -> imu

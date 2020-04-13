@@ -321,35 +321,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
-/*  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
- 
-  // stereo initialization
-  stereo_init_ = new svo::StereoInitialization(cam_, cam1_, FrameHandlerMono::T_c0_c1_, true);
-  stereo_init_->setRefFrame(new_frame_);
-
-  if(stereo_init_->initialize())
-    SVO_INFO_STREAM("Init: Initialization successful");
-  else
-    return RESULT_NO_KEYFRAME;
-
-  if(Config::useMotionPriors()) {
-    // in stereo, we get the initial map right here. No second frame processed 
-    start_integration_ = true;
-    first_measurement_done_ = true;
-  }
-
-  new_frame_->setKeyframe();
-  map_.addKeyframe(new_frame_);
-  SVO_INFO_STREAM("Init: Initialized map with " << new_frame_->fts_.size() << " points");
-
-  if (Config::runInertialEstimator()) {
-    inertial_estimator_->addKeyFrame(new_frame_);
-  }
-  stage_ = STAGE_DEFAULT_FRAME;
-
-  return RESULT_IS_KEYFRAME;
-*/
-
   // process the first image
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 

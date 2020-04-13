@@ -127,11 +127,8 @@ void Visualizer::publishMinimal(
 
     if(img_pub_level_ == 0)
     {
-      std::cout << " here size=  " << frame->fts_.size() << std::endl;
-
       for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
       {
-        std::cout << "fts = " << (*it)->px.transpose() << std::endl;
         if((*it)->type == Feature::EDGELET)
           cv::line(img_rgb,
                    cv::Point2f((*it)->px[0]+3*(*it)->grad[1], (*it)->px[1]-3*(*it)->grad[0]),
@@ -211,7 +208,7 @@ void Visualizer::visualizeMarkers(
       frame->T_f_w_*T_world_from_vision_.inverse(),
       ros::Time(frame->timestamp_), "cam_pos", "world", br_);
 
-  // if(pub_frames_.getNumSubscribers() > 0 || pub_points_.getNumSubscribers() > 0)
+  if(pub_frames_.getNumSubscribers() > 0 || pub_points_.getNumSubscribers() > 0)
   {
     vk::output_helper::publishCameraMarker(
         pub_frames_, "cam_pos", "cams", ros::Time(frame->timestamp_),
@@ -219,20 +216,17 @@ void Visualizer::visualizeMarkers(
     vk::output_helper::publishPointMarker(
         pub_points_, T_world_from_vision_*frame->pos(), "trajectory",
         ros::Time::now(), trace_id_, 0, 0.006, Vector3d(0.,0.,0.5));
-    // if(frame->isKeyframe() || publish_map_every_frame_)
-    set<FramePtr> corekfs;
-    corekfs.insert(frame);
-      publishMapRegion(corekfs);
+    if(frame->isKeyframe() || publish_map_every_frame_)
+      publishMapRegion(core_kfs);
     removeDeletedPts(map);
   }
 }
 
 void Visualizer::publishMapRegion(set<FramePtr> frames)
 {
-  // if(pub_points_.getNumSubscribers() > 0)
+  if(pub_points_.getNumSubscribers() > 0)
   {
     int ts = vk::Timer::getCurrentTime();
-    std::cout << "?????????????????????? Here: " << frames.size() << std::endl;
 
     for(set<FramePtr>::iterator it=frames.begin(); it!=frames.end(); ++it)
       displayKeyframeWithMps(*it, ts);
@@ -254,31 +248,26 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
   SE3 T_world_cam(T_world_from_vision_*frame->T_f_w_.inverse());
   vk::output_helper::publishFrameMarker(
       pub_frames_, T_world_cam.rotation_matrix(),
-      T_world_cam.translation(), "kfs", ros::Time::now(), frame->id_*10, 0, 0.5);
-    std::cout << "?????????????????????? id = " << frame->id_ << std::endl;
-    std::cout << "?????????????????????? #pts = " << frame->fts_.size() << std::endl;
+      T_world_cam.translation(), "kfs", ros::Time::now(), frame->id_*10, 0, 0.015);
 
   // publish point cloud and links
   size_t c=0;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    // std::cout << "?????????????????????? " << (*it)->point->pos_.transpose() << std::endl;
     if((*it)->point == NULL) {
       ++c;
       continue;
     }
 
-    // if((*it)->point->last_published_ts_ == ts)
-    //   continue;
+    if((*it)->point->last_published_ts_ == ts)
+      continue;
 
     vk::output_helper::publishPointMarker(
-        // pub_points_, T_world_from_vision_*(*it)->point->pos_, "pts",
-        pub_points_, (*it)->point->pos_, "pts",
+        pub_points_, T_world_from_vision_*(*it)->point->pos_, "pts",
         ros::Time::now(), (*it)->point->id_, 0, 0.01, Vector3d(1.0, 0., 1.0),
         publish_points_display_time_);
     (*it)->point->last_published_ts_ = ts;
   }
-  std::cout << "#null = " << c << std::endl;
 }
 
 void Visualizer::exportToDense(const FramePtr& frame)

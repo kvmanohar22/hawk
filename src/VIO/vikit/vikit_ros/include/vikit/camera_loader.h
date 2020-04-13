@@ -120,7 +120,7 @@ Sophus::SE3 loadT(const std::string& name)
       } 
     }
   }
-  return Sophus::SE3(R, t).inverse();
+  return Sophus::SE3(R, t);
 }
 
 } // namespace camera_loader

@@ -135,14 +135,14 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   vo_->addImage(img, msg->header.stamp);
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
 
-  if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
+  // if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
 
-  if(publish_dense_input_)
+  // if(publish_dense_input_)
     visualizer_.exportToDense(vo_->lastFrame());
 
-  if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
-    usleep(100000);
+  // if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
+  //   usleep(100000);
 }
 
 void VoNode::imgStereoCb(
@@ -165,16 +165,17 @@ void VoNode::imgStereoCb(
 
   processUserActions();
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
+  
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
 
-  if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
+  // if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
 
-  if(publish_dense_input_)
+  // if(publish_dense_input_)
     visualizer_.exportToDense(vo_->lastFrame());
 
-  if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
-    usleep(100000);
+  // if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
+  //   usleep(100000);
 }
 
 void VoNode::processUserActions()

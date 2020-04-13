@@ -106,6 +106,20 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   else
     scale = 1.0;
 
+  std::ofstream ofs;
+  ofs.open("/tmp/init.ply");
+  ofs << "ply" << std::endl
+      << "format ascii 1.0" << std::endl
+    << "element vertex " << std::endl
+    << "property float x" << std::endl
+    << "property float y" << std::endl
+    << "property float z" << std::endl
+    << "property uchar blue" << std::endl
+    << "property uchar green" << std::endl
+    << "property uchar red" << std::endl
+    << "end_header" << std::endl;
+
+
   // For each inlier create 3D point and add feature in both frames
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
   double error=0;
@@ -124,7 +138,10 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       if(is_monocular)
         pos = T_world_cur * pos_cur;
       else
-        pos = T_cur_from_ref_.inverse() * pos_cur;
+      {
+        // pos = T_cur_from_ref_.inverse() * pos_cur;
+        pos = T_cur_from_ref_ * pos_cur;
+      }
       Point* new_point = new Point(pos);
 
       if(is_monocular) { // we only add the current features in this case
@@ -140,11 +157,13 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       const Vector2d uv = frame_ref_->cam_->world2cam(pos);
       error += (uv-px_ref).norm();
       ++count;
+      ofs << pos.transpose() << std::endl;
     }
   }
   std::cout << "total error = " << error << "\t" 
             << "avg = " << error/count << "\t"
             << "zneg = " << zneg << "\t"
+            << "fts  = " << frame_ref_->fts_.size() << "\t"
             << "3D points = " << count << std::endl;
 
   return SUCCESS;
@@ -263,7 +282,7 @@ void computeInitialMap(
     vector<Vector3d>& xyz_in_cur,
     const SE3& T_cur_from_ref)
 {
-  const SE3 T_ref_from_cur = T_cur_from_ref; // T_cl_cr
+  const SE3 T_ref_from_cur = T_cur_from_ref.inverse(); // T_cl_cr
   const Matrix3d R_c2_c1 = T_ref_from_cur.rotation_matrix();
   const Vector3d t_c2_c1 = T_ref_from_cur.translation();
 

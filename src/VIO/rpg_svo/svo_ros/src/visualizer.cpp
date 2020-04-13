@@ -127,8 +127,11 @@ void Visualizer::publishMinimal(
 
     if(img_pub_level_ == 0)
     {
+      std::cout << " here size=  " << frame->fts_.size() << std::endl;
+
       for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
       {
+        std::cout << "fts = " << (*it)->px.transpose() << std::endl;
         if((*it)->type == Feature::EDGELET)
           cv::line(img_rgb,
                    cv::Point2f((*it)->px[0]+3*(*it)->grad[1], (*it)->px[1]-3*(*it)->grad[0]),
@@ -208,8 +211,9 @@ void Visualizer::visualizeMarkers(
       frame->T_f_w_*T_world_from_vision_.inverse(),
       ros::Time(frame->timestamp_), "cam_pos", "world", br_);
 
-  if(pub_frames_.getNumSubscribers() > 0 || pub_points_.getNumSubscribers() > 0)
+  // if(pub_frames_.getNumSubscribers() > 0 || pub_points_.getNumSubscribers() > 0)
   {
+    std::cout << "?????????????????????? Here" << std::endl;
     vk::output_helper::publishCameraMarker(
         pub_frames_, "cam_pos", "cams", ros::Time(frame->timestamp_),
         1, 0.3, Vector3d(0.,0.,1.));

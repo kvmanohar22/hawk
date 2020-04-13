@@ -251,6 +251,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
+  SVO_INFO_STREAM("NF fts = " << last_frame_->fts_.size());
 
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
@@ -386,11 +387,14 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
+  SVO_INFO_STREAM("NF fts = " << new_frame_->fts_.size());
 
   if(res == initialization::FAILURE)
     return RESULT_FAILURE;
   else if(res == initialization::NO_KEYFRAME)
     return RESULT_NO_KEYFRAME;
+
+  return RESULT_IS_KEYFRAME;
 }
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()

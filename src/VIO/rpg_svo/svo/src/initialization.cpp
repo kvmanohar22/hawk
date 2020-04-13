@@ -22,6 +22,7 @@
 #include <svo/feature_detection.h>
 #include <vikit/math_utils.h>
 #include <vikit/homography.h>
+#include <vikit/pinhole_camera.h>
 
 namespace svo {
 namespace initialization {
@@ -205,10 +206,20 @@ void KltHomographyInit::removeOutliersEpipolar(
   const int N = inliers.size();
   vector<double> e_vec;
   e_vec.reserve(N);
+  const Matrix3d Kl = dynamic_cast<vk::PinholeCamera*>(frame_ref_->cam_)->K();
+  const Matrix3d Kr = dynamic_cast<vk::PinholeCamera*>(frame_ref_->camR_)->K();
+  const Matrix3d KlInv_E_KrInv = Kl.inverse().transpose() * E * Kr.inverse();
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end();) {
-    double e = f_ref[*it].transpose() * E * f_cur[*it];
+    Vector3d uv_r = Kl * f_ref[*it];
+    Vector3d uv_c = Kr * f_cur[*it];
+    Vector3d uvh_r; uvh_r << vk::project2d(uv_r), 1.0;
+    Vector3d uvh_c; uvh_c << vk::project2d(uv_c), 1.0;
+
+    const Vector3d KlInv_E_KrInv_uv = KlInv_E_KrInv * uvh_c;
+    double e = uvh_r.transpose() * KlInv_E_KrInv_uv;
+    e = e / KlInv_E_KrInv_uv.norm();
     e = std::abs(e);
-    if(e > 0.5)
+    if(e > 0.2)
       it = inliers.erase(it);
     else
       ++it;

@@ -26,14 +26,15 @@
 namespace svo {
 namespace initialization {
 
-KltHomographyInit::KltHomographyInit(FrameHandlerBase::InitType init_type)
+KltHomographyInit::KltHomographyInit(FrameHandlerBase::InitType init_type, bool verbose)
   : init_type_(init_type),
-    baseline_set_(false)
+    baseline_set_(false),
+    verbose_(verbose)
 {}
 
-void KltHomographyInit::setBaseline(const Sophus::SE3& T_cur_from_ref)
+void KltHomographyInit::setBaseline(const Sophus::SE3& T_cl_cr)
 {
-  T_cl_cr_ = T_cur_from_ref;
+  T_cl_cr_ = T_cl_cr;
   baseline_set_ = true;
 }
 
@@ -109,6 +110,20 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   else
     scale = 1.0;
 
+  if(verbose_) {
+    // plot the klt tracks
+    cv::Mat limg = frame_ref_->img();
+    cv::Mat rimg = frame_cur->imgRight();
+    cv::cvtColor(limg, limg, cv::COLOR_GRAY2BGR);
+    for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
+    {
+      cv::circle(limg, px_ref_[*it], 2 , cv::Scalar(255,0,0),cv::FILLED);
+      cv::line(limg, px_ref_[*it], px_cur_[*it], cv::Scalar(0,255,0),1);
+    }
+    cv::imshow("klt tracks", limg);
+    cv::waitKey(0);
+  }
+
   // For each inlier create 3D point and add feature in both frames
   SE3 T_world_cur = frame_cur->T_f_w_.inverse();
   double error=0;
@@ -130,8 +145,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
         pos = T_world_cur * pos_cur;
       else
       {
-        pos = T_cl_cr_.inverse() * pos_cur;
-        // pos = T_cl_cr_ * pos_cur;
+        pos = T_cl_cr_ * pos_cur;
       }
       Point* new_point = new Point(pos);
       depth_vec.push_back(pos.z());
@@ -151,12 +165,14 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       ++count;
     }
   }
-  std::cout << "total error = " << error << "\t" 
-            << "avg = " << error/count << "\t"
-            << "zneg = " << zneg << "\t"
-            << "fts  = " << frame_ref_->fts_.size() << "\t"
-            << "median z  = " << vk::getMedian(depth_vec) << "\t"
-            << "3D points = " << count << std::endl;
+  if(verbose_) {
+    std::cout << "total error = " << error << "\t" 
+              << "avg = " << error/count << "\t"
+              << "zneg = " << zneg << "\t"
+              << "fts  = " << frame_ref_->fts_.size() << "\t"
+              << "median z  = " << vk::getMedian(depth_vec) << "\t"
+              << "3D points = " << count << std::endl;
+  }
 
   return SUCCESS;
 }
@@ -173,7 +189,7 @@ void KltHomographyInit::removeOutliersEpipolar(
     vector<int>& inliers)
 {
   const Matrix3d R = T_cl_cr_.rotation_matrix();
-  const Vector3d t = T_cl_cr_.translation();
+  const Vector3d t = -R.transpose() * T_cl_cr_.translation();
   // skew symmetric form of t in (R, t)
   Matrix3d tx;
   tx(0, 0) =  0;
@@ -191,7 +207,8 @@ void KltHomographyInit::removeOutliersEpipolar(
   e_vec.reserve(N);
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end();) {
     double e = f_ref[*it].transpose() * E * f_cur[*it];
-    if(e > 0.1)
+    e = std::abs(e);
+    if(e > 0.5)
       it = inliers.erase(it);
     else
       ++it;
@@ -308,8 +325,7 @@ void computeInitialMap(
     vector<Vector3d>& xyz_in_cur,
     const SE3& T_cl_cr)
 {
-  // const SE3 T = T_cl_cr.inverse(); // correct
-  const SE3 T = T_cl_cr; // in-correct
+  const SE3 T = T_cl_cr.inverse();
   const Matrix3d R = T.rotation_matrix();
   const Vector3d t = T.translation();
   vector<int> outliers;

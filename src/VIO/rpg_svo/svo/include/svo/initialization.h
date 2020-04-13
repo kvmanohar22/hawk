@@ -38,7 +38,7 @@ public:
 
   FramePtr frame_ref_;
   KltHomographyInit() {};
-  KltHomographyInit(FrameHandlerBase::InitType init_type);
+  KltHomographyInit(FrameHandlerBase::InitType init_type, bool verbose=false);
   ~KltHomographyInit() {};
   InitResult addFirstFrame(FramePtr frame_ref);
   InitResult addSecondFrame(FramePtr frame_ref);
@@ -64,6 +64,7 @@ protected:
   SE3 T_cl_cr_;                     //!< baseline in case of stereo initialization
   FrameHandlerBase::InitType init_type_;              //!< initialization type
   bool baseline_set_;               //!< boolean to check if the baseline is set
+  bool verbose_;                    //!< Display klt tracks and other debug information
 };
 
 /// Detect Fast corners in the image.

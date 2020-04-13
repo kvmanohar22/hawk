@@ -354,6 +354,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // process the first image
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 
+  klt_homography_init_.verbose_ = true;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();

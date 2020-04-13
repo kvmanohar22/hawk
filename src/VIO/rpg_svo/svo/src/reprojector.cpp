@@ -71,6 +71,7 @@ void Reprojector::reprojectMap(
   SVO_START_TIMER("reproject_kfs");
   list< pair<FramePtr,double> > close_kfs;
   map_.getCloseKeyframes(frame, close_kfs);
+  close_kfs.push_back(std::make_pair(map_.lastKeyframe(), 0));
 
   // Sort KFs with overlap according to their closeness
   close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, _1) <

@@ -433,6 +433,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);
+  SVO_INFO_STREAM("POSE = " << 180 * vk::dcm2rpy(new_frame_->T_f_w_.rotation_matrix()).transpose() / PI);
+  SVO_INFO_STREAM("POSE = " << new_frame_->T_f_w_.translation().transpose());
+
 
   // map reprojection & feature alignment
   SVO_START_TIMER("reproject");

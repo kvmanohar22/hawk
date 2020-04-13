@@ -49,7 +49,7 @@ publishPointMarker(ros::Publisher pub,
   msg.color.r = color[0];
   msg.color.g = color[1];
   msg.color.b = color[2];
-  msg.lifetime = lifetime;
+  msg.lifetime = ros::Duration();
   msg.pose.position.x = pos[0];
   msg.pose.position.y = pos[1];
   msg.pose.position.z = pos[2];

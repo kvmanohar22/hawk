@@ -248,7 +248,7 @@ void trackKlt(
     vector<double>& disparities,
     bool is_monocular)
 {
-  const double klt_win_size = 30.0;
+  const double klt_win_size = 50.0;
   const int klt_max_iter = 30;
   const double klt_eps = 0.001;
   vector<uchar> status;

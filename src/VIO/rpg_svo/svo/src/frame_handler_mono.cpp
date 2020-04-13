@@ -353,13 +353,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // process the first image
   new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 
-  klt_homography_init_.verbose_ = true;
+  klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
-  new_frame_->setKeyframe();
-  map_.addKeyframe(new_frame_);
-  stage_ = STAGE_SECOND_FRAME;
-  SVO_INFO_STREAM("Init: Selected first frame.");
 
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
@@ -384,10 +380,13 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
 
+  // Now, the map is initialized and set the keyframe
+  last_frame_->setKeyframe();
+  map_.addKeyframe(last_frame_);
+
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
-  SVO_INFO_STREAM("NF fts = " << new_frame_->fts_.size());
 
   if(res == initialization::FAILURE)
     return RESULT_FAILURE;

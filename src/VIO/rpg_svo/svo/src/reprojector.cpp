@@ -106,7 +106,6 @@ void Reprojector::reprojectMap(
       }
     }
   }
-  std::cout << "map kfs = " << map_.size() << "close kfs = " << close_kfs.size() << "n_reprojected = " << tot_mapoints << "\n";
   SVO_STOP_TIMER("reproject_kfs");
 
   size_t n_candidates=0;

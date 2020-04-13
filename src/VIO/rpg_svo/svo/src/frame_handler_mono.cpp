@@ -251,7 +251,6 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
-  SVO_INFO_STREAM("NF fts = " << last_frame_->fts_.size());
 
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
@@ -433,9 +432,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);
-  SVO_INFO_STREAM("POSE = " << 180 * vk::dcm2rpy(new_frame_->T_f_w_.rotation_matrix()).transpose() / PI);
-  SVO_INFO_STREAM("POSE = " << new_frame_->T_f_w_.translation().transpose());
-
 
   // map reprojection & feature alignment
   SVO_START_TIMER("reproject");
@@ -444,7 +440,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   const size_t repr_n_new_references = reprojector_.n_matches_;
   const size_t repr_n_mps = reprojector_.n_trials_;
   SVO_LOG2(repr_n_mps, repr_n_new_references);
-  SVO_DEBUG_STREAM("Reprojection:\t nPoints = "<<repr_n_mps<<"\t \t nMatches = "<<repr_n_new_references);
+  SVO_DEBUG_STREAM("Reprojection:\t nPoints = "<<repr_n_mps<<"\t \t nMatches = "<<repr_n_new_references "\t \t #close kfs = " << overlap_kfs_.size());
   if(repr_n_new_references < Config::qualityMinFts())
   {
     SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");

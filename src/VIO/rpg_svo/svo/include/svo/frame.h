@@ -48,7 +48,6 @@ public:
   int                           id_;                    //!< Unique id of the frame.
   int                           correction_id_;         //!< Used in estimator thread 
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
-  ros::Time                     ros_ts_;                //!< ROS time stamp
   vk::AbstractCamera*           cam_;                   //!< Camera model. (left stereo)
   vk::AbstractCamera*           camR_;                  //!< Camera model (right stereo).
   Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
@@ -67,12 +66,8 @@ public:
   int                           n_scaled_updates_;      //!< Number of times optimization was performed
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
-  Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts);
   Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
-
-  /// Initialize new frame and create image pyramid.
-  void initFrame(const cv::Mat& img);
 
   /// Initialize new frame and create image pyramid.
   void initFrame(const cv::Mat& img, ImgPyr& img_pyr);

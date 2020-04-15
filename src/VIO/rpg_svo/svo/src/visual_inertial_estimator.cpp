@@ -1,4 +1,5 @@
 #include <svo/visual_inertial_estimator.h>
+#include <svo/frame_handler_mono.h>
 #include <svo/frame.h>
 #include <svo/feature.h>
 #include <svo/point.h>
@@ -29,10 +30,9 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
   // initialize the camera for isam2
   // TODO: if the images are rectified, should not again use distortion parameters
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera_);
-  isam2_K_ = boost::make_shared<gtsam::Cal3DS2>(
+  isam2_K_ = boost::make_shared<gtsam::Cal3_S2>(
       c->fx(), c->fy(), 0.0,
-      c->cx(), c->cy(),
-      c->d0(), c->d1(), c->d2(), c->d3());
+      c->cx(), c->cy());
 
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
@@ -116,7 +116,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       const gtsam::Rot3 R_f_w = gtsam::Rot3(T_f_w.rotation_matrix());
       const gtsam::Point3 t_f_w = gtsam::Point3(T_f_w.translation());
       const gtsam::Pose3 kf_pose(R_f_w, t_f_w);
-      gtsam::PinholePose<gtsam::Cal3DS2> camera(kf_pose, isam2_K_);
+      gtsam::PinholePose<gtsam::Cal3_S2> camera(kf_pose, isam2_K_);
       gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
       new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
     }
@@ -246,12 +246,9 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
   
   // update the optimized variables 
-  start_time = ros::Time::now(); // TODO: Do better in terms of benchmarking times
- 
   // TODO: Analyze whether optimization was converged! 
   const gtsam::Values result = isam2_.calculateEstimate();
   updateState(result);
-  SVO_DEBUG_STREAM("[Estimator]: Update took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
   // clear the graph
   SVO_DEBUG_STREAM("[Estimator]: Cleared the graph and initial values");

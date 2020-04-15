@@ -8,6 +8,11 @@
 #include <svo/global.h>
 #include <svo/config.h>
 #include <svo/imu.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
+#include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Cal3DS2_Base.h>
 
 namespace svo {
 
@@ -42,9 +47,9 @@ public:
 
   typedef gtsam::noiseModel::Diagonal Noise;
   typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
-  typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
+  typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
   typedef SmartFactor::shared_ptr SmartFactorPtr;
-  typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
+  typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
   
   VisualInertialEstimator(vk::AbstractCamera* camera);
   virtual ~VisualInertialEstimator();
@@ -135,7 +140,7 @@ protected:
   bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
-  Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
+  Cal3_S2Ptr                   isam2_K_;               //!< calibration for use in isam2
   ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks

@@ -27,7 +27,6 @@
 #include <svo/visual_inertial_estimator.h>
 #include <sensor_msgs/Imu.h>
 #include <gtsam/navigation/ImuFactor.h>
-#include <svo/stereo.h>
 
 namespace svo {
 
@@ -58,6 +57,12 @@ public:
 
   /// Get the last frame that has been processed.
   FramePtr lastFrame() { return last_frame_; }
+
+  /// Integrate a single imu measurement (for motion priors)
+  void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
+
+  /// Integrate multiple imu measurements
+  void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
 
   /// Get the set of spatially closest keyframes of the last frame.
   const set<FramePtr>& coreKeyframes() { return core_kfs_; }
@@ -101,27 +106,17 @@ protected:
   DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
   VisualInertialEstimator* inertial_estimator_; //!< Visual Inertial State Estimator
 
-  Matrix3d  R_prev_; // Rotation of the previous frame wrt world
-  Vector3d  v_prev_; // Velocity of the previous frame
-  Vector3d  p_prev_; // Position of the previous frame in world
-
-  Matrix3d  R_curr_; // Rotation of latest frame wrt world
-  Vector3d  v_curr_; // Velocity of latest frame
-  Vector3d  p_curr_; // Position of latest frame in world
+  Matrix3d  delta_R_; // Change in rotation in the IMU frame. used for motion priors
+  Vector3d  delta_t_; // Change in translation in IMU frame
 
   VisualInertialEstimator::PreintegrationTypePtr integrator_;
   ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
-  bool reset_integration_;
-  bool start_integration_;
-  bool prior_updated_;
-  bool first_measurement_done_;
+  bool should_integrate_;                      //!< Should we start integrating imu measurements?
+  bool first_measurement_done_;                //!< We discard some initial imu mesages
   ImuHelper* imu_helper_;
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
-
-  StereoInitialization* stereo_init_;   //!< Initializer in case of stereo camera rig
-
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

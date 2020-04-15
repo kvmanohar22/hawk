@@ -51,9 +51,7 @@ FrameHandlerMono::FrameHandlerMono(
   klt_homography_init_(init_type),
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
-  reset_integration_(false),
-  start_integration_(false),
-  prior_updated_(false),
+  should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0)
@@ -80,9 +78,7 @@ FrameHandlerMono::FrameHandlerMono(
   klt_homography_init_(init_type),
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
-  reset_integration_(false),
-  start_integration_(false),
-  prior_updated_(false),
+  should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0)
@@ -133,11 +129,6 @@ void FrameHandlerMono::initialize()
   if(Config::useMotionPriors())
   {
     SVO_INFO_STREAM("Using Motion priors for image alignment");
-    // Used for motion priors
-    R_prev_ = Eigen::Matrix3d::Identity();
-    v_prev_ = Vector3d::Zero();
-    p_prev_ = Vector3d::Zero();
-
     /// initialize the integrator
     imu_helper_ = new ImuHelper();
     integrator_ = std::make_shared<gtsam::PreintegrationType>(
@@ -155,33 +146,42 @@ FrameHandlerMono::~FrameHandlerMono()
     delete imu_helper_;
 }
 
-void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void FrameHandlerMono::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
 {
   static gtsam::Matrix9 A; 
   static gtsam::Matrix93 B, C;
 
+  const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
+  const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
+
+  // FIXME: imu biases need to be updated
+  integrator_->update(acc, omg, Config::dt(), &A, &B, &C);
+  ++n_integrated_measurements_;
+}
+
+void FrameHandlerMono::integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs)
+{
+  SVO_INFO_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
+  for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
+      itr != msgs.end(); ++itr)
+  {
+    integrateSingleMeasurement(*itr);
+  }
+  msgs.clear();
+}
+
+void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+{
   SVO_INFO_STREAM_ONCE("Imu callback in progress");
-  if(start_integration_) {
-    if(!imu_msgs_.empty()) {
-      SVO_INFO_STREAM("Integrating " << imu_msgs_.size() << " at once");
-      std::list<sensor_msgs::Imu::ConstPtr>::const_iterator itr;
-      for(itr=imu_msgs_.begin(); itr!=imu_msgs_.end(); ++itr) {
-        const Eigen::Vector3d acc = ros2eigen((*itr)->linear_acceleration);
-        const Eigen::Vector3d omg = ros2eigen((*itr)->angular_velocity);
-        integrator_->update(
-          acc, omg, Config::dt(), &A, &B, &C);
-      }
-      n_integrated_measurements_ += imu_msgs_.size();
-      imu_msgs_.clear();
+  if(should_integrate_)
+  {
+    if(!imu_msgs_.empty())
+    {
+      integrateMultipleMeasurements(imu_msgs_);
     }
-    const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
-    const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
-    integrator_->update(acc, omg, Config::dt(), &A, &B, &C);
-    ++n_integrated_measurements_;
-  } else { // just so we don't miss any measurements
-    if(first_measurement_done_) {
-      imu_msgs_.push_back(msg);
-    }
+    integrateSingleMeasurement(msg);
+  } else if(first_measurement_done_) {
+    imu_msgs_.push_back(msg);
   }
 }
 
@@ -273,7 +273,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
   if(Config::useMotionPriors()) {
     // in stereo, we get the initial map right here. No second frame processed 
     if(init_type_ == FrameHandlerBase::InitType::STEREO) {
-      start_integration_ = true;
+      should_integrate_ = true;
       first_measurement_done_ = true;
     }
   }
@@ -311,7 +311,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 
   if(Config::useMotionPriors()) {
     // if we are here, we are using KLT to bootstrap the map
-    start_integration_ = true;
+    should_integrate_ = true;
     first_measurement_done_ = true;
   }
 
@@ -335,7 +335,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   if(Config::useMotionPriors()) {
     // in stereo, we get the initial map right here. No second frame processed 
     if(init_type_ == FrameHandlerBase::InitType::STEREO) {
-      start_integration_ = true;
+      should_integrate_ = true;
       first_measurement_done_ = true;
     }
   }
@@ -373,15 +373,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   {
     // FIXME: Not threadsafe
     // stop the integration
-    start_integration_ = false;
-    R_curr_ = integrator_->deltaRij().matrix();
-    p_curr_ = integrator_->deltaPij();
+    should_integrate_ = false;
+    delta_R_ = integrator_->deltaRij().matrix();
+    delta_t_ = integrator_->deltaPij();
 
     // reset and start the integration
     integrator_->resetIntegration();
     SVO_INFO_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
     n_integrated_measurements_ = 0;
-    start_integration_ = true;
+    should_integrate_ = true;
   }
 
   // Set initial pose
@@ -395,8 +395,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   if(Config::useMotionPriors())
   {
     img_align.use_motion_priors_    = true;
-    img_align.motion_prior_verbose_ = true;
-    img_align.setPriors(R_curr_, p_curr_);
+    img_align.motion_prior_verbose_ = false;
+    img_align.setPriors(delta_R_, delta_t_);
   }
   size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
   SVO_STOP_TIMER("sparse_img_align");

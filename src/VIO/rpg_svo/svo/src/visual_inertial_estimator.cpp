@@ -124,6 +124,8 @@ void VisualInertialEstimator::addFactorsToGraph()
 
 void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  // TODO: If multiple keyframes start queuing up, we need to maintain
+  //       separate copies for each of those keyframes
   if(should_integrate_)
   {
     if(!imu_msgs_.empty())
@@ -156,7 +158,7 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  keyframe->scaled_T_f_w_ = keyframe->T_f_w_;
+  keyframe->scaled_T_f_w_ = keyframe->T_f_w_; // TODO: remove this
   new_kf_added_ = true;
   keyframe->correction_id_ = correction_count_;
   keyframes_.push(keyframe);
@@ -165,14 +167,14 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
-  } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
-    SVO_DEBUG_STREAM("[Estimator]: Second KF arrived id="<< keyframe->id_); 
-    stage_ = EstimatorStage::SECOND_KEYFRAME;
+  } else if(stage_ == EstimatorStage::FIRST_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
+    SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_);
+
+    // stop the integration, get the IMU factor and optimize.
+    // This will be reset after optimization is done and biases updated
+    // Although the imu measurements will be stored in a list to be later integrated at once
     should_integrate_ = false;
-  } else {
-    SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_); 
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
-    should_integrate_ = false;
   }
 }
 
@@ -219,8 +221,8 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   addFactorsToGraph();
 
   // Initialize the variables
-  initializeNewVariables(); 
- 
+  initializeNewVariables();
+
   // run the optimization 
   SVO_DEBUG_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
@@ -256,17 +258,17 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Matrix33 rotation   = pose.rotation().matrix();
   gtsam::Vector3 translation = pose.translation().vector();
 
-  FramePtr update_keyframe;
+  FramePtr new_kf;
   if(!initialization_done_)
   {
     // we don't want to update the first frame's pose (since it is identity)
     keyframes_.pop();
     initialization_done_ = true;
   }
-  
-  update_keyframe = keyframes_.front();
+
+  new_kf = keyframes_.front();
   keyframes_.pop(); 
-  update_keyframe->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
+  new_kf->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
@@ -279,8 +281,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
 bool VisualInertialEstimator::shouldRunOptimization()
 {
-  return ((stage_ == EstimatorStage::SECOND_KEYFRAME) ||
-          (stage_ == EstimatorStage::DEFAULT_KEYFRAME));
+  return stage_ == EstimatorStage::DEFAULT_KEYFRAME;
 }
 
 void VisualInertialEstimator::cleanUp()
@@ -293,9 +294,13 @@ void VisualInertialEstimator::cleanUp()
 
 void VisualInertialEstimator::OptimizerLoop()
 {
+  // TODO: Use boost condition variable to check the arrival of new keyframe
+
   while(ros::ok() && !quit_ && !boost::this_thread::interruption_requested())
   {
-    if(new_kf_added_ || keyframes_.size() > 1)
+    // FIXME: Not thread safe
+    // dequeue the keyframes and optimize them one by one
+    if(keyframes_.size() != 0) 
     {
       new_kf_added_ = false;
       if (shouldRunOptimization())

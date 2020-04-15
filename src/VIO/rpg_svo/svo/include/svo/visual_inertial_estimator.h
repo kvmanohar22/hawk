@@ -23,7 +23,6 @@ static inline Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
 enum class EstimatorStage {
   PAUSED,
   FIRST_KEYFRAME,
-  SECOND_KEYFRAME,
   DEFAULT_KEYFRAME,
 };
 
@@ -93,6 +92,7 @@ public:
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
+private:
   /// Adds imu factor to graph
   void addImuFactorToGraph();
 
@@ -127,7 +127,7 @@ protected:
   ImuHelper*                   imu_helper_;            //!< Helper to hold all imu related params
 
   bool                         add_factor_to_graph_;   //!< Check for adding imu factor to graph [if new KF arrives, this is true]
-  std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;     //!< Need to store some of 'em while optimization is running
+  list<sensor_msgs::Imu::ConstPtr> imu_msgs_;          //!< Need to store some of 'em while optimization is running
   bool                         optimization_complete_; //!< Is optimization complete?
   bool                         multiple_int_complete_; //!< Is optimization complete?
   bool                         new_factor_added_;      //!< This check it used to start optimization

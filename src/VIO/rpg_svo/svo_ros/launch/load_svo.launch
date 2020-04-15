@@ -3,6 +3,7 @@
     <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
+    <arg name="run_inertial_estimator" default="false"/>
 
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
@@ -37,6 +38,9 @@
 
         <!-- Whether to run with imu -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />
+
+        <!-- Whether to run inertial estimator thread -->
+        <param name="run_inertial_estimator" value="$(arg run_inertial_estimator)" type="bool" />
 
         <param name="remote_key" value="false" type="bool" />
 

@@ -1,5 +1,7 @@
 #include <svo/visual_inertial_estimator.h>
 #include <svo/frame.h>
+#include <svo/feature.h>
+#include <svo/point.h>
 
 namespace svo {
 
@@ -104,13 +106,25 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       "frame id = " << keyframes_.front()->id_ <<
       "size = " << keyframes_.size());
 
-  if(initialization_done_)
+  FramePtr newkf = keyframes_.front();
+  for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
   {
-
-  }
-  else
-  {
-
+    const auto point = (*it_ftr)->point;
+    if(point == NULL)
+      continue;
+    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_));
+    graph_->push_back(new_factor);
+    smart_factors_[(*it_ftr)->point->id_] = new_factor;
+    for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
+    {
+      const SE3 T_f_w = (*it_pt)->frame->T_f_w_;
+      const gtsam::Rot3 R_f_w = gtsam::Rot3(T_f_w.rotation_matrix());
+      const gtsam::Point3 t_f_w = gtsam::Point3(T_f_w.translation());
+      const gtsam::Pose3 kf_pose(R_f_w, t_f_w);
+      gtsam::PinholePose<gtsam::Cal3DS2> camera(kf_pose, isam2_K_);
+      gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
+      new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
+    }
   }
 }
 
@@ -158,7 +172,6 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  keyframe->scaled_T_f_w_ = keyframe->T_f_w_; // TODO: remove this
   new_kf_added_ = true;
   keyframe->correction_id_ = correction_count_;
   keyframes_.push(keyframe);
@@ -204,12 +217,15 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  // TODO: Initialize the fused value here?
+  const SE3 T_f_w = keyframes_.front()->T_f_w_;
+  const gtsam::Rot3 R_f_w(T_f_w.rotation_matrix());
+  const gtsam::Point3 t_f_w(T_f_w.translation());
+  gtsam::Pose3 init_pose(R_f_w, t_f_w);
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
 
-  initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
+  initial_values_.insert(Symbol::X(correction_count_), init_pose);
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
   initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
   SVO_DEBUG_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
@@ -267,8 +283,8 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   }
 
   new_kf = keyframes_.front();
-  keyframes_.pop(); 
-  new_kf->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
+  keyframes_.pop();
+  new_kf->T_f_w_ = Sophus::SE3(rotation, translation);
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));

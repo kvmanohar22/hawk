@@ -138,6 +138,8 @@ protected:
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
   ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
   bool                         initialization_done_;   //!< True if initial keyframes are optimized
+
+  unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
 }; // class VisualInertialEstimator
 
 } // namespace svo

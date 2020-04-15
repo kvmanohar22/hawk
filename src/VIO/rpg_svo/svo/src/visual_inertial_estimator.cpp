@@ -12,7 +12,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     quit_(false),
     imu_preintegrated_(nullptr),
     dt_(Config::dt()),
-    correction_count_(0),
+    correction_count_(-1),
     imu_helper_(nullptr),
     add_factor_to_graph_(false),
     optimization_complete_(false),
@@ -20,8 +20,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
     new_factor_added_(false),
     n_integrated_measures_(0),
     should_integrate_(false),
-    camera_(camera),
-    initialization_done_(false)
+    camera_(camera)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
@@ -107,6 +106,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       "size = " << keyframes_.size());
 
   FramePtr newkf = keyframes_.front();
+  size_t fts_count=0;
   for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
   {
     const auto point = (*it_ftr)->point;
@@ -125,12 +125,13 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
       new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
     }
+    ++fts_count;
   }
+  SVO_DEBUG_STREAM("Adding " << fts_count << " landmarks to the graph");
 }
 
 void VisualInertialEstimator::addFactorsToGraph()
 {
-  ++correction_count_;
   addImuFactorToGraph();
   addVisionFactorToGraph();
   SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
@@ -173,13 +174,14 @@ void VisualInertialEstimator::stopThread()
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
   new_kf_added_ = true;
-  keyframe->correction_id_ = correction_count_;
+  keyframe->correction_id_ = ++correction_count_;
   keyframes_.push(keyframe);
 
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
+    keyframes_.pop(); // we are not anyway going to be adding this first keyframe
   } else if(stage_ == EstimatorStage::FIRST_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
     SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_);
 
@@ -199,18 +201,18 @@ void VisualInertialEstimator::initializePrior()
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
   initial_values_.clear();
-  initial_values_.insert(Symbol::X(correction_count_), curr_pose_);
-  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
-  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
+  initial_values_.insert(Symbol::X(0), curr_pose_);
+  initial_values_.insert(Symbol::V(0), curr_velocity_);
+  initial_values_.insert(Symbol::B(0), imu_helper_->curr_imu_bias_);
 
   // Add in first keyframe's factors
   graph_->resize(0);
   graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
-        Symbol::X(correction_count_), curr_pose_, imu_helper_->prior_pose_noise_model_));
+        Symbol::X(0), curr_pose_, imu_helper_->prior_pose_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
-        Symbol::V(correction_count_), curr_velocity_, imu_helper_->prior_vel_noise_model_));
+        Symbol::V(0), curr_velocity_, imu_helper_->prior_vel_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
-        Symbol::B(correction_count_), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
+        Symbol::B(0), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
 
   SVO_DEBUG_STREAM("[Estimator]: Initialized Prior state");
 }
@@ -274,15 +276,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Matrix33 rotation   = pose.rotation().matrix();
   gtsam::Vector3 translation = pose.translation().vector();
 
-  FramePtr new_kf;
-  if(!initialization_done_)
-  {
-    // we don't want to update the first frame's pose (since it is identity)
-    keyframes_.pop();
-    initialization_done_ = true;
-  }
-
-  new_kf = keyframes_.front();
+  FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
   new_kf->T_f_w_ = Sophus::SE3(rotation, translation);
 

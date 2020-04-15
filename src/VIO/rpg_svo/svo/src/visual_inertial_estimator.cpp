@@ -100,11 +100,6 @@ void VisualInertialEstimator::addImuFactorToGraph()
 
 void VisualInertialEstimator::addVisionFactorToGraph()
 {
-  SVO_DEBUG_STREAM(
-      "Keyframe correction id = " << keyframes_.front()->correction_id_ <<
-      "frame id = " << keyframes_.front()->id_ <<
-      "size = " << keyframes_.size());
-
   FramePtr newkf = keyframes_.front();
   size_t fts_count=0;
   for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
@@ -127,7 +122,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     }
     ++fts_count;
   }
-  SVO_DEBUG_STREAM("Adding " << fts_count << " landmarks to the graph");
+  SVO_DEBUG_STREAM("[Estimator]: Adding " << fts_count << " landmarks to the graph");
 }
 
 void VisualInertialEstimator::addFactorsToGraph()

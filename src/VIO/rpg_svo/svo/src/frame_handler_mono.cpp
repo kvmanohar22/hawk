@@ -161,7 +161,7 @@ void FrameHandlerMono::integrateSingleMeasurement(const sensor_msgs::Imu::ConstP
 
 void FrameHandlerMono::integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs)
 {
-  SVO_INFO_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
+  SVO_DEBUG_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
   for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
       itr != msgs.end(); ++itr)
   {
@@ -379,7 +379,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
     // reset and start the integration
     integrator_->resetIntegration();
-    SVO_INFO_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
+    SVO_DEBUG_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
     n_integrated_measurements_ = 0;
     should_integrate_ = true;
   }

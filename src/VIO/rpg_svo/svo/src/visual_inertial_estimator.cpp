@@ -31,7 +31,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
   isam2_K_ = boost::make_shared<gtsam::Cal3DS2>(
       c->fx(), c->fy(), 0.0,
       c->cx(), c->cy(),
-      c->d0(), c->d1(), c->d2(), c->d3());    
+      c->d0(), c->d1(), c->d2(), c->d3());
 
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
@@ -71,7 +71,7 @@ void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu:
 
 void VisualInertialEstimator::integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs)
 {
-  SVO_INFO_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
+  SVO_DEBUG_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
   for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
       itr != msgs.end(); ++itr)
   {
@@ -82,7 +82,7 @@ void VisualInertialEstimator::integrateMultipleMeasurements(list<sensor_msgs::Im
 
 void VisualInertialEstimator::addImuFactorToGraph()
 {
-  SVO_INFO_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
+  SVO_DEBUG_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
@@ -99,7 +99,7 @@ void VisualInertialEstimator::addImuFactorToGraph()
 
 void VisualInertialEstimator::addVisionFactorToGraph()
 {
-  SVO_INFO_STREAM(
+  SVO_DEBUG_STREAM(
       "Keyframe correction id = " << keyframes_.front()->correction_id_ <<
       "frame id = " << keyframes_.front()->id_ <<
       "size = " << keyframes_.size());
@@ -119,7 +119,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   ++correction_count_;
   addImuFactorToGraph();
   addVisionFactorToGraph();
-  SVO_INFO_STREAM("[Estimator]: graph size = " << graph_->size());
+  SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
 }
 
 void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
@@ -162,15 +162,15 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   keyframes_.push(keyframe);
 
   if(stage_ == EstimatorStage::PAUSED) {
-    SVO_INFO_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
+    SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
   } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
-    SVO_INFO_STREAM("[Estimator]: Second KF arrived id="<< keyframe->id_); 
+    SVO_DEBUG_STREAM("[Estimator]: Second KF arrived id="<< keyframe->id_); 
     stage_ = EstimatorStage::SECOND_KEYFRAME;
     should_integrate_ = false;
   } else {
-    SVO_INFO_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_); 
+    SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_); 
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
     should_integrate_ = false;
   }
@@ -197,7 +197,7 @@ void VisualInertialEstimator::initializePrior()
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
         Symbol::B(correction_count_), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
 
-  SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
+  SVO_DEBUG_STREAM("[Estimator]: Initialized Prior state");
 }
 
 void VisualInertialEstimator::initializeNewVariables()
@@ -210,7 +210,7 @@ void VisualInertialEstimator::initializeNewVariables()
   initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
   initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
-  SVO_INFO_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
+  SVO_DEBUG_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
@@ -222,13 +222,13 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   initializeNewVariables(); 
  
   // run the optimization 
-  SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
+  SVO_DEBUG_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
   isam2_.update(*graph_, initial_values_);
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
-  SVO_INFO_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
+  SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
   
   // update the optimized variables 
   start_time = ros::Time::now(); // TODO: Do better in terms of benchmarking times
@@ -236,10 +236,10 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   // TODO: Analyze whether optimization was converged! 
   const gtsam::Values result = isam2_.calculateEstimate();
   updateState(result);
-  SVO_INFO_STREAM("[Estimator]: Update took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
+  SVO_DEBUG_STREAM("[Estimator]: Update took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
   // clear the graph
-  SVO_INFO_STREAM("[Estimator]: Cleared the graph and initial values");
+  SVO_DEBUG_STREAM("[Estimator]: Cleared the graph and initial values");
   graph_->resize(0);
   initial_values_.clear();
 
@@ -273,7 +273,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
   imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
-  SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF="
+  SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF="
       << correction_count_ << " remaining kfs= " << keyframes_.size());
 }
 
@@ -285,8 +285,8 @@ bool VisualInertialEstimator::shouldRunOptimization()
 
 void VisualInertialEstimator::cleanUp()
 {
-  SVO_INFO_STREAM("[Estimator]: Reset integration of IMU");
-  SVO_INFO_STREAM("[Estimator]: ------------------------");
+  SVO_DEBUG_STREAM("[Estimator]: Reset integration of IMU");
+  SVO_DEBUG_STREAM("[Estimator]: ------------------------");
   imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
   should_integrate_ = true;
 }

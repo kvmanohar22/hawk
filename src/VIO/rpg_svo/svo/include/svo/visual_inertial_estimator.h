@@ -144,7 +144,7 @@ protected:
   ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
-  gtsam::Pose3                 body_P_sensor_;         //!< pose of the camera in body frame
+  gtsam::Pose3                 body_P_sensor_;         //!< pose of the camera in body frame (T_b_c)
 }; // class VisualInertialEstimator
 
 } // namespace svo

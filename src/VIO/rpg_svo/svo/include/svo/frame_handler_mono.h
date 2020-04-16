@@ -118,6 +118,8 @@ protected:
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
 
+  bool save_trajectory_;                      //!< Boolean to check if we have to save the trajectory
+
   /// Initialize the visual odometry algorithm.
   virtual void initialize();
 

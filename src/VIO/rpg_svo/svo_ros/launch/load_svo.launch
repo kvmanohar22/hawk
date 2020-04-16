@@ -4,6 +4,7 @@
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
+    <arg name="save_trajectory" default="false"/>
 
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
@@ -43,6 +44,9 @@
         <param name="run_inertial_estimator" value="$(arg run_inertial_estimator)" type="bool" />
 
         <param name="remote_key" value="false" type="bool" />
+
+        <!-- Whether to save the trajectory estimates -->
+        <param name="save_trajectory" value="$(arg save_trajectory)" type="bool" />
 
         <!-- Camera calibration file -->
         <rosparam file="$(arg calibration)"/>

@@ -136,10 +136,7 @@ public:
   static bool& useMotionPriors() { return getInstance().use_motion_priors; }
 
   /// The type of IMU factor to use
-  static Sophus::SE3 Tcb() { return getInstance().T_c_b_; }
-
-  /// The type of IMU factor to use
-  static Sophus::SE3 Tbc() { return getInstance().T_b_c_; }
+  static bool saveTrajectory() { return getInstance().save_trajectory; }
 
 private:
   Config();
@@ -181,9 +178,7 @@ private:
   int isam2_n_iters;
   int isam2_imu_factor_type;
   double isam2_dt;
-
-  Sophus::SE3 T_c_b_;
-  Sophus::SE3 T_b_c_;
+  bool save_trajectory;
 };
 
 } // namespace svo

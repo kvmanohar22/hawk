@@ -54,7 +54,8 @@ FrameHandlerMono::FrameHandlerMono(
   should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
-  n_integrated_measurements_(0)
+  n_integrated_measurements_(0),
+  save_trajectory_(Config::saveTrajectory())
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -214,6 +215,18 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
+
+  if(save_trajectory_)
+  {
+    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
+    const Vector3d t = T_w_f.translation();
+    const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
+    ofstream ofs("/tmp/trajectory.txt", std::ios::app);
+    ofs << last_frame_->timestamp_
+        << t(0) << " " << t(1) << " " << t(2)
+        << q.x() << " " << q.y() << " " << q.z() << " " << q.w()
+        << endl;
+  }
 
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());

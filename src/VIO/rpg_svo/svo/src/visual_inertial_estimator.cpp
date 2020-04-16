@@ -270,7 +270,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
   // clean up the integration from the above optimization
   cleanUp(); 
-  
+
   return opt_result;
 }
 

@@ -74,6 +74,12 @@ Quaterniond angax2quat(const Vector3d& n, const double& angle);
 //! Angle Axis parametrization to Matrix representation
 Matrix3d angax2dcm(const Vector3d& n, const double& angle);
 
+inline Eigen::Quaterniond dcm2quat(const Matrix3d& mat)
+{
+  Eigen::Quaterniond q(mat);
+  return q;
+}
+
 double sampsonusError(
     const Vector2d &v2Dash,
     const Matrix3d& m3Essential,

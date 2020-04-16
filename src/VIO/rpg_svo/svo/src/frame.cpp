@@ -39,7 +39,8 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     is_keyframe_(false),
     v_kf_(NULL),
     n_new_filters_init_(0),
-    n_filters_converged_(0)
+    n_filters_converged_(0),
+    n_inertial_updates_(0)
 {
   initFrame(img, img_pyr_);
 }
@@ -54,7 +55,8 @@ Frame::Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& i
     is_keyframe_(false),
     v_kf_(NULL),
     n_new_filters_init_(0),
-    n_filters_converged_(0)
+    n_filters_converged_(0),
+    n_inertial_updates_(0)
 {
   boost::thread thread_l(&Frame::initFrame, this, imgl, std::ref(img_pyr_));
   boost::thread thread_r(&Frame::initFrame, this, imgr, std::ref(img_pyr_right_));

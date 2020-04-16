@@ -61,9 +61,7 @@ public:
   int                           last_published_ts_;     //!< Timestamp of last publishing.
   int                           n_new_filters_init_;    //!< New filters initialized in Depth Filter
   int                           n_filters_converged_;   //!< How many of the above converged?
-  
-  Sophus::SE3                   scaled_T_f_w_;          //!< Scaled transformation
-  int                           n_scaled_updates_;      //!< Number of times optimization was performed
+  int                           n_inertial_updates_;    //!< Number of times optimization was performed in inertial estimator thread
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);

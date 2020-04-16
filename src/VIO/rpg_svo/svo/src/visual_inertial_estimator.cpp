@@ -108,8 +108,15 @@ void VisualInertialEstimator::addVisionFactorToGraph()
   for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
   {
     const auto point = (*it_ftr)->point;
+    // check if the feature has mappoint assigned
     if(point == NULL)
       continue;
+
+    // make sure we project the point only once
+    if((*it_ftr)->point->last_projected_cid_ == newkf->correction_id_)
+      continue;
+    (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
+
     SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_, body_P_sensor_));
     graph_->push_back(new_factor);
     smart_factors_[(*it_ftr)->point->id_] = new_factor;

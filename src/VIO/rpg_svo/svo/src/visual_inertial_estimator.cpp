@@ -28,11 +28,14 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
   imu_helper_ = new ImuHelper();
 
   // initialize the camera for isam2
-  // TODO: if the images are rectified, should not again use distortion parameters
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera_);
   isam2_K_ = boost::make_shared<gtsam::Cal3_S2>(
       c->fx(), c->fy(), 0.0,
       c->cx(), c->cy());
+
+  const gtsam::Rot3 R_b_c0(FrameHandlerMono::T_b_c0_.rotation_matrix());
+  const gtsam::Point3 t_b_c0(FrameHandlerMono::T_b_c0_.translation());
+  body_P_sensor_ = gtsam::Pose3(R_b_c0, t_b_c0);
 
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
@@ -107,7 +110,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     const auto point = (*it_ftr)->point;
     if(point == NULL)
       continue;
-    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_));
+    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_, body_P_sensor_));
     graph_->push_back(new_factor);
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
@@ -216,9 +219,9 @@ void VisualInertialEstimator::initializePrior()
 void VisualInertialEstimator::initializeNewVariables()
 {
   const SE3 T_b_w = FrameHandlerMono::T_b_c0_ * keyframes_.front()->T_f_w_;
-  const gtsam::Rot3 R_f_w(T_b_w.rotation_matrix());
-  const gtsam::Point3 t_f_w(T_b_w.translation());
-  gtsam::Pose3 init_pose(R_f_w, t_f_w);
+  const gtsam::Rot3 R_b_w(T_b_w.rotation_matrix());
+  const gtsam::Point3 t_b_w(T_b_w.translation());
+  gtsam::Pose3 init_pose(R_b_w, t_b_w);
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);

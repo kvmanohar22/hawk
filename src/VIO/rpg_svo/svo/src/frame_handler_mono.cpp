@@ -218,12 +218,13 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 
   if(save_trajectory_)
   {
+    SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
     const SE3 T_w_f = last_frame_->T_f_w_.inverse();
     const Vector3d t = T_w_f.translation();
     const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
     ofstream ofs("/tmp/trajectory.txt", std::ios::app);
-    ofs << last_frame_->timestamp_
-        << t(0) << " " << t(1) << " " << t(2)
+    ofs << last_frame_->timestamp_ << " "
+        << t(0) << " " << t(1) << " " << t(2) << " "
         << q.x() << " " << q.y() << " " << q.z() << " " << q.w()
         << endl;
   }
@@ -264,6 +265,19 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
+
+  if(save_trajectory_)
+  {
+    SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
+    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
+    const Vector3d t = T_w_f.translation();
+    const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
+    ofstream ofs("/tmp/trajectory.txt", std::ios::app);
+    ofs << last_frame_->timestamp_ << " "
+        << t(0) << " " << t(1) << " " << t(2) << " "
+        << q.x() << " " << q.y() << " " << q.z() << " " << q.w()
+        << endl;
+  }
 
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());

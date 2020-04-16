@@ -136,7 +136,7 @@ public:
   static bool& useMotionPriors() { return getInstance().use_motion_priors; }
 
   /// The type of IMU factor to use
-  static bool saveTrajectory() { return getInstance().save_trajectory; }
+  static bool& saveTrajectory() { return getInstance().save_trajectory; }
 
 private:
   Config();

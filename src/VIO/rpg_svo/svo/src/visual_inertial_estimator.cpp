@@ -112,7 +112,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     if(point == NULL)
       continue;
 
-    // make sure we project the point only once
+    // make sure we project a point only once
     if((*it_ftr)->point->last_projected_cid_ == newkf->correction_id_)
       continue;
     (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
@@ -122,11 +122,13 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
-      const SE3 T_f_w = (*it_pt)->frame->T_f_w_;
-      const gtsam::Rot3 R_f_w = gtsam::Rot3(T_f_w.rotation_matrix());
-      const gtsam::Point3 t_f_w = gtsam::Point3(T_f_w.translation());
-      const gtsam::Pose3 kf_pose(R_f_w, t_f_w);
-      gtsam::PinholePose<gtsam::Cal3_S2> camera(kf_pose, isam2_K_);
+      const SE3 T_w_f = (*it_pt)->frame->T_f_w_.inverse();
+      const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
+      const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
+      const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
+      gtsam::PinholePose<gtsam::Cal3_S2> camera(pose_w_f, isam2_K_);
+
+      // pose should be of the camera in the world i.e, T_w_f
       gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
       new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
     }
@@ -203,8 +205,8 @@ void VisualInertialEstimator::initializePrior()
   // initialize the prior state
   // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
   //        And this only holds in case of drone in a normal position EXACTLY!
-  SE3 T_f_w      = SE3(Matrix3d::Identity(), Vector3d::Zero());
-  curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_f_w.rotation_matrix()), gtsam::Point3(T_f_w.translation()));
+  SE3 T_w_f      = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_f.rotation_matrix()), gtsam::Point3(T_w_f.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
@@ -227,10 +229,10 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  const SE3 T_f_w = keyframes_.front()->T_f_w_;
-  const gtsam::Rot3 R_f_w(T_f_w.rotation_matrix());
-  const gtsam::Point3 t_f_w(T_f_w.translation());
-  gtsam::Pose3 init_pose(R_f_w, t_f_w);
+  const SE3 T_w_f = keyframes_.front()->T_f_w_.inverse();
+  const gtsam::Rot3 R_w_f(T_w_f.rotation_matrix());
+  const gtsam::Point3 t_w_f(T_w_f.translation());
+  gtsam::Pose3 init_pose(R_w_f, t_w_f);
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
@@ -257,7 +259,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
   SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
-  
+
   // update the optimized variables 
   // TODO: Analyze whether optimization was converged! 
   const gtsam::Values result = isam2_.calculateEstimate();

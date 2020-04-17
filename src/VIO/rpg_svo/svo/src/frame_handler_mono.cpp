@@ -82,7 +82,8 @@ FrameHandlerMono::FrameHandlerMono(
   should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
-  n_integrated_measurements_(0)
+  n_integrated_measurements_(0),
+  save_trajectory_(Config::saveTrajectory())
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");

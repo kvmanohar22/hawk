@@ -35,7 +35,7 @@ class FrameHandlerMono : public FrameHandlerBase
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+
   FrameHandlerMono(vk::AbstractCamera* cam,
     FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
 
@@ -63,6 +63,9 @@ public:
 
   /// Integrate multiple imu measurements
   void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
+
+  /// This updates imu biases from visual inertial estimator thread
+  void newImuBias(gtsam::imuBias::ConstantBias new_bias);
 
   /// Get the set of spatially closest keyframes of the last frame.
   const set<FramePtr>& coreKeyframes() { return core_kfs_; }
@@ -112,6 +115,7 @@ protected:
   VisualInertialEstimator::PreintegrationTypePtr integrator_;
   ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
+  bool new_bias_arrived_;                      //!< Flag to be set if a new bias has arrived
   bool should_integrate_;                      //!< Should we start integrating imu measurements?
   bool first_measurement_done_;                //!< We discard some initial imu mesages
   ImuHelper* imu_helper_;

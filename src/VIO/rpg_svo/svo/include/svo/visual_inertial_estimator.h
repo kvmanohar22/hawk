@@ -45,13 +45,14 @@ class VisualInertialEstimator
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  typedef boost::function<void (gtsam::imuBias::ConstantBias)> callback_t;
   typedef gtsam::noiseModel::Diagonal Noise;
-  typedef std::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
+  typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
   typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
   typedef SmartFactor::shared_ptr SmartFactorPtr;
   typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
   
-  VisualInertialEstimator(vk::AbstractCamera* camera);
+  VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb);
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
@@ -121,6 +122,7 @@ protected:
   PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   const double                 dt_;                    //!< IMU sampling rate
+  callback_t                   update_bias_cb_;        //!< Callback to update the imu biases
 
   gtsam::Values                initial_values_;        //!< initial values
   int                          correction_count_;      //!< used for symbols

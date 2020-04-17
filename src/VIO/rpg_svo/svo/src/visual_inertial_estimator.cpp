@@ -6,22 +6,25 @@
 
 namespace svo {
 
-VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
-  : stage_(EstimatorStage::PAUSED),
-    thread_(nullptr),
-    new_kf_added_(false),
-    quit_(false),
-    imu_preintegrated_(nullptr),
-    dt_(Config::dt()),
-    correction_count_(-1),
-    imu_helper_(nullptr),
-    add_factor_to_graph_(false),
-    optimization_complete_(false),
-    multiple_int_complete_(true),
-    new_factor_added_(false),
-    n_integrated_measures_(0),
-    should_integrate_(false),
-    camera_(camera)
+VisualInertialEstimator::VisualInertialEstimator(
+  vk::AbstractCamera* camera,
+  callback_t update_bias_cb) :
+      stage_(EstimatorStage::PAUSED),
+      thread_(nullptr),
+      new_kf_added_(false),
+      quit_(false),
+      imu_preintegrated_(nullptr),
+      dt_(Config::dt()),
+      update_bias_cb_(update_bias_cb),
+      correction_count_(-1),
+      imu_helper_(nullptr),
+      add_factor_to_graph_(false),
+      optimization_complete_(false),
+      multiple_int_complete_(true),
+      new_factor_added_(false),
+      n_integrated_measures_(0),
+      should_integrate_(false),
+      camera_(camera)
 {
   n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
 
@@ -39,7 +42,7 @@ VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
 
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
-  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(
+  imu_preintegrated_ = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);
 
@@ -308,6 +311,9 @@ void VisualInertialEstimator::cleanUp()
   SVO_DEBUG_STREAM("[Estimator]: ------------------------");
   imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
   should_integrate_ = true;
+
+  // update the biases for sparse image alignment
+  update_bias_cb_(imu_helper_->curr_imu_bias_);
 }
 
 void VisualInertialEstimator::OptimizerLoop()

@@ -51,6 +51,7 @@ FrameHandlerMono::FrameHandlerMono(
   klt_homography_init_(init_type),
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
+  new_bias_arrived_(false),
   should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
@@ -79,6 +80,7 @@ FrameHandlerMono::FrameHandlerMono(
   klt_homography_init_(init_type),
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
+  new_bias_arrived_(false),
   should_integrate_(false),
   first_measurement_done_(false),
   imu_helper_(nullptr),
@@ -123,8 +125,10 @@ void FrameHandlerMono::initialize()
   // Start visual inertial estimator
   if (Config::runInertialEstimator())
   {
+    VisualInertialEstimator::callback_t update_bias_cb = boost::bind(
+      &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
-    inertial_estimator_ = new svo::VisualInertialEstimator(cam_);
+    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb);
     inertial_estimator_->startThread();
   }
 
@@ -133,7 +137,7 @@ void FrameHandlerMono::initialize()
     SVO_INFO_STREAM("Using Motion priors for image alignment");
     /// initialize the integrator
     imu_helper_ = new ImuHelper();
-    integrator_ = std::make_shared<gtsam::PreintegrationType>(
+    integrator_ = boost::make_shared<gtsam::PreintegrationType>(
         imu_helper_->params_, imu_helper_->curr_imu_bias_);
     assert(integrator_);
   }
@@ -170,6 +174,12 @@ void FrameHandlerMono::integrateMultipleMeasurements(list<sensor_msgs::Imu::Cons
     integrateSingleMeasurement(*itr);
   }
   msgs.clear();
+}
+
+void FrameHandlerMono::newImuBias(gtsam::imuBias::ConstantBias new_bias)
+{
+  imu_helper_->curr_imu_bias_ = new_bias;
+  new_bias_arrived_ = true;
 }
 
 void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
@@ -409,6 +419,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     integrator_->resetIntegration();
     SVO_DEBUG_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
     n_integrated_measurements_ = 0;
+
+    // check if need to update integrator with new bias
+    if(new_bias_arrived_)
+    {
+      integrator_.reset(new gtsam::PreintegrationType(
+        imu_helper_->params_, imu_helper_->curr_imu_bias_));
+      new_bias_arrived_ = false;
+    }
+
     should_integrate_ = true;
   }
 

@@ -12,19 +12,14 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(mvIMPACT REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 
-set(mvIMPACT_DIR "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT")
+set(mvIMPACT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mvIMPACT")
 if (DEFINED ENV{ARM_ARCHITECTURE})
-  set(mvIMPACT_LIBRARY "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64")
-  FILE(GLOB mvIMPACT_LIBRARIES /home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/aarch64/*)
+  set(mvIMPACT_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/mvIMPACT/lib/aarch64")
+  FILE(GLOB mvIMPACT_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/mvIMPACT/lib/aarch64/*)
 else()
-  set(mvIMPACT_LIBRARY "/home/$ENV{USER}/hawk/src/VIO/bluefox2/mvIMPACT/lib/x86_64")
-  FILE(GLOB mvIMPACT_LIBRARIES /home/$ENV{USER}/ros/hawk/src/VIO/bluefox2/mvIMPACT/lib/x86_64/*)
+  set(mvIMPACT_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/mvIMPACT/lib/x86_64")
+  FILE(GLOB mvIMPACT_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/mvIMPACT/lib/x86_64/*)
 endif()
-
-message(">>>>>>>>> $ENV{USER}")
-message(">>>>>>>>> ${mvIMPACT_LIBRARY}")
-message(">>>>>>>>> ${mvIMPACT_LIBRARY_DIR}")
-message(">>>>>>>>> ${mvIMPACT_LIBRARIES}")
 
 # dynamic reconfigure
 generate_dynamic_reconfigure_options(cfg/Bluefox2Dyn.cfg)

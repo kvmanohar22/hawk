@@ -12,9 +12,7 @@
 
 ```bash
 cd ~
-mkdir ~/hawk_ws
-cd hawk_ws
-git clone git@github.com:kvmanohar22/hawk.git
+git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 ```
 
 ### Install dependencies
@@ -22,12 +20,24 @@ git clone git@github.com:kvmanohar22/hawk.git
 - Ubuntu setup
   - Set the environment variable `HAWK_PX4_FIRMWARE` to the source of `px4/Firmware` in `scripts/load_px4_firmware`.
   - Copy the file `99-pixhawk.rules` to the following directory `/etc/udev/rules.d/`.
+  - Add yourself to the following groups (reboot required to take effect)
+
+    ```bash
+      sudo usermod -a -G tty <username>
+      sudo usermod -a -G dialout <username>
+    ```
+- Install geographic lib dataset using [this script](https://github.com/mavlink/mavros/blob/master/mavros/scripts/install_geographiclib_datasets.sh). (Requires sudo privileges)
 
 - All the ros dependencies can be installed using `wstool`. Just execute the following command;
 
   ```bash
-    cd src
+    cd ~/hawk_ws/src
     wstool update -j8
+  ```
+
+- Install the following dependencies as well
+  ```bash
+    sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf
   ```
 
 - Install MatrixVision driver. Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
@@ -41,7 +51,7 @@ git clone git@github.com:kvmanohar22/hawk.git
 
 ```bash
 cd ~/hawk_ws
-catkin build
+catkin_make
 ```
 
 ```bash

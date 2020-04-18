@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<package>
+  <name>Sophus</name>
+  <version>0.0.0</version>
+  <description>The Sophus package</description>
+  <maintainer email="me@gmail.com">me</maintainer>
+  <export>
+  </export>
+</package>

@@ -283,9 +283,9 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
   // Only update the latest pose
   const auto pose       = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  gtsam::Matrix33 R_f_w = pose.rotation().matrix();
-  gtsam::Vector3 t_f_w  = pose.translation().vector();
-  const SE3 T_f_w       = Sophus::SE3(R_f_w, t_f_w);
+  gtsam::Matrix33 R_w_f = pose.rotation().matrix();
+  gtsam::Vector3 t_w_f  = pose.translation().vector();
+  const SE3 T_f_w       = Sophus::SE3(R_w_f, t_w_f).inverse();
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();

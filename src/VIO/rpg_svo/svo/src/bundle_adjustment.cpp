@@ -88,10 +88,10 @@ void twoViewBA(
   printf("2-View BA: Error before/after = %f / %f\n", init_error, final_error);
 
   // Update Keyframe Positions
-  frame1->T_f_w_.rotation_matrix() = v_frame1->estimate().rotation().toRotationMatrix();
-  frame1->T_f_w_.translation() = v_frame1->estimate().translation();
-  frame2->T_f_w_.rotation_matrix() = v_frame2->estimate().rotation().toRotationMatrix();
-  frame2->T_f_w_.translation() = v_frame2->estimate().translation();
+  frame1->T_f_w().rotation_matrix() = v_frame1->estimate().rotation().toRotationMatrix();
+  frame1->T_f_w().translation() = v_frame1->estimate().translation();
+  frame2->T_f_w().rotation_matrix() = v_frame2->estimate().rotation().toRotationMatrix();
+  frame2->T_f_w().translation() = v_frame2->estimate().translation();
 
   // Update Mappoint Positions
   for(Features::iterator it=frame1->fts_.begin(); it!=frame1->fts_.end(); ++it)
@@ -219,8 +219,8 @@ void localBA(
   // Update Keyframes
   for(set<FramePtr>::iterator it = core_kfs->begin(); it != core_kfs->end(); ++it)
   {
-    (*it)->T_f_w_ = SE3( (*it)->v_kf_->estimate().rotation(),
-                         (*it)->v_kf_->estimate().translation());
+    (*it)->T_f_w(SE3( (*it)->v_kf_->estimate().rotation(),
+                      (*it)->v_kf_->estimate().translation()));
     (*it)->v_kf_ = NULL;
   }
 
@@ -312,8 +312,8 @@ void globalBA(Map* map)
   for(list<FramePtr>::iterator it_kf = map->keyframes_.begin();
         it_kf != map->keyframes_.end(); ++it_kf)
   {
-    (*it_kf)->T_f_w_ = SE3( (*it_kf)->v_kf_->estimate().rotation(),
-                            (*it_kf)->v_kf_->estimate().translation());
+    (*it_kf)->T_f_w(SE3( (*it_kf)->v_kf_->estimate().rotation(),
+                         (*it_kf)->v_kf_->estimate().translation()));
     (*it_kf)->v_kf_ = NULL;
     for(Features::iterator it_ftr=(*it_kf)->fts_.begin(); it_ftr!=(*it_kf)->fts_.end(); ++it_ftr)
     {
@@ -392,7 +392,7 @@ createG2oFrameSE3(Frame* frame, size_t id, bool fixed)
   g2oFrameSE3* v = new g2oFrameSE3();
   v->setId(id);
   v->setFixed(fixed);
-  v->setEstimate(g2o::SE3Quat(frame->T_f_w_.unit_quaternion(), frame->T_f_w_.translation()));
+  v->setEstimate(g2o::SE3Quat(frame->T_f_w().unit_quaternion(), frame->T_f_w().translation()));
   return v;
 }
 

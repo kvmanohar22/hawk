@@ -93,6 +93,18 @@ void Frame::addFeature(Feature* ftr)
   fts_.push_back(ftr);
 }
 
+const SE3 Frame::T_f_w()
+{
+  lock_t lock(t_mut_);
+  return T_f_w_;
+}
+
+void Frame::T_f_w(SE3 _T_f_w)
+{
+  lock_t lock(t_mut_);
+  T_f_w_ = _T_f_w;
+}
+
 void Frame::setKeyPoints()
 {
   for(size_t i = 0; i < 5; ++i)
@@ -162,9 +174,9 @@ void Frame::removeKeyPoint(Feature* ftr)
     setKeyPoints();
 }
 
-bool Frame::isVisible(const Vector3d& xyz_w) const
+bool Frame::isVisible(const Vector3d& xyz_w)
 {
-  Vector3d xyz_f = T_f_w_*xyz_w;
+  const Vector3d xyz_f = T_f_w()*xyz_w;
   if(xyz_f.z() < 0.0)
     return false; // point is behind the camera
   Vector2d px = f2c(xyz_f);

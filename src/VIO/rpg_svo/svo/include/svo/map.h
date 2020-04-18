@@ -97,10 +97,10 @@ public:
   void addKeyframe(FramePtr new_keyframe);
 
   /// Given a frame, return all keyframes which have an overlapping field of view.
-  void getCloseKeyframes(const FramePtr& frame, list< pair<FramePtr,double> >& close_kfs) const;
+  void getCloseKeyframes(const FramePtr& frame, list< pair<FramePtr,double> >& close_kfs);
 
   /// Return the keyframe which is spatially closest and has overlapping field of view.
-  FramePtr getClosestKeyframe(const FramePtr& frame) const;
+  FramePtr getClosestKeyframe(const FramePtr& frame);
 
   /// Return the keyframe which is furthest apart from pos.
   FramePtr getFurthestKeyframe(const Vector3d& pos) const;

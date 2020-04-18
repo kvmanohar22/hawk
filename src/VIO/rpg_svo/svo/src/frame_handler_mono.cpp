@@ -230,7 +230,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   if(save_trajectory_)
   {
     SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
-    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
+    const SE3 T_w_f = last_frame_->T_f_w().inverse();
     const Vector3d t = T_w_f.translation();
     const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
     ofstream ofs("/tmp/trajectory.txt", std::ios::app);
@@ -280,7 +280,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   if(save_trajectory_)
   {
     SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
-    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
+    const SE3 T_w_f = last_frame_->T_f_w().inverse();
     const Vector3d t = T_w_f.translation();
     const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
     ofstream ofs("/tmp/trajectory.txt", std::ios::app);
@@ -296,7 +296,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  new_frame_->T_f_w(SE3(Matrix3d::Identity(), Vector3d::Zero()));
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -360,7 +360,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
   // process the first image
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  new_frame_->T_f_w(SE3(Matrix3d::Identity(), Vector3d::Zero()));
 
   klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
@@ -433,7 +433,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // Set initial pose
   // TODO: Set this initial transformation to the one from IMU?
-  new_frame_->T_f_w_ = last_frame_->T_f_w_;
+  new_frame_->T_f_w(last_frame_->T_f_w());
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");
@@ -461,7 +461,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   if(repr_n_new_references < Config::qualityMinFts())
   {
     SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
-    new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
+    new_frame_->T_f_w(last_frame_->T_f_w()); // reset to avoid crazy pose jumps
     tracking_quality_ = TRACKING_INSUFFICIENT;
     return RESULT_FAILURE;
   }
@@ -490,7 +490,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   setTrackingQuality(sfba_n_edges_final);
   if(tracking_quality_ == TRACKING_INSUFFICIENT)
   {
-    new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
+    new_frame_->T_f_w(last_frame_->T_f_w()); // reset to avoid crazy pose jumps
     return RESULT_FAILURE;
   }
   double depth_mean, depth_min;
@@ -564,7 +564,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
   size_t img_align_n_tracked = img_align.run(ref_keyframe, new_frame_);
   if(img_align_n_tracked > 30)
   {
-    SE3 T_f_w_last = last_frame_->T_f_w_;
+    SE3 T_f_w_last = last_frame_->T_f_w();
     last_frame_ = ref_keyframe;
     FrameHandlerMono::UpdateResult res = processFrame();
     if(res != RESULT_FAILURE)
@@ -573,7 +573,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
       SVO_INFO_STREAM("Relocalization successful.");
     }
     else
-      new_frame_->T_f_w_ = T_f_w_last; // reset to last well localized pose
+      new_frame_->T_f_w(T_f_w_last); // reset to last well localized pose
     return res;
   }
   return RESULT_FAILURE;

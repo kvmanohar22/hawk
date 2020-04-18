@@ -220,7 +220,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
     }
 
     // check if point is visible in the current image
-    SE3 T_ref_cur = it->ftr->frame->T_f_w_ * frame->T_f_w_.inverse();
+    SE3 T_ref_cur = it->ftr->frame->T_f_w() * frame->T_f_w().inverse();
     const Vector3d xyz_f(T_ref_cur.inverse()*(1.0/it->mu * it->ftr->f) );
     if(xyz_f.z() < 0.0)  {
       ++it; // behind the camera
@@ -262,7 +262,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
     if(sqrt(it->sigma2) < it->z_range/options_.seed_convergence_sigma2_thresh)
     {
       assert(it->ftr->point == NULL); // TODO this should not happen anymore
-      Vector3d xyz_world(it->ftr->frame->T_f_w_.inverse() * (it->ftr->f * (1.0/it->mu)));
+      Vector3d xyz_world(it->ftr->frame->T_f_w().inverse() * (it->ftr->f * (1.0/it->mu)));
       Point* point = new Point(xyz_world, it->ftr);
       it->ftr->point = point;
       /* FIXME it is not threadsafe to add a feature to the frame here.

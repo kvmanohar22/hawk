@@ -32,9 +32,10 @@ VisualInertialEstimator::VisualInertialEstimator(
 
   // initialize the camera for isam2
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera_);
-  isam2_K_ = boost::make_shared<gtsam::Cal3_S2>(
+  isam2_K_ = boost::make_shared<gtsam::Cal3DS2>(
       c->fx(), c->fy(), 0.0,
-      c->cx(), c->cy());
+      c->cx(), c->cy(),
+      c->d0(), c->d1(), c->d2(), c->d3());
 
   const gtsam::Rot3 R_b_c0(FrameHandlerMono::T_b_c0_.rotation_matrix());
   const gtsam::Point3 t_b_c0(FrameHandlerMono::T_b_c0_.translation());
@@ -129,7 +130,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
       const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
       const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
-      gtsam::PinholePose<gtsam::Cal3_S2> camera(pose_w_f, isam2_K_);
+      gtsam::PinholePose<gtsam::Cal3DS2> camera(pose_w_f, isam2_K_);
 
       // pose should be of the camera in the world i.e, T_w_f
       gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));

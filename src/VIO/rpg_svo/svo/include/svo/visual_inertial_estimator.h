@@ -48,10 +48,11 @@ public:
   typedef boost::function<void (gtsam::imuBias::ConstantBias)> callback_t;
   typedef gtsam::noiseModel::Diagonal Noise;
   typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
-  typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3_S2> SmartFactor;
+  typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
   typedef SmartFactor::shared_ptr SmartFactorPtr;
   typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
-  
+  typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
+
   VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb);
   virtual ~VisualInertialEstimator();
 
@@ -142,7 +143,7 @@ protected:
   bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
-  Cal3_S2Ptr                   isam2_K_;               //!< calibration for use in isam2
+  Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
   ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks

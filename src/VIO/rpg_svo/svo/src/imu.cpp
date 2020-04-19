@@ -35,8 +35,6 @@ ImuHelper::ImuHelper()
   params_->biasAccCovariance       = random_walk_acc_cov_;
   params_->biasOmegaCovariance     = random_walk_omg_cov_;
   params_->biasAccOmegaInt         = bias_acc_omega_int_;
-
 }
-
 
 } // namespace svo

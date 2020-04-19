@@ -37,6 +37,7 @@ VisualInertialEstimator::VisualInertialEstimator(
       c->cx(), c->cy(),
       c->d0(), c->d1(), c->d2(), c->d3());
 
+  // camera to body transformation
   const gtsam::Rot3 R_b_c0(FrameHandlerMono::T_b_c0_.rotation_matrix());
   const gtsam::Point3 t_b_c0(FrameHandlerMono::T_b_c0_.translation());
   body_P_sensor_ = gtsam::Pose3(R_b_c0, t_b_c0);
@@ -121,7 +122,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       continue;
     (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
 
-    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_));
+    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_, body_P_sensor_));
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
@@ -209,8 +210,8 @@ void VisualInertialEstimator::initializePrior()
   // initialize the prior state
   // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
   //        And this only holds in case of drone in a normal position EXACTLY!
-  SE3 T_w_f      = SE3(Matrix3d::Identity(), Vector3d::Zero());
-  curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_f.rotation_matrix()), gtsam::Point3(T_w_f.translation()));
+  SE3 T_w_b      = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
@@ -233,10 +234,10 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  const SE3 T_w_f = keyframes_.front()->T_f_w().inverse();
-  const gtsam::Rot3 R_w_f(T_w_f.rotation_matrix());
-  const gtsam::Point3 t_w_f(T_w_f.translation());
-  gtsam::Pose3 init_pose(R_w_f, t_w_f);
+  const SE3 T_w_b = keyframes_.front()->T_f_w().inverse() * FrameHandlerMono::T_c0_b_;
+  const gtsam::Rot3 R_w_b(T_w_b.rotation_matrix());
+  const gtsam::Point3 t_w_b(T_w_b.translation());
+  gtsam::Pose3 init_pose(R_w_b, t_w_b);
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
@@ -264,8 +265,8 @@ EstimatorResult VisualInertialEstimator::runOptimization()
     isam2_.update();
   SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
-  // update the optimized variables 
-  // TODO: Analyze whether optimization was converged! 
+  // update the optimized variables
+  // TODO: Analyze whether optimization was converged!
   const gtsam::Values result = isam2_.calculateEstimate();
   updateState(result);
 
@@ -284,9 +285,9 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
   // Only update the latest pose
   const auto pose       = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  gtsam::Matrix33 R_w_f = pose.rotation().matrix();
-  gtsam::Vector3 t_w_f  = pose.translation().vector();
-  const SE3 T_f_w       = Sophus::SE3(R_w_f, t_w_f).inverse();
+  gtsam::Matrix33 R_w_b = pose.rotation().matrix();
+  gtsam::Vector3 t_w_b  = pose.translation().vector();
+  const SE3 T_f_w       = FrameHandlerMono::T_c0_b_ * Sophus::SE3(R_w_b, t_w_b).inverse();
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();

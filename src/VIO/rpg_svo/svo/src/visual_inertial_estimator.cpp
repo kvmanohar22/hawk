@@ -121,8 +121,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       continue;
     (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
 
-    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_, body_P_sensor_));
-    graph_->push_back(new_factor);
+    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_));
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
@@ -136,6 +135,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
       new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
     }
+    graph_->push_back(new_factor);
     ++fts_count;
   }
   SVO_DEBUG_STREAM("[Estimator]: Adding " << fts_count << " landmarks to the graph");

@@ -63,7 +63,7 @@
         <param name="max_measurements" value="50" />
 
         <!-- Initial camera orientation, make it point forward -->
-        <param name="init_rx" value="-1.57" />
+        <param name="init_rx" value="3.14" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
 

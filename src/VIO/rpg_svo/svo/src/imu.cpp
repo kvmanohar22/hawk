@@ -12,7 +12,7 @@ ImuHelper::ImuHelper()
 
   prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
       (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
-  prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
+  prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.01);
   prior_bias_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
 
   white_noise_acc_cov_ = gtsam::Matrix33::Identity(3, 3) * pow(imu_noise_params_->accel_noise_sigma_, 2);

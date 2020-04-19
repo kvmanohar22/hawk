@@ -283,6 +283,8 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
+  result.print();
+
   // Only update the latest pose
   const auto pose       = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   gtsam::Matrix33 R_w_b = pose.rotation().matrix();

@@ -2,6 +2,7 @@
 
 ## Contents
 - [Setup](#setup)
+- [Transformations](#transforms)
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
 
@@ -59,6 +60,13 @@ catkin_make
 echo "source devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
+<a name="conventions"></a>
+## Transformations
+
+The following diagram should illustrate the different frames that are presently used in the system.
+<div class="fig figcenter fighighlight">
+  <img src="imgs/frames.svg">
+</div> 
 
 <a name="conventions"></a>
 ## Naming conventions

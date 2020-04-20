@@ -1,0 +1,15 @@
+<launch>
+    <arg name="bag_path" default=""/>
+    <arg name="start" default="0"/>
+
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start)"/>
+
+    <!-- Start preintegration node -->
+    <node pkg="svo_ros" type="preintegration" name="svo" output="screen" ns="hawk">
+      <param name="imu_topic" value="/mavros/imu/data_raw"/>
+      <rosparam file="$(find svo_ros)/param/hawk/camchain.yaml"/>
+      <rosparam file="$(find svo_ros)/param/hawk/imu.yaml" />
+    </node>
+
+</launch>

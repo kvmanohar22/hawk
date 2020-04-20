@@ -28,7 +28,7 @@ ImuHelper::ImuHelper()
       (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
   // TODO: Gravity vector is not exactly aligned with z-axis
-  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedD();
+  params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU();
   params_->accelerometerCovariance = white_noise_acc_cov_;
   params_->integrationCovariance   = integration_error_cov_;
   params_->gyroscopeCovariance     = white_noise_omg_cov_;

@@ -48,7 +48,7 @@ ImuPreintegrationTest::ImuPreintegrationTest() :
   inertial_init_done_(false)
 {
   imu_helper_ = new ImuHelper();
-  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, 9.807166));
+  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, -9.807166));
   imu_preintegrated_ = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);

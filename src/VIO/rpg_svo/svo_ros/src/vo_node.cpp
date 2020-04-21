@@ -106,7 +106,7 @@ VoNode::VoNode() :
                       vk::getParam<double>("/hawk/svo/init_ty", 0.0),
                       vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
 
-  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, 9.807166));
+  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, -9.807166));
 
   // Init VO and start
   std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));

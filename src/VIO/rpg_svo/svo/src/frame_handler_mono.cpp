@@ -56,7 +56,8 @@ FrameHandlerMono::FrameHandlerMono(
   first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
-  save_trajectory_(Config::saveTrajectory())
+  save_trajectory_(Config::saveTrajectory()),
+  prior_pose_set_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -85,7 +86,8 @@ FrameHandlerMono::FrameHandlerMono(
   first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
-  save_trajectory_(Config::saveTrajectory())
+  save_trajectory_(Config::saveTrajectory()),
+  prior_pose_set_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -360,7 +362,11 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
   // process the first image
-  new_frame_->T_f_w(SE3(Matrix3d::Identity(), Vector3d::Zero()));
+  if(!prior_pose_set_) {
+    SVO_ERROR_STREAM("Prior pose not set!");
+    return RESULT_FAILURE;
+  }
+  new_frame_->T_f_w(prior_pose_);
 
   klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)

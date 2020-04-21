@@ -53,8 +53,6 @@ VisualInertialEstimator::VisualInertialEstimator(
   isam2_ = gtsam::ISAM2(isam2_params_);
 
   graph_ = new gtsam::NonlinearFactorGraph();
-
-  initializePrior();
 }
 
 VisualInertialEstimator::~VisualInertialEstimator()
@@ -191,6 +189,7 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_);
+    initializePrior();
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
     keyframes_.pop(); // we are not anyway going to be adding this first keyframe
@@ -210,7 +209,7 @@ void VisualInertialEstimator::initializePrior()
   // initialize the prior state
   // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
   //        And this only holds in case of drone in a normal position EXACTLY!
-  SE3 T_w_b      = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  SE3 T_w_b      = FrameHandlerMono::T_b_c0_ * keyframes_.front()->T_f_w().inverse() * FrameHandlerMono::T_c0_b_;;
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);

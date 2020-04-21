@@ -100,7 +100,7 @@ private:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
-protected:
+public:
 
   // TODO: Need to hold proper reference to keyframes
   //       These could be deleted in the Motion Estimation thread

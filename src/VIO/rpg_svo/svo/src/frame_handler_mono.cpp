@@ -182,7 +182,7 @@ void FrameHandlerMono::newImuBias(gtsam::imuBias::ConstantBias new_bias)
   new_bias_arrived_ = true;
 }
 
-void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void FrameHandlerMono::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   SVO_INFO_STREAM_ONCE("Imu callback in progress");
   if(should_integrate_)

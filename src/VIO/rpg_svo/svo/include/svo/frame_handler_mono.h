@@ -44,7 +44,7 @@ public:
   virtual ~FrameHandlerMono();
 
   /// imu callback function
-  void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
+  void feedImu(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Provide an image. Monocular initialization
   void addImage(const cv::Mat& img, ros::Time ts);

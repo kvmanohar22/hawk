@@ -51,7 +51,7 @@ public:
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
-  void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
+  void feedImu(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Start this thread to estimate inertial estimates 
   void startThread();

@@ -149,7 +149,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
 }
 
-void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   // TODO: If multiple keyframes start queuing up, we need to maintain
   //       separate copies for each of those keyframes

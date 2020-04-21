@@ -1,6 +1,8 @@
 #include <svo/imu.h>
 #include <svo/visual_inertial_estimator.h>
+#include <svo/inertial_initialization.h>
 #include <svo/global.h>
+#include <vikit/math_utils.h>
 
 namespace svo {
 
@@ -13,6 +15,7 @@ public:
   void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
   void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
   void optimize();
+  void setPriors();
 
   ImuHelper*                   imu_helper_;
   gtsam::Values                initial_values_;        //!< initial values
@@ -31,17 +34,21 @@ public:
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
+  InertialInitialization*      inertial_init_;
+  bool                         inertial_init_done_;
 };
 
 ImuPreintegrationTest::ImuPreintegrationTest() :
   correction_count_(0),
   n_integrated_measures_(0),
-  n_iters_(5),
-  max_integrated_values_(100),
+  n_iters_(0),
+  max_integrated_values_(40),
   dt_(0.004545454545454545),
-  first_integration_(true)
+  first_integration_(true),
+  inertial_init_done_(false)
 {
   imu_helper_ = new ImuHelper();
+  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, 9.807166));
   imu_preintegrated_ = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);
@@ -49,13 +56,17 @@ ImuPreintegrationTest::ImuPreintegrationTest() :
   isam2_params_.relinearizeThreshold = 0.01;
   isam2_params_.relinearizeSkip = 1;
   isam2_ = gtsam::ISAM2(isam2_params_);
+}
 
-  // initialize prior states
-  SE3 T_w_b      = SE3(Matrix3d::Identity(), Vector3d::Zero());
+void ImuPreintegrationTest::setPriors()
+{
+  SE3 T_w_b      = SE3(inertial_init_->R_init_.transpose(), Vector3d::Zero());
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
+  imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+      (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
   initial_values_.clear();
   initial_values_.insert(Symbol::X(0), curr_pose_);
   initial_values_.insert(Symbol::V(0), curr_velocity_);
@@ -122,6 +133,19 @@ void ImuPreintegrationTest::optimize()
 
 void ImuPreintegrationTest::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
+  if(!inertial_init_done_)
+    inertial_init_->feedImu(msg);
+
+  if(!inertial_init_done_)
+  {
+    inertial_init_done_ = inertial_init_->initialize();
+    if(inertial_init_done_)
+    {
+      setPriors();
+    }
+    return;
+  }
+
   if(n_integrated_measures_ == max_integrated_values_)
   {
     optimize();

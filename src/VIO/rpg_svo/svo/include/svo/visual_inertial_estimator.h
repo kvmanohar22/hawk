@@ -18,12 +18,6 @@ namespace svo {
 
 namespace Symbol = gtsam::symbol_shorthand;
 
-static inline Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
-{
-  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
-  return v_eigen; 
-}
-
 /// Assess the current stage of the system
 enum class EstimatorStage {
   PAUSED,

@@ -27,7 +27,6 @@ ImuHelper::ImuHelper()
   curr_imu_bias_ = gtsam::imuBias::ConstantBias(
       (gtsam::Vector(6) << a, a, a, g, g, g).finished());
 
-  // TODO: Gravity vector is not exactly aligned with z-axis
   params_ = gtsam::PreintegratedCombinedMeasurements::Params::MakeSharedU();
   params_->accelerometerCovariance = white_noise_acc_cov_;
   params_->integrationCovariance   = integration_error_cov_;

@@ -114,7 +114,8 @@ LIST(APPEND SOURCEFILES
   src/sparse_img_align.cpp
   src/imu.cpp
   src/visual_inertial_estimator.cpp
-  src/stereo.cpp)
+  src/stereo.cpp
+  src/inertial_initialization.cpp)
 
 # Add g2o if available
 IF(HAVE_G2O)

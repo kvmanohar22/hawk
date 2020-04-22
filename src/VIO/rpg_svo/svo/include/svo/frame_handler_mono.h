@@ -36,6 +36,8 @@ class FrameHandlerMono : public FrameHandlerBase
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  typedef boost::unique_lock<boost::mutex> lock_t;
+
   FrameHandlerMono(vk::AbstractCamera* cam,
     FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
 
@@ -158,6 +160,22 @@ protected:
   virtual bool needNewKf(double scene_depth_mean);
 
   void setCoreKfs(size_t n_closest);
+
+protected:
+  boost::mutex request_mut_;
+  bool stop_requested_;
+  bool is_stopped_;
+
+public:
+  // used by inertial estimator thread to request interrupts
+  void requestStop();
+  bool isStopped();
+  void release();
+
+  // local verification
+  bool stopRequested();
+  void setStop();
+  bool isReleased();
 };
 
 } // namespace svo

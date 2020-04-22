@@ -150,6 +150,16 @@ public:
       const double z,
       const double px_error_angle);
 
+  /// handled by inertial estimator thread
+  void requestStop();
+  bool isStopped();
+  void release();
+
+  /// local verification
+  bool stopRequested();
+  void setStop();
+  bool isReleased();
+
 protected:
   feature_detection::DetectorPtr feature_detector_;
   callback_t seed_converged_cb_;
@@ -167,6 +177,10 @@ protected:
   vk::PerformanceMonitor permon_;       //!< Separate performance monitor since the DepthFilter runs in a parallel thread.
   Matcher matcher_;
   std::unordered_map<int, SeedConvergencePtr> seed_status_;
+
+  boost::mutex request_mut_;            //!< These are used for inertial estimator thread
+  bool stop_requested_;
+  bool is_stopped_;
 
   /// Initialize new seeds from a frame.
   void initializeSeeds(FramePtr frame);

@@ -53,7 +53,9 @@ DepthFilter::DepthFilter(feature_detection::DetectorPtr feature_detector, callba
     thread_(NULL),
     new_keyframe_set_(false),
     new_keyframe_min_depth_(0.0),
-    new_keyframe_mean_depth_(0.0)
+    new_keyframe_mean_depth_(0.0),
+    stop_requested_(false),
+    is_stopped_(false)
 {}
 
 DepthFilter::~DepthFilter()
@@ -171,6 +173,16 @@ void DepthFilter::updateSeedsLoop()
 {
   while(!boost::this_thread::interruption_requested())
   {
+    // look for any interruptions from inertial estimator thread
+    if(stopRequested())
+    {
+      setStop();
+      while(!isReleased())
+      {
+        boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+      }
+    }
+
     FramePtr frame;
     {
       lock_t lock(frame_queue_mut_);
@@ -348,6 +360,47 @@ double DepthFilter::computeTau(
   double gamma_plus = PI-alpha-beta_plus; // triangle angles sum to PI
   double z_plus = t_norm*sin(beta_plus)/sin(gamma_plus); // law of sines
   return (z_plus - z); // tau
+}
+
+void DepthFilter::requestStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Stop request recieved");
+  seeds_updating_halt_ = true;
+  stop_requested_ = true;
+}
+
+bool DepthFilter::stopRequested()
+{
+  lock_t lock(request_mut_);
+  return stop_requested_;
+}
+
+void DepthFilter::setStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Stopped");
+  is_stopped_ = true;
+}
+
+bool DepthFilter::isStopped()
+{
+  lock_t lock(request_mut_);
+  return is_stopped_;
+}
+
+bool DepthFilter::isReleased()
+{
+  lock_t lock(request_mut_);
+  return !stop_requested_;
+}
+
+void DepthFilter::release()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Released");
+  seeds_updating_halt_ = false;
+  stop_requested_ = false;
 }
 
 } // namespace svo

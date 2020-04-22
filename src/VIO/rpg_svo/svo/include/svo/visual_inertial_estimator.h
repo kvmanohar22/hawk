@@ -16,6 +16,9 @@
 
 namespace svo {
 
+class FrameHandlerMono;
+class DepthFilter;
+
 namespace Symbol = gtsam::symbol_shorthand;
 
 /// Assess the current stage of the system
@@ -100,6 +103,9 @@ private:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
+  void stopOtherThreads();
+  void resumeOtherThreads();
+
 public:
 
   // TODO: Need to hold proper reference to keyframes
@@ -142,6 +148,9 @@ public:
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
   gtsam::Pose3                 body_P_sensor_;         //!< pose of the camera in body frame (T_b_c)
+
+  FrameHandlerMono*            motion_estimator_;      //!< Reference to motion estimation thread
+  DepthFilter*                 depth_filter_;          //!< Reference to depth filter thread
 }; // class VisualInertialEstimator
 
 } // namespace svo

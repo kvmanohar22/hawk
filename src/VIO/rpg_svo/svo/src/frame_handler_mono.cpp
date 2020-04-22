@@ -57,7 +57,9 @@ FrameHandlerMono::FrameHandlerMono(
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
   save_trajectory_(Config::saveTrajectory()),
-  prior_pose_set_(false)
+  prior_pose_set_(false),
+  stop_requested_(false),
+  is_stopped_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -87,7 +89,9 @@ FrameHandlerMono::FrameHandlerMono(
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
   save_trajectory_(Config::saveTrajectory()),
-  prior_pose_set_(false)
+  prior_pose_set_(false),
+  stop_requested_(false),
+  is_stopped_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -131,6 +135,9 @@ void FrameHandlerMono::initialize()
       &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
     inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb);
+
+    inertial_estimator_->motion_estimator_ = this;
+    inertial_estimator_->depth_filter_ = depth_filter_;
     inertial_estimator_->startThread();
   }
 
@@ -248,6 +255,18 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 
 void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const ros::Time ts)
 {
+  // check if we have received a stop request
+  if(stopRequested())
+  {
+    setStop();
+
+    // good place to wait
+    while(!isReleased())
+    {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+    }
+  }
+
   if(init_type_ != FrameHandlerBase::InitType::STEREO) {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
     return;
@@ -642,6 +661,45 @@ void FrameHandlerMono::setCoreKfs(size_t n_closest)
                     boost::bind(&pair<FramePtr, size_t>::second, _1) >
                     boost::bind(&pair<FramePtr, size_t>::second, _2));
   std::for_each(overlap_kfs_.begin(), overlap_kfs_.end(), [&](pair<FramePtr,size_t>& i){ core_kfs_.insert(i.first); });
+}
+
+void FrameHandlerMono::requestStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Stop request recieved");
+  stop_requested_ = true;
+}
+
+bool FrameHandlerMono::stopRequested()
+{
+  lock_t lock(request_mut_);
+  return stop_requested_;
+}
+
+void FrameHandlerMono::setStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Stopped");
+  is_stopped_ = true;
+}
+
+bool FrameHandlerMono::isStopped()
+{
+  lock_t lock(request_mut_);
+  return is_stopped_;
+}
+
+bool FrameHandlerMono::isReleased()
+{
+  lock_t lock(request_mut_);
+  return !stop_requested_;
+}
+
+void FrameHandlerMono::release()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Released");
+  stop_requested_ = false;
 }
 
 } // namespace svo

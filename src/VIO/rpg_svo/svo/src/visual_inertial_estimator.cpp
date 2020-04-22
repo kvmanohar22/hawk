@@ -3,6 +3,7 @@
 #include <svo/frame.h>
 #include <svo/feature.h>
 #include <svo/point.h>
+#include <svo/depth_filter.h>
 
 namespace svo {
 
@@ -280,9 +281,27 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   return opt_result;
 }
 
+void VisualInertialEstimator::stopOtherThreads()
+{
+  motion_estimator_->requestStop();
+  depth_filter_->requestStop();
+
+  while(depth_filter_->isStopped() && motion_estimator_->isStopped())
+  {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+  }
+}
+
+void VisualInertialEstimator::resumeOtherThreads()
+{
+  motion_estimator_->release();
+  depth_filter_->release();
+}
+
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
-  result.print();
+  // wait for other threads to stop
+  stopOtherThreads();
 
   // Only update the latest pose
   const auto pose       = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
@@ -302,6 +321,32 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF="
       << correction_count_ << " remaining kfs= " << keyframes_.size());
+
+  // update the structure
+  for(auto it_ftr=new_kf->fts_.begin(); it_ftr!=new_kf->fts_.end(); ++it_ftr)
+  {
+    if((*it_ftr)->point == NULL)
+      continue;
+
+    const size_t key = (*it_ftr)->point->id_;
+    if(smart_factors_.find(key) == smart_factors_.end())
+      continue;
+
+    const SmartFactorPtr factor = smart_factors_[key];
+    boost::optional<gtsam::Point3> p = factor->point(result);
+    if(p) {
+      // estimate is in the body world frame
+      Vector3d point(p->x(), p->y(), p->z());
+      // (*it_ftr)->point->pos_ = FrameHandlerMono::T_c0_b_ * point;
+    } else {
+      // Handle this case separately
+    }
+    smart_factors_.erase(key);
+  }
+  assert(smart_factors_.size() == 0);
+
+  // resume other threads
+  resumeOtherThreads();
 }
 
 bool VisualInertialEstimator::shouldRunOptimization()

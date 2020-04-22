@@ -1,49 +1,26 @@
-#include <dlib/image_processing.h>
-#include <dlib/gui_widgets.h>
-#include <dlib/image_io.h>
-#include <dlib/dir_nav.h>
+#include <tracking/tracker.h>
 
-using namespace dlib;
-using namespace std;
+#include <ros/ros.h>
+#include <image_transport/image_transport.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <cv_bridge/cv_bridge.h>
+
 
 int main(int argc, char** argv) try {
-    if (argc != 2) {
-        cout << "Call this program like this: " << endl;
-        cout << "./video_tracking_ex ../video_frames" << endl;
-        return 1;
-    }
+    ros::init(argc, argv, "image_listener");
+    ros::NodeHandle nh;
+    cv::namedWindow("view");
+    cv::startWindowThread();
+    image_transport::ImageTransport it(nh);
 
-    // Get the list of video frames.  
-    std::vector<file> files = get_files_in_directory_tree(argv[1], match_ending(".jpg"));
-    std::sort(files.begin(), files.end());
-    if (files.size() == 0) {
-        cout << "No images found in " << argv[1] << endl;
-        return 1;
-    }
+    Tracker tracker(centered_rect(point(93,110), 38, 86));
 
-    // Load the first frame.  
-    array2d<unsigned char> img;
-    load_image(img, files[0]);
-    // Now create a tracker and start a track on the juice box.  If you look at the first
-    // frame you will see that the juice box is centered at pixel point(92,110) and 38
-    // pixels wide and 86 pixels tall.
-    correlation_tracker tracker;
-    tracker.start_track(img, centered_rect(point(93,110), 38, 86));
+    image_transport::Subscriber sub = it.subscribe("camera/image", 1, &Tracker::imgCallback, &tracker);
+    ros::spin();
+    cv::destroyWindow("view")
 
-    // Now run the tracker.  All we have to do is call tracker.update() and it will keep
-    // track of the juice box!
-    image_window win;
-    for (unsigned long i = 1; i < files.size(); ++i) {
-        load_image(img, files[i]);
-        tracker.update(img);
-
-        win.set_image(img); 
-        win.clear_overlay(); 
-        win.add_overlay(tracker.get_position());
-
-        cout << "hit enter to process next frame" << endl;
-        cin.get();
-    }
+    return 1;
 } catch (std::exception& e) {
     cout << e.what() << endl;
 }
+

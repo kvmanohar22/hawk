@@ -23,9 +23,9 @@ class Tracker {
         
         void setConfidence(double _confidence) { this->confidence = _confidence; }
         void setRect(cv::Rect _rect) { this->rect = _rect; }
-	    void setRect(dlib::drectangle _drect) { this->rect = cv::Rect(_drect.tl_corner().x(), _drect.tl_corner().y(), _drect.width(), _drect.height()); }
+        void setRect(dlib::drectangle _drect) { this->rect = cv::Rect(_drect.tl_corner().x(), _drect.tl_corner().y(), _drect.width(), _drect.height()); }
         void setCenter(cv::Point _center) { this->center = _center; }
-	    void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
+        void setCenter(cv::Rect _rect) { this->center = cv::Point(_rect.x + (_rect.width) / 2, _rect.y + (_rect.height) / 2); }
         void setIsStarted(bool res) { this->is_started = res; }
 }
 

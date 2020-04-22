@@ -1,4 +1,5 @@
-#include "tracker.h"
+#include <tracking/tracker.h>
+#include <tracking/utils.h>
 
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
@@ -16,8 +17,8 @@ int Tracker::startTracker(cv::Mat& mat_img) {
         cout << "Empty Image" << endl;
         return 0;
     }
-    dlib::array2d<unsigned char> dlib_frame = Util::cvToDlib2d(mat_img);
-    dlib::drectangle dlib_rect = Util::cvtRectToDrect(this->getRect());
+    dlib::array2d<unsigned char> dlib_frame = Utils::cvToDlib2d(mat_img);
+    dlib::drectangle dlib_rect = Utils::cvtRectToDrect(this->getRect());
     this->tracker.start_track(dlib_frame, dlib_rect);
     this->setIsStarted(true);
     return 1;

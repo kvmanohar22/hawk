@@ -192,7 +192,12 @@ void VoNode::imgStereoCb(
     inertial_init_done_ = inertial_init_->initialize();
     if(inertial_init_done_)
     {
-      SE3 T_w_f0 = FrameHandlerMono::T_c0_b_ * SE3(inertial_init_->R_init_.transpose(), Vector3d::Zero()) * FrameHandlerMono::T_b_c0_;
+      // pose of IMU (at t=0) in Global frame of reference
+      SE3 T_w_i0 = SE3(inertial_init_->R_init_, Vector3d::Zero());
+
+      // pose of camera in the same global frame of reference
+      SE3 T_w_f0 = T_w_i0 * FrameHandlerMono::T_b_c0_;
+
       vo_->prior_pose_ = T_w_f0;
       vo_->prior_pose_set_ = true;
       if(Config::runInertialEstimator())

@@ -126,7 +126,12 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   }
 
   // For each inlier create 3D point and add feature in both frames
-  SE3 T_world_cur = frame_cur->T_f_w_.inverse();
+  SE3 T_world_cur;
+  if(is_monocular)
+    T_world_cur = frame_cur->T_f_w_.inverse();
+  else
+    T_world_cur = frame_ref_->T_f_w_.inverse() * T_cl_cr_;
+
   double error=0;
   int count=0;
   int zneg=0;
@@ -141,13 +146,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     if(frame_ref_->cam_->isInFrame(px_cur.cast<int>(), 10) && frame_ref_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur_[*it].z() > 0)
     {
       Vector3d pos_cur = xyz_in_cur_[*it]*scale;
-      Vector3d pos;
-      if(is_monocular)
-        pos = T_world_cur * pos_cur;
-      else
-      {
-        pos = T_cl_cr_ * pos_cur;
-      }
+      Vector3d pos = T_world_cur * pos_cur;  
       Point* new_point = new Point(pos);
       depth_vec.push_back(pos.z());
 

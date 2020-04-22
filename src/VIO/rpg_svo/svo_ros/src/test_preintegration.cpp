@@ -60,7 +60,7 @@ ImuPreintegrationTest::ImuPreintegrationTest() :
 
 void ImuPreintegrationTest::setPriors()
 {
-  SE3 T_w_b      = SE3(inertial_init_->R_init_.transpose(), Vector3d::Zero());
+  SE3 T_w_b      = SE3(inertial_init_->R_init_, Vector3d::Zero());
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);

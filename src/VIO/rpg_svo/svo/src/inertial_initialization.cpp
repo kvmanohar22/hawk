@@ -99,7 +99,7 @@ bool InertialInitialization::initialize()
 
   // Set our biases equal to our noise (subtract our gravity from accelerometer bias)
   bias_g_ = omg_avg;
-  bias_a_ = acc_avg + R_init_ * gravity_;
+  bias_a_ = acc_avg + R_init_.transpose() * gravity_;
   t0_ = imu_msgs_old.back()->header.stamp.toSec();
   SVO_INFO_STREAM("Inertial initialization succesfull!");
   SVO_INFO_STREAM("Roll Pitch Yaw = " << vk::dcm2rpy(R_init_).transpose()*180/PI);

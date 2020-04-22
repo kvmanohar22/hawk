@@ -126,7 +126,7 @@ public:
   std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
   bool save_trajectory_;                      //!< Boolean to check if we have to save the trajectory
-  SE3   prior_pose_;                          //!< Prior pose estimated from inertial initializer
+  SE3   prior_pose_;                          //!< Prior pose estimated from inertial initializer (this is the pose of camera in global frame)
   bool  prior_pose_set_;
 
 protected:

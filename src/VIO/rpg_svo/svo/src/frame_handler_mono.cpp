@@ -151,6 +151,7 @@ void FrameHandlerMono::initialize()
     assert(integrator_);
   }
 
+  // this will be the pose of first frame if we are not using inertial initializer
   prior_pose_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 }
 
@@ -383,7 +384,11 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
   // process the first image
-
+  if(!prior_pose_set_) {
+    SVO_ERROR_STREAM("Prior pose not set!");
+    return RESULT_FAILURE;
+  }
+  new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)

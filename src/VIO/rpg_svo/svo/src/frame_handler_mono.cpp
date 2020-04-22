@@ -150,6 +150,8 @@ void FrameHandlerMono::initialize()
         imu_helper_->params_, imu_helper_->curr_imu_bias_);
     assert(integrator_);
   }
+
+  prior_pose_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 }
 
 FrameHandlerMono::~FrameHandlerMono()

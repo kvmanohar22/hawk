@@ -195,8 +195,11 @@ void VoNode::imgStereoCb(
       SE3 T_w_f0 = FrameHandlerMono::T_c0_b_ * SE3(inertial_init_->R_init_.transpose(), Vector3d::Zero()) * FrameHandlerMono::T_b_c0_;
       vo_->prior_pose_ = T_w_f0;
       vo_->prior_pose_set_ = true;
-      vo_->inertial_estimator_->imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-      (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+      if(Config::runInertialEstimator())
+      {
+        vo_->inertial_estimator_->imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+          (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+      }
     }
     return;
   }
@@ -308,6 +311,9 @@ int main(int argc, char **argv)
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {
     imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
+  } else {
+    vo_node.inertial_init_done_ = true;
+    vo_node.vo_->prior_pose_set_ = true;
   }
 
   // start processing callbacks

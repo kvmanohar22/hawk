@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>

@@ -5,6 +5,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+#include <dlib/image_processing.h>
+#include <dlib/image_io.h>
+
 
 int main(int argc, char** argv) try {
     ros::init(argc, argv, "image_listener");
@@ -13,14 +16,14 @@ int main(int argc, char** argv) try {
     cv::startWindowThread();
     image_transport::ImageTransport it(nh);
 
-    Tracker tracker(centered_rect(point(93,110), 38, 86));
+    Tracker tracker(dlib::centered_rect(dlib::point(93,110), 38, 86));
 
     image_transport::Subscriber sub = it.subscribe("camera/image", 1, &Tracker::imgCallback, &tracker);
     ros::spin();
-    cv::destroyWindow("view")
+    cv::destroyWindow("view");
 
     return 1;
 } catch (std::exception& e) {
-    cout << e.what() << endl;
+    std::cout << e.what() << std::endl;
 }
 

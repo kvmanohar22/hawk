@@ -14,7 +14,7 @@
 
 int Tracker::startTracker(cv::Mat& mat_img) {
     if (mat_img.empty()) {
-        cout << "Empty Image" << endl;
+        std::cout << "Empty Image" << std::endl;
         return 0;
     }
     dlib::array2d<unsigned char> dlib_frame = Utils::cvToDlib2d(mat_img);
@@ -24,12 +24,12 @@ int Tracker::startTracker(cv::Mat& mat_img) {
     return 1;
 }
 
-int Tracker::doTracking(cv::Mat& mat_img){
+int Tracker::doTracking(cv::Mat& mat_img) {
     if (mat_img.empty()) {
-        cout << "Empty Image" << endl;
+        std::cout << "Empty Image" << std::endl;
         return 0;
     }
-    dlib::array2d<unsigned char> dlib_img = Util::cvToDlib2d(mat_img);
+    dlib::array2d<unsigned char> dlib_img = Utils::cvToDlib2d(mat_img);
     double confidence = this->tracker.update(dlib_img);
     dlib::drectangle updated_rect = this->tracker.get_position();
 
@@ -44,14 +44,15 @@ int Tracker::doTracking(cv::Mat& mat_img){
 }
 
 void Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
-    auto cvMatImage = cv_bridge::toCvShare(msg, "bgr8")->image; cv::imshow("view", cvMatImage);
-    auto dlibImage = Utils::cvToDlib2d(cvMatImage)
+    auto cvMatImage = cv_bridge::toCvShare(msg, "bgr8")->image;
+    cv::imshow("view", cvMatImage);
+    // auto dlibImage = Utils::cvToDlib2d(cvMatImage);
     if (this->is_started == false) {
-        this->startTracker(cvMatImage)
-        ROS_INFO_STREAM("Tracker Intialized successfully!!")
+        this->startTracker(cvMatImage);
+        ROS_INFO_STREAM("Tracker Intialized successfully!!");
         return;
     }
-    this->doTracking(dlibImage);
-    ROS_INFO_STREAM("One frame passed!!")
+    this->doTracking(cvMatImage);
+    ROS_INFO_STREAM("One frame passed!!");
 }
 

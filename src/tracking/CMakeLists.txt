@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(dlib REQUIRED COMPONENTS system)
 
+find_package(OpenCV REQUIRED)
 
 
 ###################################
@@ -34,7 +35,7 @@ catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES tracking
  CATKIN_DEPENDS roscpp sensor_msgs image_transport cv_bridge
- DEPENDS dlib
+ DEPENDS OpenCV
 )
 
 ###########
@@ -77,7 +78,8 @@ add_executable(${PROJECT_NAME} src/tracking_node.cpp
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME} dlib::dlib)
 
 
 #############

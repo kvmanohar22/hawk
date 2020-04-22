@@ -125,7 +125,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
-      const SE3 T_w_f = (*it_pt)->frame->T_f_w().inverse();
+      const SE3 T_w_f = (*it_pt)->frame->T_f_w_.inverse();
       const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
       const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
       const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
@@ -312,7 +312,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
-  new_kf->T_f_w(T_wc_f.inverse());
+  new_kf->T_f_w = T_wc_f.inverse();
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));

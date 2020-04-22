@@ -109,13 +109,13 @@ public:
   /// IMPORTANT! This function assumes that px_cur is already set to an estimate that is within ~2-3 pixel of the final result!
   bool findMatchDirect(
       const Point& pt,
-      Frame& frame,
+      const Frame& frame,
       Vector2d& px_cur);
 
   /// Find a match by searching along the epipolar line without using any features.
   bool findEpipolarMatchDirect(
-      Frame& ref_frame,
-      Frame& cur_frame,
+      const Frame& ref_frame,
+      const Frame& cur_frame,
       const Feature& ref_ftr,
       const double d_estimate,
       const double d_min,

@@ -24,7 +24,6 @@
 #include <boost/noncopyable.hpp>
 #include <svo/global.h>
 #include <ros/ros.h>
-#include <boost/thread.hpp>
 
 namespace g2o {
 class VertexSE3Expmap;
@@ -45,14 +44,13 @@ class Frame : boost::noncopyable
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  typedef boost::unique_lock<boost::mutex> lock_t;
-
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
   int                           correction_id_;         //!< Used in estimator thread 
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   vk::AbstractCamera*           cam_;                   //!< Camera model. (left stereo)
   vk::AbstractCamera*           camR_;                  //!< Camera model (right stereo).
+  Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.
   ImgPyr                        img_pyr_right_;         //!< Image Pyramid of right image in case of stereo
@@ -65,12 +63,6 @@ public:
   int                           n_filters_converged_;   //!< How many of the above converged?
   int                           n_inertial_updates_;    //!< Number of times optimization was performed in inertial estimator thread
 
-  Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld. Do not directly access this unless you know what you are doing
-
-private:
-  boost::mutex                  t_mut_;                 //!< This protects concurrent access to T_f_w_
-
-public:
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
@@ -83,12 +75,6 @@ public:
 
   /// Add a feature to the image
   void addFeature(Feature* ftr);
-
-  /// Always access T_f_w_ through this. Thread safe
-  const SE3 T_f_w();
-
-  /// updates T_f_w. Thread safe
-  void T_f_w(SE3 T_f_w);
 
   /// The KeyPoints are those five features which are closest to the 4 image corners
   /// and to the center and which have a 3D point assigned. These points are used
@@ -105,7 +91,7 @@ public:
   inline size_t nObs() const { return fts_.size(); }
 
   /// Check if a point in (w)orld coordinate frame is visible in the image.
-  bool isVisible(const Vector3d& xyz_w);
+  bool isVisible(const Vector3d& xyz_w) const;
 
   /// Full resolution image stored in the frame.
   inline const cv::Mat& img() const { return img_pyr_[0]; }

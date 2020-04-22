@@ -210,7 +210,7 @@ void VisualInertialEstimator::initializePrior()
   // initialize the prior state
   // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
   //        And this only holds in case of drone in a normal position EXACTLY!
-  SE3 T_w_b      = FrameHandlerMono::T_b_c0_ * keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
+  SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
@@ -234,7 +234,7 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  const SE3 T_w_b = FrameHandlerMono::T_b_c0_ * keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
+  const SE3 T_w_b = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
   const gtsam::Rot3 R_w_b(T_w_b.rotation_matrix());
   const gtsam::Point3 t_w_b(T_w_b.translation());
   gtsam::Pose3 init_pose(R_w_b, t_w_b);
@@ -308,11 +308,11 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Matrix33 R_w_b = pose.rotation().matrix();
   gtsam::Vector3 t_w_b  = pose.translation().vector();
   const SE3 T_w_b       = Sophus::SE3(R_w_b, t_w_b);
-  const SE3 T_wc_f      = FrameHandlerMono::T_c0_b_ * T_w_b * FrameHandlerMono::T_b_c0_;
+  const SE3 T_w_f       = T_w_b * FrameHandlerMono::T_b_c0_;
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
-  new_kf->T_f_w_ = T_wc_f.inverse();
+  new_kf->T_f_w_ = T_w_f.inverse();
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));

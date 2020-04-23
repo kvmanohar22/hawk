@@ -88,10 +88,10 @@ public:
   void cleanUp();
 
   /// Integrate a single measurement
-  void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
+  void integrateSingleMeasurement(const ImuDataPtr& msg);
 
   /// Integrate multiple measurements
-  void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
+  void integrateMultipleMeasurements(list<ImuDataPtr>& stream);
 
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
@@ -140,17 +140,20 @@ public:
   bool                         multiple_int_complete_; //!< Is optimization complete?
   bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
-  bool                         should_integrate_;      //!< Flag for imu callback to integrate or not
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
   ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
-  gtsam::Pose3                 body_P_sensor_;         //!< pose of the camera in body frame (T_b_c)
+  gtsam::Pose3                 body_P_camera_;         //!< pose of the camera in body frame (T_b_c) (body = imu)
 
   FrameHandlerMono*            motion_estimator_;      //!< Reference to motion estimation thread
   DepthFilter*                 depth_filter_;          //!< Reference to depth filter thread
+
+  ImuContainerPtr              imu_container_;         //!< Container for storing imu messages
+  double                       prev_imu_ts_;           //!< used for calculating dt for imu integration
+  double                       t0_;                    //!< timestamp of the previous keyframe
 }; // class VisualInertialEstimator
 
 } // namespace svo

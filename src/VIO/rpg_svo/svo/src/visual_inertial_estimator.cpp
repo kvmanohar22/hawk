@@ -92,6 +92,12 @@ void VisualInertialEstimator::addImuFactorToGraph()
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
+  cout.precision(std::numeric_limits<double>::max_digits10);
+  cout << "[Estimator]: container size = " << imu_container_->size() \
+                   << " old ts = " << imu_container_->oldestTimestamp() \
+                   << " new ts = " << imu_container_->newestTimestamp() \
+                   << " t0 = " << t0 \
+                   << " t1 = " << t1;
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
@@ -152,6 +158,7 @@ void VisualInertialEstimator::addFactorsToGraph()
 void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   imu_container_->add(msg);
+  SVO_WARN_STREAM_THROTTLE(2.0, "SIZE = " << imu_container_->size());
 }
 
 void VisualInertialEstimator::startThread()

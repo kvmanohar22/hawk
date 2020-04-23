@@ -31,14 +31,14 @@ struct ImuNoiseParams {
   double gyro_bias_rw_sigma_;
 
   ImuNoiseParams(
-      double accel_noise_sigma,
-      double gyro_noise_sigma,
-      double accel_bias_rw_sigma,
-      double gyro_bias_rw_sigma) : 
-          accel_noise_sigma_(accel_noise_sigma),
-          gyro_noise_sigma_(gyro_noise_sigma),
-          accel_bias_rw_sigma_(accel_bias_rw_sigma),
-          gyro_bias_rw_sigma_(gyro_bias_rw_sigma)
+    double accel_noise_sigma,
+    double gyro_noise_sigma,
+    double accel_bias_rw_sigma,
+    double gyro_bias_rw_sigma)
+    : accel_noise_sigma_(accel_noise_sigma),
+      gyro_noise_sigma_(gyro_noise_sigma),
+      accel_bias_rw_sigma_(accel_bias_rw_sigma),
+      gyro_bias_rw_sigma_(gyro_bias_rw_sigma)
       {}    
 };
 typedef boost::shared_ptr<ImuNoiseParams> ImuNoiseParamsPtr;
@@ -65,6 +65,7 @@ public:
   NoisePtr                     prior_pose_noise_model_;
   NoisePtr                     prior_vel_noise_model_;
   NoisePtr                     prior_bias_noise_model_;
+  NoisePtr                     measurement_noise_;
 
   CombinedParamsPtr            params_;
   ImuNoiseParamsPtr            imu_noise_params_;
@@ -134,6 +135,9 @@ public:
 
   /// Is the list empty?
   inline bool empty() const { return imu_stream_.empty(); }
+
+  inline double oldestTimestamp() const { return imu_stream_.front()->ts_; }
+  inline double newestTimestamp() const { return imu_stream_.back()->ts_;  }
 
   /// interpolate two messages
   ImuDataPtr interpolate(const ImuDataPtr& left, const ImuDataPtr& right, const double t);

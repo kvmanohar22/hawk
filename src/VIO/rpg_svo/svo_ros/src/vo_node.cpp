@@ -130,7 +130,6 @@ void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
   if(!inertial_init_done_)
   {
     inertial_init_->feedImu(msg);
-    return;
   }
 
   if(svo::Config::runInertialEstimator())

@@ -5,6 +5,10 @@
 #include <svo/point.h>
 #include <svo/depth_filter.h>
 
+#include <thread>
+#include <chrono>
+#include <limits>
+
 namespace svo {
 
 VisualInertialEstimator::VisualInertialEstimator(
@@ -12,17 +16,12 @@ VisualInertialEstimator::VisualInertialEstimator(
   callback_t update_bias_cb) :
       stage_(EstimatorStage::PAUSED),
       thread_(nullptr),
-      new_kf_added_(false),
       quit_(false),
       imu_preintegrated_(nullptr),
       dt_(Config::dt()),
       update_bias_cb_(update_bias_cb),
       correction_count_(-1),
       imu_helper_(nullptr),
-      add_factor_to_graph_(false),
-      optimization_complete_(false),
-      multiple_int_complete_(true),
-      new_factor_added_(false),
       n_integrated_measures_(0),
       camera_(camera)
 {
@@ -41,8 +40,6 @@ VisualInertialEstimator::VisualInertialEstimator(
   const gtsam::Rot3 R_b_c0(FrameHandlerMono::T_b_c0_.rotation_matrix());
   const gtsam::Point3 t_b_c0(FrameHandlerMono::T_b_c0_.translation());
   body_P_camera_ = gtsam::Pose3(R_b_c0, t_b_c0);
-
-  measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   imu_preintegrated_ = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
@@ -125,7 +122,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       continue;
     (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
 
-    SmartFactorPtr new_factor(new SmartFactor(measurement_noise_, isam2_K_, body_P_camera_));
+    SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_, body_P_camera_));
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
@@ -176,7 +173,6 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  new_kf_added_ = true;
   keyframe->correction_id_ = ++correction_count_;
   keyframes_.push(keyframe);
 
@@ -364,12 +360,12 @@ void VisualInertialEstimator::OptimizerLoop()
     // dequeue the keyframes and optimize them one by one
     if(keyframes_.size() != 0) 
     {
-      new_kf_added_ = false;
       if (shouldRunOptimization())
       {
         runOptimization(); 
       }
     }
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 

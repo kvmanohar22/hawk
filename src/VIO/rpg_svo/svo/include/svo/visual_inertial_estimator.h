@@ -107,15 +107,9 @@ private:
   void resumeOtherThreads();
 
 public:
-
-  // TODO: Need to hold proper reference to keyframes
-  //       These could be deleted in the Motion Estimation thread
-  //       Maybe unordered_map is efficient?
   EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
-  FramePtr                     curr_keyframe_;         //!< Latest keyframe 
   std::queue<FramePtr>         keyframes_;             //!< Keyframes to be optimized
-  bool                         new_kf_added_;          //!< New keyframe added?
   bool                         quit_;                  //!< Stop optimizing and quit
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
@@ -134,16 +128,10 @@ public:
 
   ImuHelper*                   imu_helper_;            //!< Helper to hold all imu related params
 
-  bool                         add_factor_to_graph_;   //!< Check for adding imu factor to graph [if new KF arrives, this is true]
-  list<sensor_msgs::Imu::ConstPtr> imu_msgs_;          //!< Need to store some of 'em while optimization is running
-  bool                         optimization_complete_; //!< Is optimization complete?
-  bool                         multiple_int_complete_; //!< Is optimization complete?
-  bool                         new_factor_added_;      //!< This check it used to start optimization
   int                          n_integrated_measures_; //!< Number of imu messages integrated
  
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
-  ImuHelper::NoisePtr          measurement_noise_;     //!< Measurement noise model
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
   gtsam::Pose3                 body_P_camera_;         //!< pose of the camera in body frame (T_b_c) (body = imu)

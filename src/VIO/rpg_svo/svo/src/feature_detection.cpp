@@ -127,6 +127,13 @@ CannyEdgeDetector::CannyEdgeDetector(
 {}
 
 void CannyEdgeDetector::detect(
+      Frame* frame,
+      const ImgPyr& img_pyr,
+      const double detection_threshold,
+      Features& fts)
+{}
+
+void CannyEdgeDetector::detect(
     Frame* frame,
     const ImgPyr& img_pyr,
     const double detection_threshold_low,
@@ -134,15 +141,21 @@ void CannyEdgeDetector::detect(
     Features& fts)
 {
   Corners corners(grid_n_cols_*grid_n_rows_, Corner(0,0,detection_threshold_low,0,0.0f));
+  float hybrid_th=0;
   for(int L=0; L<n_pyr_levels_; ++L)
   {
     const int scale = (1<<L);
 
-    Mat1b gray = img_pyr[L].clone() ;
+    Mat1b gray;
+    img_pyr[L].copyTo(gray);
     Mat1b edges;
     Mat1s sobel_x, sobel_y;
 
+    if (L==0)
+    hybrid_th = Canny3(gray, edges, sobel_x, sobel_y);
+    else
     Canny3(gray, edges, sobel_x, sobel_y);
+
 
     vector<fast::fast_xy> fast_corners;
 
@@ -174,7 +187,7 @@ void CannyEdgeDetector::detect(
 
   }
   // Create edge feature which has magnitude of gradient above certain threshold
-  float hybrid_th = (detection_threshold_low + detection_threshold_high)/2;
+  //float hybrid_th = (detection_threshold_low + detection_threshold_high)/2;
   std::for_each(corners.begin(), corners.end(), [&](Corner& c) {
     if(c.score > hybrid_th)
       fts.push_back(new Feature(frame, Vector2d(c.x, c.y), c.level, angle2grad(c.angle)));  
@@ -184,7 +197,7 @@ void CannyEdgeDetector::detect(
 
 
 // Based on https://gist.github.com/egonSchiele/756833
-void CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr, void* dyarr, int aperture_size)
+float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr, void* dyarr, int aperture_size)
 {
     cv::AutoBuffer<char> buffer;
     std::vector<uchar*> stack;
@@ -289,6 +302,7 @@ void CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr, 
     }
     high_thresh *= bin_size;
     low_thresh = cvFloor(threshold_ratio * float(high_thresh));
+    
 
     if (flags & CV_CANNY_L2_GRADIENT)
     {
@@ -305,6 +319,8 @@ void CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr, 
         high = cvFloor(high_thresh);
     }
 
+    cout<<low<<endl;
+    cout<<high<<endl;
 
     buffer.allocate((size.width + 2)*(size.height + 2) + (size.width + 2) * 3 * sizeof(int));
     mag_buf[0] = (int*)(char*)buffer;
@@ -516,9 +532,11 @@ void CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr, 
             _dst[j] = (uchar)-(_map[j] >> 1);
         }
     }
+
+    return (low+high)/2;
 }
 
-void CannyEdgeDetector::Canny3(InputArray image, OutputArray _edges,
+float CannyEdgeDetector::Canny3(InputArray image, OutputArray _edges,
     OutputArray _sobel_x, OutputArray _sobel_y,
     int apertureSize, bool L2gradient)
 {
@@ -533,7 +551,7 @@ void CannyEdgeDetector::Canny3(InputArray image, OutputArray _edges,
     CvMat c_dy = _sobel_y.getMat();
 
 
-    cvCanny3(&c_src, &c_dst,
+    return cvCanny3(&c_src, &c_dst,
         &c_dx, &c_dy,
         apertureSize + (L2gradient ? CV_CANNY_L2_GRADIENT : 0));
 }

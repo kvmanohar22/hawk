@@ -61,10 +61,10 @@ public:
   FramePtr lastFrame() { return last_frame_; }
 
   /// Integrate a single imu measurement (for motion priors)
-  void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
+  void integrateSingleMeasurement(const ImuDataPtr& msg);
 
   /// Integrate multiple imu measurements
-  void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
+  void integrateMultipleMeasurements(list<ImuDataPtr>& stream);
 
   /// This updates imu biases from visual inertial estimator thread
   void newImuBias(gtsam::imuBias::ConstantBias new_bias);
@@ -120,14 +120,13 @@ public:
   ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
   bool new_bias_arrived_;                      //!< Flag to be set if a new bias has arrived
-  bool should_integrate_;                      //!< Should we start integrating imu measurements?
-  bool first_measurement_done_;                //!< We discard some initial imu mesages
   ImuHelper* imu_helper_;
-  std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
   bool save_trajectory_;                      //!< Boolean to check if we have to save the trajectory
   SE3   prior_pose_;                          //!< Prior pose estimated from inertial initializer (this is the pose of camera in global frame)
   bool  prior_pose_set_;
+  ImuContainerPtr imu_container_;             //!< Container for imu messages
+  double prev_imu_ts_;                        //!< used for calculating dt for imu integration
 
 protected:
   /// Initialize the visual odometry algorithm.

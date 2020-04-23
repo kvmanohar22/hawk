@@ -197,8 +197,9 @@ void VoNode::imgStereoCb(
         vo_->inertial_estimator_->imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
           (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
       }
-    }
-    return;
+    } 
+    else
+      return;
   }
 
   cv::Mat l_img, r_img;

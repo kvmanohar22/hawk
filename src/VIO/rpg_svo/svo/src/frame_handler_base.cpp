@@ -58,6 +58,7 @@ FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   g_permon->addTimer("local_ba");
   g_permon->addTimer("tot_time");
   g_permon->addTimer("imu_prior_wait");
+  g_permon->addTimer("imu_integration");
   g_permon->addLog("timestamp");
   g_permon->addLog("img_align_n_tracked");
   g_permon->addLog("repr_n_mps");

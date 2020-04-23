@@ -118,6 +118,10 @@ public:
     delta_t_(20.0)
   {}
 
+  ImuContainer(double _delta_t) :
+    delta_t_(_delta_t)
+  {}
+
  ~ImuContainer() =default;
  
   void add(const sensor_msgs::Imu::ConstPtr& msg);

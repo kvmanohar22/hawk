@@ -180,7 +180,7 @@ void CannyEdgeDetector::detect(
       if(grid_occupancy_[k])
         continue;
       const float score = abs(sobel_x.at<short>(xy.y,xy.x)) + abs(sobel_y.at<short>(xy.y,xy.x)); // gradient magnitude
-      const float angle = atan(sobel_y.at<short>(xy.y,xy.x)/sobel_x.at<short>(xy.y,xy.x));
+      const float angle = atan2(sobel_y.at<short>(xy.y,xy.x), (sobel_x.at<short>(xy.y,xy.x)));
       if(score > corners.at(k).score)
         corners.at(k) = Corner(xy.x*scale, xy.y*scale, score, L, angle);
     }

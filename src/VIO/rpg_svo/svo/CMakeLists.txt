@@ -155,4 +155,7 @@ IF(SVO_BUILD_TESTS)
 
   ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
   TARGET_LINK_LIBRARIES(test_pose_optimizer svo)
+
+  ADD_EXECUTABLE(test_imu_container test/test_imu_container.cpp)
+  TARGET_LINK_LIBRARIES(test_imu_container svo)
 ENDIF(SVO_BUILD_TESTS)

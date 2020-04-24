@@ -53,8 +53,6 @@ public:
   vk::AbstractCamera* cam1_;
   bool quit_;
   ros::Rate rate_;
-  bool first_;
-  FramePtr first_frame_;
   InertialInitialization*      inertial_init_;
   bool                         inertial_init_done_;
   VoNode();
@@ -82,7 +80,6 @@ VoNode::VoNode() :
   cam_(NULL),
   quit_(false),
   rate_(300),
-  first_(false),
   inertial_init_done_(false)
 {
   // Start user input thread in parallel thread that listens to console keys
@@ -155,12 +152,6 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   processUserActions();
   vo_->addImage(img, msg->header.stamp);
 
-  if(!first_) {
-    first_frame_ = vo_->lastFrame();
-    first_ = true;
-  }
-  visualizer_.displayKeyframeWithMps(first_frame_, msg->header.stamp.toSec());
-
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
@@ -216,11 +207,6 @@ void VoNode::imgStereoCb(
   processUserActions();
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
   
-  if(!first_) {
-    first_frame_ = vo_->lastFrame();
-    first_ = true;
-  }
-  visualizer_.displayKeyframeWithMps(first_frame_, l_msg->header.stamp.toSec());
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)

@@ -202,8 +202,6 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 void VisualInertialEstimator::initializePrior()
 {
   // initialize the prior state
-  // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
-  //        And this only holds in case of drone in a normal position EXACTLY!
   SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());

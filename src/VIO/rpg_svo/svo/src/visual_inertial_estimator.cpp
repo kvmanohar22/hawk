@@ -158,7 +158,6 @@ void VisualInertialEstimator::addFactorsToGraph()
 void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   imu_container_->add(msg);
-  SVO_WARN_STREAM_THROTTLE(2.0, "SIZE = " << imu_container_->size());
 }
 
 void VisualInertialEstimator::startThread()
@@ -191,10 +190,6 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
     keyframes_.pop(); // we are not anyway going to be adding this first keyframe
   } else if(stage_ == EstimatorStage::FIRST_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
     SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_);
-
-    // stop the integration, get the IMU factor and optimize.
-    // This will be reset after optimization is done and biases updated
-    // Although the imu measurements will be stored in a list to be later integrated at once
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
   }
 }
@@ -233,6 +228,14 @@ void VisualInertialEstimator::initializeNewVariables()
 
   const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
+
+  cout << "pose (rpy) = " << vk::dcm2rpy(T_w_b.rotation_matrix()).transpose()*180/PI << "\t"
+       << "pose (t) = " << T_w_b.translation().transpose()
+       << endl
+       << "pred velocity = " << predicted_state.v().transpose() << "\n"
+       << "pred pose (rpy) = " << vk::dcm2rpy(predicted_state.pose().rotation().matrix()).transpose()*180/PI << "\t"
+       << "pred pose (t) = " << predicted_state.pose().translation().transpose()
+       << endl;
 
   initial_values_.insert(Symbol::X(correction_count_), init_pose);
   initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
@@ -278,7 +281,7 @@ void VisualInertialEstimator::stopOtherThreads()
   motion_estimator_->requestStop();
   depth_filter_->requestStop();
 
-  while(depth_filter_->isStopped() && motion_estimator_->isStopped())
+  while(!(depth_filter_->isStopped() && motion_estimator_->isStopped()))
   {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100));
   }
@@ -304,6 +307,10 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
+
+  cout << "initial pose = " << new_kf->T_f_w_.inverse().translation().transpose() << endl;
+  cout << "optimiz pose = " << T_w_f.translation().transpose() << endl;
+
   new_kf->T_f_w_ = T_w_f.inverse();
 
   // update the optimized state

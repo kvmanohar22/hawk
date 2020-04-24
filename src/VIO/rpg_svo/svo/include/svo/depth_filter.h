@@ -160,6 +160,8 @@ public:
   void setStop();
   bool isReleased();
 
+  void handleInterrupt();
+
 protected:
   feature_detection::DetectorPtr feature_detector_;
   callback_t seed_converged_cb_;

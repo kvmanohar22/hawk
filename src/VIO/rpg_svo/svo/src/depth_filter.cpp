@@ -169,25 +169,38 @@ void DepthFilter::reset()
     SVO_INFO_STREAM("DepthFilter: RESET.");
 }
 
+void DepthFilter::handleInterrupt()
+{
+  if(!stopRequested())
+    return;
+  cout << "df a" << endl;
+  setStop();
+  cout << "df b" << endl;
+  while(!isReleased())
+  {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+  }
+}
+
 void DepthFilter::updateSeedsLoop()
 {
   while(!boost::this_thread::interruption_requested())
   {
-    // look for any interruptions from inertial estimator thread
-    if(stopRequested())
-    {
-      setStop();
-      while(!isReleased())
-      {
-        boost::this_thread::sleep_for(boost::chrono::microseconds(100));
-      }
-    }
-
     FramePtr frame;
     {
       lock_t lock(frame_queue_mut_);
-      while(frame_queue_.empty() && new_keyframe_set_ == false)
+      while(frame_queue_.empty() && new_keyframe_set_ == false && !stopRequested()) {
+        cout << "aaaaa" << endl;
         frame_queue_cond_.wait(lock);
+      }
+      cout << "break" << endl;
+
+      // could be possible
+      handleInterrupt();
+
+      if(frame_queue_.empty() && new_keyframe_set_ == false)
+        continue;
+
       if(new_keyframe_set_)
       {
         new_keyframe_set_ = false;
@@ -202,6 +215,10 @@ void DepthFilter::updateSeedsLoop()
       }
     }
     updateSeeds(frame);
+
+    // look for any interruptions from inertial estimator thread
+    handleInterrupt();
+
     if(frame->isKeyframe())
       initializeSeeds(frame);
   }
@@ -221,6 +238,11 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
   while( it!=seeds_.end())
   {
+    cout << "hh" << endl;
+    // thread safe check to see if a stop interuption is requested
+    if(stopRequested())
+      return;
+
     // set this value true when seeds updating should be interrupted
     if(seeds_updating_halt_)
       return;
@@ -366,7 +388,6 @@ void DepthFilter::requestStop()
 {
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[DepthFilter]: Stop request recieved");
-  seeds_updating_halt_ = true;
   stop_requested_ = true;
 }
 
@@ -378,6 +399,7 @@ bool DepthFilter::stopRequested()
 
 void DepthFilter::setStop()
 {
+  SVO_DEBUG_STREAM("[DepthFilter]: Stopped >>");
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[DepthFilter]: Stopped");
   is_stopped_ = true;
@@ -399,8 +421,8 @@ void DepthFilter::release()
 {
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[DepthFilter]: Released");
-  seeds_updating_halt_ = false;
   stop_requested_ = false;
+  is_stopped_ = false;
 }
 
 } // namespace svo

@@ -180,6 +180,11 @@ void VoNode::imgStereoCb(
       // pose of camera in the same global frame of reference
       SE3 T_w_f0 = T_w_i0 * FrameHandlerMono::T_b_c0_;
 
+      cout.precision(std::numeric_limits<double>::max_digits10);
+      cout << "t0 (imu) = " << inertial_init_->t0_ << "\t"
+           << "t0 (img) = " << l_msg->header.stamp.toSec()
+           << endl;
+
       vo_->prior_pose_ = T_w_f0;
       vo_->prior_pose_set_ = true;
       if(Config::runInertialEstimator())

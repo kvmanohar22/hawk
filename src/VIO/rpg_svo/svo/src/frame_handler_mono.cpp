@@ -250,7 +250,9 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   // check if we have received a stop request
   if(stopRequested())
   {
+    cout << "fhm a" << endl;
     setStop();
+    cout << "fhm b" << endl;
 
     // good place to wait
     while(!isReleased())
@@ -652,6 +654,7 @@ bool FrameHandlerMono::stopRequested()
 
 void FrameHandlerMono::setStop()
 {
+  SVO_DEBUG_STREAM("[FrameHandler]: Stopped >>");
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[FrameHandler]: Stopped");
   is_stopped_ = true;
@@ -674,6 +677,7 @@ void FrameHandlerMono::release()
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[FrameHandler]: Released");
   stop_requested_ = false;
+  is_stopped_ = false;
 }
 
 } // namespace svo

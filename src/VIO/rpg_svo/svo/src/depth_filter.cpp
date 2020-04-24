@@ -121,16 +121,12 @@ void DepthFilter::initializeSeeds(FramePtr frame)
   feature_detector_->detect(frame.get(), frame->img_pyr_,
                             Config::triangMinCornerScore(), new_features);
   
-
   ///incorporating edgelet features
-  feature_detection::CannyEdgeDetector canny_edge_detector( feature_detector_->grid_n_cols_,  feature_detector_->grid_n_rows_, feature_detector_->cell_size_,  feature_detector_->n_pyr_levels_ );
+  feature_detection::CannyEdgeDetector canny_edge_detector(frame->img().cols, frame->img().rows, feature_detector_->cell_size_, feature_detector_->n_pyr_levels_);
   canny_edge_detector.setExistingFeatures(frame->fts_);
   canny_edge_detector.setExistingFeatures(new_features);
   canny_edge_detector.detect(frame.get(), frame->img_pyr_,
                             10,20, new_features);
-
-
-
 
   // initialize a seed for every new feature
   seeds_updating_halt_ = true;

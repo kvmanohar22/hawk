@@ -134,7 +134,7 @@ void Matcher::createPatchFromPatchWithBorder()
 
 bool Matcher::findMatchDirect(
     const Point& pt,
-    Frame& cur_frame,
+    const Frame& cur_frame,
     Vector2d& px_cur)
 {
   if(!pt.getCloseViewObs(cur_frame.pos(), ref_ftr_))
@@ -145,11 +145,10 @@ bool Matcher::findMatchDirect(
     return false;
 
   // warp affine
-  const SE3 T_cur_ref = cur_frame.T_f_w() * ref_ftr_->frame->T_f_w().inverse();
   warp::getWarpMatrixAffine(
       *ref_ftr_->frame->cam_, *cur_frame.cam_, ref_ftr_->px, ref_ftr_->f,
       (ref_ftr_->frame->pos() - pt.pos_).norm(),
-      T_cur_ref, ref_ftr_->level, A_cur_ref_);
+      cur_frame.T_f_w_ * ref_ftr_->frame->T_f_w_.inverse(), ref_ftr_->level, A_cur_ref_);
   search_level_ = warp::getBestSearchLevel(A_cur_ref_, Config::nPyrLevels()-1);
   warp::warpAffine(A_cur_ref_, ref_ftr_->frame->img_pyr_[ref_ftr_->level], ref_ftr_->px,
                    ref_ftr_->level, search_level_, halfpatch_size_+1, patch_with_border_);
@@ -178,15 +177,15 @@ bool Matcher::findMatchDirect(
 }
 
 bool Matcher::findEpipolarMatchDirect(
-    Frame& ref_frame,
-    Frame& cur_frame,
+    const Frame& ref_frame,
+    const Frame& cur_frame,
     const Feature& ref_ftr,
     const double d_estimate,
     const double d_min,
     const double d_max,
     double& depth)
 {
-  SE3 T_cur_ref = cur_frame.T_f_w() * ref_frame.T_f_w().inverse();
+  SE3 T_cur_ref = cur_frame.T_f_w_ * ref_frame.T_f_w_.inverse();
   int zmssd_best = PatchScore::threshold();
   Vector2d uv_best;
 

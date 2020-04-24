@@ -114,7 +114,8 @@ LIST(APPEND SOURCEFILES
   src/sparse_img_align.cpp
   src/imu.cpp
   src/visual_inertial_estimator.cpp
-  src/stereo.cpp)
+  src/stereo.cpp
+  src/inertial_initialization.cpp)
 
 # Add g2o if available
 IF(HAVE_G2O)
@@ -154,4 +155,7 @@ IF(SVO_BUILD_TESTS)
 
   ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
   TARGET_LINK_LIBRARIES(test_pose_optimizer svo)
+
+  ADD_EXECUTABLE(test_imu_container test/test_imu_container.cpp)
+  TARGET_LINK_LIBRARIES(test_imu_container svo)
 ENDIF(SVO_BUILD_TESTS)

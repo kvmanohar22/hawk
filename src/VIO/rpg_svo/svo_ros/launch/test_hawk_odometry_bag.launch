@@ -2,7 +2,7 @@
     <!-- TODO: Set this parameter -->
     <arg name="bag_path" default=""/>
     <arg name="start" default="0"/>
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="rig" default="monocular"/>
     <arg name="save_trajectory" default="false"/>

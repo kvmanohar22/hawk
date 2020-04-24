@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
@@ -63,7 +63,7 @@
         <param name="max_measurements" value="50" />
 
         <!-- Initial camera orientation, make it point forward -->
-        <param name="init_rx" value="3.14" />
+        <param name="init_rx" value="0.00" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
 

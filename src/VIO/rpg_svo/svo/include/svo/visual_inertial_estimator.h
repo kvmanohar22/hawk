@@ -16,13 +16,10 @@
 
 namespace svo {
 
-namespace Symbol = gtsam::symbol_shorthand;
+class FrameHandlerMono;
+class DepthFilter;
 
-static inline Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
-{
-  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
-  return v_eigen; 
-}
+namespace Symbol = gtsam::symbol_shorthand;
 
 /// Assess the current stage of the system
 enum class EstimatorStage {
@@ -57,7 +54,7 @@ public:
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
-  void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
+  void feedImu(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Start this thread to estimate inertial estimates 
   void startThread();
@@ -106,7 +103,10 @@ private:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
-protected:
+  void stopOtherThreads();
+  void resumeOtherThreads();
+
+public:
 
   // TODO: Need to hold proper reference to keyframes
   //       These could be deleted in the Motion Estimation thread
@@ -148,6 +148,9 @@ protected:
 
   unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
   gtsam::Pose3                 body_P_sensor_;         //!< pose of the camera in body frame (T_b_c)
+
+  FrameHandlerMono*            motion_estimator_;      //!< Reference to motion estimation thread
+  DepthFilter*                 depth_filter_;          //!< Reference to depth filter thread
 }; // class VisualInertialEstimator
 
 } // namespace svo

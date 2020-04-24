@@ -64,9 +64,9 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
   // Optimize for change in body transformation rather than camera transfomration
   SE3 T_cur_from_ref;
   if(use_motion_priors_)
-    T_cur_from_ref = FrameHandlerMono::T_b_c0_ * cur_frame_->T_f_w() * ref_frame_->T_f_w().inverse() * FrameHandlerMono::T_c0_b_;
+    T_cur_from_ref = FrameHandlerMono::T_b_c0_ * cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
   else
-    T_cur_from_ref = cur_frame_->T_f_w() * ref_frame_->T_f_w().inverse();
+    T_cur_from_ref = cur_frame_->T_f_w_ * ref_frame_->T_f_w_.inverse();
 
   for(level_=max_level_; level_>=min_level_; --level_)
   {
@@ -80,9 +80,9 @@ size_t SparseImgAlign::run(FramePtr ref_frame, FramePtr cur_frame)
 
   // update the current frames' tranformation
   if(use_motion_priors_)
-    cur_frame_->T_f_w(FrameHandlerMono::T_c0_b_ * T_cur_from_ref * FrameHandlerMono::T_b_c0_ * ref_frame_->T_f_w());
+    cur_frame_->T_f_w_ = FrameHandlerMono::T_c0_b_ * T_cur_from_ref * FrameHandlerMono::T_b_c0_ * ref_frame_->T_f_w_;
   else
-    cur_frame_->T_f_w(T_cur_from_ref * ref_frame_->T_f_w());
+    cur_frame_->T_f_w_ = T_cur_from_ref * ref_frame_->T_f_w_;
 
   return n_meas_/patch_area_;
 }

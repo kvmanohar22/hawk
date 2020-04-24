@@ -3,6 +3,7 @@
 #include <svo/frame.h>
 #include <svo/feature.h>
 #include <svo/point.h>
+#include <svo/depth_filter.h>
 
 namespace svo {
 
@@ -53,8 +54,6 @@ VisualInertialEstimator::VisualInertialEstimator(
   isam2_ = gtsam::ISAM2(isam2_params_);
 
   graph_ = new gtsam::NonlinearFactorGraph();
-
-  initializePrior();
 }
 
 VisualInertialEstimator::~VisualInertialEstimator()
@@ -126,7 +125,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
-      const SE3 T_w_f = (*it_pt)->frame->T_f_w().inverse();
+      const SE3 T_w_f = (*it_pt)->frame->T_f_w_.inverse();
       const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
       const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
       const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
@@ -149,7 +148,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
 }
 
-void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   // TODO: If multiple keyframes start queuing up, we need to maintain
   //       separate copies for each of those keyframes
@@ -191,6 +190,7 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_);
+    initializePrior();
     stage_ = EstimatorStage::FIRST_KEYFRAME;
     should_integrate_ = true;
     keyframes_.pop(); // we are not anyway going to be adding this first keyframe
@@ -210,7 +210,7 @@ void VisualInertialEstimator::initializePrior()
   // initialize the prior state
   // FIXME: Rotation cannot be identity b/c gravity is assumed to be along body Z.
   //        And this only holds in case of drone in a normal position EXACTLY!
-  SE3 T_w_b      = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
@@ -234,7 +234,7 @@ void VisualInertialEstimator::initializePrior()
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  const SE3 T_w_b = FrameHandlerMono::T_b_c0_ * keyframes_.front()->T_f_w().inverse() * FrameHandlerMono::T_c0_b_;
+  const SE3 T_w_b = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
   const gtsam::Rot3 R_w_b(T_w_b.rotation_matrix());
   const gtsam::Point3 t_w_b(T_w_b.translation());
   gtsam::Pose3 init_pose(R_w_b, t_w_b);
@@ -281,20 +281,38 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   return opt_result;
 }
 
+void VisualInertialEstimator::stopOtherThreads()
+{
+  motion_estimator_->requestStop();
+  depth_filter_->requestStop();
+
+  while(depth_filter_->isStopped() && motion_estimator_->isStopped())
+  {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+  }
+}
+
+void VisualInertialEstimator::resumeOtherThreads()
+{
+  motion_estimator_->release();
+  depth_filter_->release();
+}
+
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
-  result.print();
+  // wait for other threads to stop
+  stopOtherThreads();
 
   // Only update the latest pose
   const auto pose       = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   gtsam::Matrix33 R_w_b = pose.rotation().matrix();
   gtsam::Vector3 t_w_b  = pose.translation().vector();
   const SE3 T_w_b       = Sophus::SE3(R_w_b, t_w_b);
-  const SE3 T_wc_f      = FrameHandlerMono::T_c0_b_ * T_w_b * FrameHandlerMono::T_b_c0_;
+  const SE3 T_w_f       = T_w_b * FrameHandlerMono::T_b_c0_;
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
-  new_kf->T_f_w(T_wc_f.inverse());
+  new_kf->T_f_w_ = T_w_f.inverse();
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
@@ -303,6 +321,32 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
   SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF="
       << correction_count_ << " remaining kfs= " << keyframes_.size());
+
+  // update the structure
+  for(auto it_ftr=new_kf->fts_.begin(); it_ftr!=new_kf->fts_.end(); ++it_ftr)
+  {
+    if((*it_ftr)->point == NULL)
+      continue;
+
+    const size_t key = (*it_ftr)->point->id_;
+    if(smart_factors_.find(key) == smart_factors_.end())
+      continue;
+
+    const SmartFactorPtr factor = smart_factors_[key];
+    boost::optional<gtsam::Point3> p = factor->point(result);
+    if(p) {
+      // estimate is in the body world frame
+      Vector3d point(p->x(), p->y(), p->z());
+      // (*it_ftr)->point->pos_ = FrameHandlerMono::T_c0_b_ * point;
+    } else {
+      // Handle this case separately
+    }
+    smart_factors_.erase(key);
+  }
+  assert(smart_factors_.size() == 0);
+
+  // resume other threads
+  resumeOtherThreads();
 }
 
 bool VisualInertialEstimator::shouldRunOptimization()

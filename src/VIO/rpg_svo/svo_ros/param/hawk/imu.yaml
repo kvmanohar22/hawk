@@ -5,17 +5,12 @@ imu0:
   - [0.0, 1.0, 0.0, 0.0]
   - [0.0, 0.0, 1.0, 0.0]
   - [0.0, 0.0, 0.0, 1.0]
-  accelerometer_noise_density: 0.012256517540566822
-  accelerometer_random_walk: 0.0009777740576981755
-  gyroscope_noise_density: 0.000560278415095765
-  gyroscope_random_walk: 6.711174030467562e-07
+  accelerometer_noise_density: 0.0012256517540566822
+  accelerometer_random_walk: 0.00009777740576981755
+  gyroscope_noise_density: 0.0000560278415095765
+  gyroscope_random_walk: 6.711174030467562e-08
   model: calibrated
   rostopic: /mavros/imu/data_raw
   time_offset: 0.0
-  update_rate: 200
-  T_cam_imu: [-0.04410510234950716, -0.9988116520351945, 0.02073701293498563, 0.010275799779137984,
-              -0.9985256569877884, 0.04473092704954595, 0.03075152845623273, 0.043483661249631045,
-              -0.03164257075279743, -0.019350140154904858, -0.9993119231712091, -0.10946023971445079,
-              0.0, 0.0, 0.0, 1.0]
-  gravity: [-0.13243984, -9.49444732, -2.45078612]
+  update_rate: 220
 

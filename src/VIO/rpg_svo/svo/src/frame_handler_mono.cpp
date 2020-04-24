@@ -52,11 +52,12 @@ FrameHandlerMono::FrameHandlerMono(
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
-  should_integrate_(false),
-  first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
-  save_trajectory_(Config::saveTrajectory())
+  save_trajectory_(Config::saveTrajectory()),
+  prior_pose_set_(false),
+  stop_requested_(false),
+  is_stopped_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -81,11 +82,12 @@ FrameHandlerMono::FrameHandlerMono(
   depth_filter_(NULL),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
-  should_integrate_(false),
-  first_measurement_done_(false),
   imu_helper_(nullptr),
   n_integrated_measurements_(0),
-  save_trajectory_(Config::saveTrajectory())
+  save_trajectory_(Config::saveTrajectory()),
+  prior_pose_set_(false),
+  stop_requested_(false),
+  is_stopped_(false)
 {
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
     SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
@@ -129,6 +131,9 @@ void FrameHandlerMono::initialize()
       &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
     inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb);
+
+    inertial_estimator_->motion_estimator_ = this;
+    inertial_estimator_->depth_filter_ = depth_filter_;
     inertial_estimator_->startThread();
   }
 
@@ -141,6 +146,12 @@ void FrameHandlerMono::initialize()
         imu_helper_->params_, imu_helper_->curr_imu_bias_);
     assert(integrator_);
   }
+
+  // this will be the pose of first frame if we are not using inertial initializer
+  prior_pose_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+
+  // 5s of storage time. This will be emptied pretty quickly
+  imu_container_ = boost::make_shared<ImuContainer>(5.0);
 }
 
 FrameHandlerMono::~FrameHandlerMono()
@@ -152,28 +163,27 @@ FrameHandlerMono::~FrameHandlerMono()
     delete imu_helper_;
 }
 
-void FrameHandlerMono::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
+void FrameHandlerMono::integrateSingleMeasurement(const ImuDataPtr& msg)
 {
   static gtsam::Matrix9 A; 
   static gtsam::Matrix93 B, C;
 
-  const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
-  const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
+  // update dt for next integration
+  double dt = n_integrated_measurements_ == 0 ? Config::dt() : msg->ts_ - prev_imu_ts_;
+  prev_imu_ts_ = msg->ts_;
 
-  // FIXME: imu biases need to be updated
-  integrator_->update(acc, omg, Config::dt(), &A, &B, &C);
+  integrator_->update(msg->acc_, msg->omg_, dt, &A, &B, &C);
   ++n_integrated_measurements_;
 }
 
-void FrameHandlerMono::integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs)
+void FrameHandlerMono::integrateMultipleMeasurements(list<ImuDataPtr>& stream)
 {
-  SVO_DEBUG_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
-  for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
-      itr != msgs.end(); ++itr)
+  for(list<ImuDataPtr>::const_iterator itr=stream.begin();
+      itr != stream.end(); ++itr)
   {
     integrateSingleMeasurement(*itr);
   }
-  msgs.clear();
+  stream.clear();
 }
 
 void FrameHandlerMono::newImuBias(gtsam::imuBias::ConstantBias new_bias)
@@ -182,19 +192,10 @@ void FrameHandlerMono::newImuBias(gtsam::imuBias::ConstantBias new_bias)
   new_bias_arrived_ = true;
 }
 
-void FrameHandlerMono::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void FrameHandlerMono::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
   SVO_INFO_STREAM_ONCE("Imu callback in progress");
-  if(should_integrate_)
-  {
-    if(!imu_msgs_.empty())
-    {
-      integrateMultipleMeasurements(imu_msgs_);
-    }
-    integrateSingleMeasurement(msg);
-  } else if(first_measurement_done_) {
-    imu_msgs_.push_back(msg);
-  }
+  imu_container_->add(msg);
 }
 
 void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
@@ -230,7 +231,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   if(save_trajectory_)
   {
     SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
-    const SE3 T_w_f = last_frame_->T_f_w().inverse();
+    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
     const Vector3d t = T_w_f.translation();
     const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
     ofstream ofs("/tmp/trajectory.txt", std::ios::app);
@@ -246,6 +247,18 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 
 void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const ros::Time ts)
 {
+  // check if we have received a stop request
+  if(stopRequested())
+  {
+    setStop();
+
+    // good place to wait
+    while(!isReleased())
+    {
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+    }
+  }
+
   if(init_type_ != FrameHandlerBase::InitType::STEREO) {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
     return;
@@ -280,7 +293,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   if(save_trajectory_)
   {
     SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
-    const SE3 T_w_f = last_frame_->T_f_w().inverse();
+    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
     const Vector3d t = T_w_f.translation();
     const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
     ofstream ofs("/tmp/trajectory.txt", std::ios::app);
@@ -296,7 +309,7 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w(SE3(Matrix3d::Identity(), Vector3d::Zero()));
+  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -306,14 +319,6 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
-  }
- 
-  if(Config::useMotionPriors()) {
-    // in stereo, we get the initial map right here. No second frame processed 
-    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
-      should_integrate_ = true;
-      first_measurement_done_ = true;
-    }
   }
 
   return RESULT_IS_KEYFRAME;
@@ -347,12 +352,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
-  if(Config::useMotionPriors()) {
-    // if we are here, we are using KLT to bootstrap the map
-    should_integrate_ = true;
-    first_measurement_done_ = true;
-  }
-
   return RESULT_IS_KEYFRAME;
 }
 
@@ -360,7 +359,11 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
   // process the first image
-  new_frame_->T_f_w(SE3(Matrix3d::Identity(), Vector3d::Zero()));
+  if(!prior_pose_set_) {
+    SVO_ERROR_STREAM("Prior pose not set!");
+    return RESULT_FAILURE;
+  }
+  new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
@@ -368,14 +371,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
 
   if (Config::runInertialEstimator()) {
     inertial_estimator_->addKeyFrame(new_frame_);
-  }
- 
-  if(Config::useMotionPriors()) {
-    // in stereo, we get the initial map right here. No second frame processed 
-    if(init_type_ == FrameHandlerBase::InitType::STEREO) {
-      should_integrate_ = true;
-      first_measurement_done_ = true;
-    }
   }
 
   // Reset the frames
@@ -409,9 +404,14 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
   if(Config::useMotionPriors())
   {
-    // FIXME: Not threadsafe
-    // stop the integration
-    should_integrate_ = false;
+    const double t0 = last_frame_->timestamp_;
+    const double t1 = new_frame_->timestamp_;
+
+    SVO_START_TIMER("imu_integration");
+    list<ImuDataPtr> imu_stream = imu_container_->read(t0, t1);
+    integrateMultipleMeasurements(imu_stream);
+    SVO_STOP_TIMER("imu_integration");
+
     delta_R_ = integrator_->deltaRij().matrix();
     delta_t_ = integrator_->deltaPij();
 
@@ -420,20 +420,19 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     SVO_DEBUG_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
     n_integrated_measurements_ = 0;
 
-    // check if need to update integrator with new bias
+    // check if we need to update integrator with new bias
+    // TODO: Make this thread safe
     if(new_bias_arrived_)
     {
       integrator_.reset(new gtsam::PreintegrationType(
         imu_helper_->params_, imu_helper_->curr_imu_bias_));
       new_bias_arrived_ = false;
     }
-
-    should_integrate_ = true;
   }
 
   // Set initial pose
   // TODO: Set this initial transformation to the one from IMU?
-  new_frame_->T_f_w(last_frame_->T_f_w());
+  new_frame_->T_f_w_ = last_frame_->T_f_w_;
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");
@@ -461,7 +460,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   if(repr_n_new_references < Config::qualityMinFts())
   {
     SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
-    new_frame_->T_f_w(last_frame_->T_f_w()); // reset to avoid crazy pose jumps
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
     tracking_quality_ = TRACKING_INSUFFICIENT;
     return RESULT_FAILURE;
   }
@@ -490,7 +489,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   setTrackingQuality(sfba_n_edges_final);
   if(tracking_quality_ == TRACKING_INSUFFICIENT)
   {
-    new_frame_->T_f_w(last_frame_->T_f_w()); // reset to avoid crazy pose jumps
+    new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
     return RESULT_FAILURE;
   }
   double depth_mean, depth_min;
@@ -564,7 +563,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
   size_t img_align_n_tracked = img_align.run(ref_keyframe, new_frame_);
   if(img_align_n_tracked > 30)
   {
-    SE3 T_f_w_last = last_frame_->T_f_w();
+    SE3 T_f_w_last = last_frame_->T_f_w_;
     last_frame_ = ref_keyframe;
     FrameHandlerMono::UpdateResult res = processFrame();
     if(res != RESULT_FAILURE)
@@ -573,7 +572,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
       SVO_INFO_STREAM("Relocalization successful.");
     }
     else
-      new_frame_->T_f_w(T_f_w_last); // reset to last well localized pose
+      new_frame_->T_f_w_ = T_f_w_last; // reset to last well localized pose
     return res;
   }
   return RESULT_FAILURE;
@@ -636,6 +635,45 @@ void FrameHandlerMono::setCoreKfs(size_t n_closest)
                     boost::bind(&pair<FramePtr, size_t>::second, _1) >
                     boost::bind(&pair<FramePtr, size_t>::second, _2));
   std::for_each(overlap_kfs_.begin(), overlap_kfs_.end(), [&](pair<FramePtr,size_t>& i){ core_kfs_.insert(i.first); });
+}
+
+void FrameHandlerMono::requestStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Stop request recieved");
+  stop_requested_ = true;
+}
+
+bool FrameHandlerMono::stopRequested()
+{
+  lock_t lock(request_mut_);
+  return stop_requested_;
+}
+
+void FrameHandlerMono::setStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Stopped");
+  is_stopped_ = true;
+}
+
+bool FrameHandlerMono::isStopped()
+{
+  lock_t lock(request_mut_);
+  return is_stopped_;
+}
+
+bool FrameHandlerMono::isReleased()
+{
+  lock_t lock(request_mut_);
+  return !stop_requested_;
+}
+
+void FrameHandlerMono::release()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[FrameHandler]: Released");
+  stop_requested_ = false;
 }
 
 } // namespace svo

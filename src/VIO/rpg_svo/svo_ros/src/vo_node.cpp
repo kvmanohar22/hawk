@@ -19,6 +19,7 @@
 #include <svo/map.h>
 #include <svo/config.h>
 #include <svo/visual_inertial_estimator.h>
+#include <svo/inertial_initialization.h>
 #include <svo_ros/visualizer.h>
 #include <vikit/params_helper.h>
 #include <sensor_msgs/Image.h>
@@ -54,8 +55,12 @@ public:
   ros::Rate rate_;
   bool first_;
   FramePtr first_frame_;
+  InertialInitialization*      inertial_init_;
+  bool                         inertial_init_done_;
   VoNode();
   ~VoNode();
+
+  void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
 
   // for monocular case
   void imgCb(const sensor_msgs::ImageConstPtr& msg);
@@ -77,7 +82,8 @@ VoNode::VoNode() :
   cam_(NULL),
   quit_(false),
   rate_(300),
-  first_(false)
+  first_(false),
+  inertial_init_done_(false)
 {
   // Start user input thread in parallel thread that listens to console keys
   if(vk::getParam<bool>("/hawk/svo/accept_console_user_input", true))
@@ -100,6 +106,8 @@ VoNode::VoNode() :
                       vk::getParam<double>("/hawk/svo/init_ty", 0.0),
                       vk::getParam<double>("/hawk/svo/init_tz", 0.0)));
 
+  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, -9.807166));
+
   // Init VO and start
   std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
   if(rig_type == "stereo")
@@ -117,6 +125,25 @@ VoNode::~VoNode()
     user_input_thread_->stop();
 }
 
+void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+{
+  if(!inertial_init_done_)
+  {
+    inertial_init_->feedImu(msg);
+    return;
+  }
+
+  if(svo::Config::runInertialEstimator())
+  {
+    vo_->inertial_estimator_->feedImu(msg);
+  }
+
+  if(svo::Config::useMotionPriors())
+  {
+    vo_->feedImu(msg);
+  }
+}
+
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
   cv::Mat img;
@@ -125,14 +152,6 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
-
-  // // WARNING: Use this with caution
-  // uint8_t *data = (uint8_t*)img.data;
-  // for(int i=0; i<img.rows;++i) {
-  //   for (int j=0; j<img.cols;++j) {
-  //     data[i*img.cols+j] *= 2;
-  //   }
-  // }
 
   processUserActions();
   vo_->addImage(img, msg->header.stamp);
@@ -159,14 +178,36 @@ void VoNode::imgStereoCb(
     const sensor_msgs::ImageConstPtr& l_msg,
     const sensor_msgs::ImageConstPtr& r_msg)
 {
-  cv::Mat l_img, r_img;
+  // make sure we have first initialized the gravity vector
+  if(!inertial_init_done_)
+  {
+    inertial_init_done_ = inertial_init_->initialize();
+    if(inertial_init_done_)
+    {
+      // pose of IMU (at t=0) in Global frame of reference
+      SE3 T_w_i0 = SE3(inertial_init_->R_init_, Vector3d::Zero());
 
+      // pose of camera in the same global frame of reference
+      SE3 T_w_f0 = T_w_i0 * FrameHandlerMono::T_b_c0_;
+
+      vo_->prior_pose_ = T_w_f0;
+      vo_->prior_pose_set_ = true;
+      if(Config::runInertialEstimator())
+      {
+        vo_->inertial_estimator_->imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+          (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+      }
+    }
+    else
+      return;
+  }
+
+  cv::Mat l_img, r_img;
   try {
     l_img = cv_bridge::toCvShare(l_msg, "mono8")->image;
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception left message: %s", e.what());
   }
-
   try {
     r_img = cv_bridge::toCvShare(r_msg, "mono8")->image;
   } catch (cv_bridge::Exception& e) {
@@ -180,13 +221,13 @@ void VoNode::imgStereoCb(
     first_frame_ = vo_->lastFrame();
     first_ = true;
   }
-  // visualizer_.displayKeyframeWithMps(first_frame_, l_msg->header.stamp.toSec());
+  visualizer_.displayKeyframeWithMps(first_frame_, l_msg->header.stamp.toSec());
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
 
-  // if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
+  if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
 
-  // if(publish_dense_input_)
+  if(publish_dense_input_)
     visualizer_.exportToDense(vo_->lastFrame());
 
   if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
@@ -264,18 +305,13 @@ int main(int argc, char **argv)
   // subscribe to remote input
   vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
 
-  ros::Subscriber imu_subscriber_inertial_;
-  if(svo::Config::runInertialEstimator())
+  ros::Subscriber imu_subscriber;
+  if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {
-    imu_subscriber_inertial_ = nh.subscribe(
-      imu_topic, 100, &svo::VisualInertialEstimator::imuCb, vo_node.vo_->inertialEstimator());
-  }
-
-  ros::Subscriber imu_subscriber_motion_priors_;
-  if(svo::Config::useMotionPriors())
-  {
-    imu_subscriber_motion_priors_ = nh.subscribe(
-      imu_topic, 10000, &svo::FrameHandlerMono::imuCb, vo_node.vo_);
+    imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
+  } else {
+    vo_node.inertial_init_done_ = true;
+    vo_node.vo_->prior_pose_set_ = true;
   }
 
   // start processing callbacks

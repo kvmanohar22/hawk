@@ -142,7 +142,9 @@ public:
 
   inline Vector2d angle2grad(float angle)
   {
-    return(Vector2d(cos(angle), sin(angle)));
+    Vector2d v(cos(angle), sin(angle));
+    v.normalize();
+    return v;
   }  
   
 };

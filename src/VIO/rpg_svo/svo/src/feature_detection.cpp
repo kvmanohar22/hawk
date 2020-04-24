@@ -180,7 +180,7 @@ void CannyEdgeDetector::detect(
       if(grid_occupancy_[k])
         continue;
       const float score = abs(sobel_x.at<short>(xy.y,xy.x)) + abs(sobel_y.at<short>(xy.y,xy.x)); // gradient magnitude
-      const float angle = atan(sobel_y.at<short>(xy.y,xy.x)/sobel_x.at<short>(xy.y,xy.x));
+      const float angle = atan2(sobel_y.at<short>(xy.y,xy.x),sobel_x.at<short>(xy.y,xy.x));
       if(score > corners.at(k).score)
         corners.at(k) = Corner(xy.x*scale, xy.y*scale, score, L, angle);
     }
@@ -353,7 +353,6 @@ float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr,
 #define CANNY_POP(d)     (d) = *--stack_top
 
     mag_row = cvMat(1, size.width, CV_32F);
-
     // calculate magnitude and angle of gradient, perform non-maxima supression.
     // fill the map with one of the following values:
     //   0 - the pixel might belong to an edge
@@ -519,11 +518,13 @@ float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr,
             CANNY_PUSH(m + mapstep);
         if (!m[mapstep + 1])
             CANNY_PUSH(m + mapstep + 1);
+
     }
 
     // the final pass, form the final image
     for (i = 0; i < size.height; i++)
     {
+
         const uchar* _map = map + mapstep*(i + 1) + 1;
         uchar* _dst = dst->data.ptr + dst->step*i;
 

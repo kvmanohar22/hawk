@@ -131,11 +131,11 @@ public:
       const double detection_threshold_high,
       Features& fts);
 
-  void cvCanny3(const void* srcarr, void* dstarr,
+  float cvCanny3(const void* srcarr, void* dstarr,
       void* dxarr, void* dyarr,
       int aperture_size);
 
-  void Canny3(InputArray image, OutputArray _edges,
+  float Canny3(InputArray image, OutputArray _edges,
       OutputArray _sobel_x, OutputArray _sobel_y,
       int apertureSize = 3, bool L2gradient = false);
   

@@ -173,13 +173,9 @@ void DepthFilter::handleInterrupt()
 {
   if(!stopRequested())
     return;
-  cout << "df a" << endl;
   setStop();
-  cout << "df b" << endl;
   while(!isReleased())
-  {
     boost::this_thread::sleep_for(boost::chrono::microseconds(100));
-  }
 }
 
 void DepthFilter::updateSeedsLoop()
@@ -189,11 +185,8 @@ void DepthFilter::updateSeedsLoop()
     FramePtr frame;
     {
       lock_t lock(frame_queue_mut_);
-      while(frame_queue_.empty() && new_keyframe_set_ == false && !stopRequested()) {
-        cout << "aaaaa" << endl;
+      while(frame_queue_.empty() && new_keyframe_set_ == false && !stopRequested())
         frame_queue_cond_.wait(lock);
-      }
-      cout << "break" << endl;
 
       // could be possible
       handleInterrupt();
@@ -238,7 +231,6 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
   while( it!=seeds_.end())
   {
-    cout << "hh" << endl;
     // thread safe check to see if a stop interuption is requested
     if(stopRequested())
       return;
@@ -389,6 +381,7 @@ void DepthFilter::requestStop()
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[DepthFilter]: Stop request recieved");
   stop_requested_ = true;
+  frame_queue_cond_.notify_one();
 }
 
 bool DepthFilter::stopRequested()
@@ -399,7 +392,6 @@ bool DepthFilter::stopRequested()
 
 void DepthFilter::setStop()
 {
-  SVO_DEBUG_STREAM("[DepthFilter]: Stopped >>");
   lock_t lock(request_mut_);
   SVO_DEBUG_STREAM("[DepthFilter]: Stopped");
   is_stopped_ = true;

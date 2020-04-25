@@ -320,8 +320,7 @@ float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr,
         high = cvFloor(high_thresh);
     }
 
-    cout<<low<<endl;
-    cout<<high<<endl;
+    
 
     buffer.allocate((size.width + 2)*(size.height + 2) + (size.width + 2) * 3 * sizeof(int));
     mag_buf[0] = (int*)(char*)buffer;

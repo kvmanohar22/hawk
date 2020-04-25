@@ -298,7 +298,9 @@ int main(int argc, char **argv)
   ros::Subscriber imu_subscriber;
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {
-    imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
+    vo_node.inertial_init_done_ = true;
+    vo_node.vo_->prior_pose_set_ = true;
+    // imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
   } else {
     vo_node.inertial_init_done_ = true;
     vo_node.vo_->prior_pose_set_ = true;

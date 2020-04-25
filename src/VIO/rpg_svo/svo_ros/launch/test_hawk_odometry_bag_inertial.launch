@@ -11,7 +11,7 @@
       <arg name="calibration" value="$(arg calibration)"/>
       <arg name="image_topic" value="$(arg image_topic)"/>
       <arg name="rig" value="$(arg rig)"/>
-      <arg name="use_motion_priors" value="true"/>
+      <arg name="use_motion_priors" value="false"/>
       <arg name="run_inertial_estimator" value="true"/>
     </include>
 

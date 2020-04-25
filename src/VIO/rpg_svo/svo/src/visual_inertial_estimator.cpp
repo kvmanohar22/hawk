@@ -45,8 +45,12 @@ VisualInertialEstimator::VisualInertialEstimator(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);
 
+  // isam2_params_.relinearizeThreshold = 0.01;
+  // isam2_params_.relinearizeSkip = 1;
   isam2_params_.relinearizeThreshold = 0.01;
   isam2_params_.relinearizeSkip = 1;
+  isam2_params_.cacheLinearizedFactors = false;
+  isam2_params_.enableDetailedResults = true;
   isam2_ = gtsam::ISAM2(isam2_params_);
 
   graph_ = new gtsam::NonlinearFactorGraph();
@@ -128,7 +132,16 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       continue;
     (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
 
-    SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_, body_P_camera_));
+    // cout << "key = " << (*it_ftr)->point->id_ << "\t pt = " << (*it_ftr)->point->pos_.transpose() << endl;
+
+    if(point->obs_.size() < 2) {
+      SVO_WARN_STREAM("Detected a point observed in only a single frame");
+      continue;
+    }
+
+    const Vector3d pt = (*it_ftr)->point->pos_;
+    SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_));
+    // SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_, body_P_camera_));
     smart_factors_[(*it_ftr)->point->id_] = new_factor;
     for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
     {
@@ -150,7 +163,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
 
 void VisualInertialEstimator::addFactorsToGraph()
 {
-  addImuFactorToGraph();
+  // addImuFactorToGraph();
   addVisionFactorToGraph();
   SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
 }
@@ -197,49 +210,54 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 void VisualInertialEstimator::initializePrior()
 {
   // initialize the prior state
-  SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
+  SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse();;
+  // SE3 T_w_b      = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;;
   curr_pose_     = gtsam::Pose3(gtsam::Rot3(T_w_b.rotation_matrix()), gtsam::Point3(T_w_b.translation()));
-  curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
-  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+  // curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
+  // curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
   initial_values_.clear();
   initial_values_.insert(Symbol::X(0), curr_pose_);
-  initial_values_.insert(Symbol::V(0), curr_velocity_);
+/*  initial_values_.insert(Symbol::V(0), curr_velocity_);
   initial_values_.insert(Symbol::B(0), imu_helper_->curr_imu_bias_);
-
+*/
   // Add in first keyframe's factors
   graph_->resize(0);
   graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
         Symbol::X(0), curr_pose_, imu_helper_->prior_pose_noise_model_));
-  graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
+/*  graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
         Symbol::V(0), curr_velocity_, imu_helper_->prior_vel_noise_model_));
   graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
         Symbol::B(0), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
-
+*/
   SVO_DEBUG_STREAM("[Estimator]: Initialized Prior state");
 }
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  const SE3 T_w_b = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
+  const SE3 T_w_b = keyframes_.front()->T_f_w_.inverse();
+  // const SE3 T_w_b = keyframes_.front()->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
   const gtsam::Rot3 R_w_b(T_w_b.rotation_matrix());
   const gtsam::Point3 t_w_b(T_w_b.translation());
   gtsam::Pose3 init_pose(R_w_b, t_w_b);
 
-  const gtsam::NavState predicted_state = imu_preintegrated_->predict(
+/*  const gtsam::NavState predicted_state = imu_preintegrated_->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
+*/
+  graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
+        Symbol::X(correction_count_), init_pose, imu_helper_->prior_pose_noise_model_));
 
   cout << "pose (rpy) = " << vk::dcm2rpy(T_w_b.rotation_matrix()).transpose()*180/PI << "\t"
        << "pose (t) = " << T_w_b.translation().transpose()
-       << endl
-       << "pred velocity = " << predicted_state.v().transpose() << "\n"
-       << "pred pose (rpy) = " << vk::dcm2rpy(predicted_state.pose().rotation().matrix()).transpose()*180/PI << "\t"
-       << "pred pose (t) = " << predicted_state.pose().translation().transpose()
+       // << endl
+       // << "pred velocity = " << predicted_state.v().transpose() << "\n"
+       // << "pred pose (rpy) = " << vk::dcm2rpy(predicted_state.pose().rotation().matrix()).transpose()*180/PI << "\t"
+       // << "pred pose (t) = " << predicted_state.pose().translation().transpose()
        << endl;
 
   initial_values_.insert(Symbol::X(correction_count_), init_pose);
-  initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
-  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
+  // initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
+  // initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
   SVO_DEBUG_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
 }
 
@@ -255,6 +273,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   SVO_DEBUG_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
+  initial_values_.print();
   isam2_.update(*graph_, initial_values_);
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
@@ -263,6 +282,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   // update the optimized variables
   // TODO: Analyze whether optimization was converged!
   const gtsam::Values result = isam2_.calculateEstimate();
+  result.print();
   updateState(result);
 
   // clear the graph
@@ -303,7 +323,8 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   gtsam::Matrix33 R_w_b = pose.rotation().matrix();
   gtsam::Vector3 t_w_b  = pose.translation().vector();
   const SE3 T_w_b       = Sophus::SE3(R_w_b, t_w_b);
-  const SE3 T_w_f       = T_w_b * FrameHandlerMono::T_b_c0_;
+  const SE3 T_w_f       = T_w_b;
+  // const SE3 T_w_f       = T_w_b * FrameHandlerMono::T_b_c0_;
 
   FramePtr new_kf = keyframes_.front();
   keyframes_.pop();
@@ -315,13 +336,13 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   // update the optimized state
   curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
-  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
-  imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
-  SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF="
-      << correction_count_ << " remaining kfs= " << keyframes_.size());
+  // curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
+  // curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+  // imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
 
   // update the structure
+  const size_t n_points = smart_factors_.size();
+  size_t n_valid = 0;
   for(auto it_ftr=new_kf->fts_.begin(); it_ftr!=new_kf->fts_.end(); ++it_ftr)
   {
     if((*it_ftr)->point == NULL)
@@ -336,12 +357,17 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
     if(p) {
       Vector3d point(p->x(), p->y(), p->z());
       (*it_ftr)->point->pos_ = point;
+      ++n_valid;
     } else {
       // TODO: Handle this case separately
     }
     smart_factors_.erase(key);
   }
   assert(smart_factors_.size() == 0);
+
+  SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF = "
+      << correction_count_ << " remaining kfs = " << keyframes_.size() << " "
+      << "init_n_points = " << n_points << " optimized points = " << n_valid);
 
   // resume other threads
   resumeOtherThreads();
@@ -356,10 +382,10 @@ void VisualInertialEstimator::cleanUp()
 {
   SVO_DEBUG_STREAM("[Estimator]: Reset integration of IMU");
   SVO_DEBUG_STREAM("[Estimator]: ------------------------");
-  imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
+  // imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
 
   // update the biases for sparse image alignment
-  update_bias_cb_(imu_helper_->curr_imu_bias_);
+  // update_bias_cb_(imu_helper_->curr_imu_bias_);
 }
 
 void VisualInertialEstimator::OptimizerLoop()

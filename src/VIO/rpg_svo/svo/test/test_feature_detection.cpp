@@ -60,7 +60,19 @@ void testCornerDetector()
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
     cv::circle(img_rgb, cv::Point2f(i->px[0], i->px[1]), 4*(i->level+1), cv::Scalar(0,255,0), 1);
   });
-  cv::imshow("ref_img", img_rgb);
+
+  int dist=svo::Config::gridSize();
+
+  int width=img_rgb.size().width;
+  int height=img_rgb.size().height;
+
+  for(int i=0;i<height;i+=dist)
+    cv::line(img_rgb,cv::Point(0,i),cv::Point(width,i),cv::Scalar(255,255,255));
+
+  for(int i=0;i<width;i+=dist)
+    cv::line(img_rgb,cv::Point(i,0),cv::Point(i,height),cv::Scalar(255,255,255));
+  
+  cv::imshow("ref_img_corners", img_rgb);
   cv::waitKey(0);
 
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){ delete i; });
@@ -87,14 +99,28 @@ void testEdgeDetector()
   {
     canny_edge_detector.detect(frame.get(), frame->img_pyr_, svo::Config::triangMinCornerScore(), 3*svo::Config::triangMinCornerScore(), fts);
   }
-  printf("Canny edge detection took %f ms, %zu corners detected (ref i7-W520: 7.166360ms, 40000)\n", t.stop()*10, fts.size());
+  printf("Canny edge detection took %f ms, %zu edge features detected (ref i7-W520: 7.166360ms, 40000)\n", t.stop()*10, fts.size());
   printf("Note, in this case, feature detection also contains the cam2world projection of the feature.\n");
   cv::Mat img_rgb = cv::Mat(img.size(), CV_8UC3);
   cv::cvtColor(img, img_rgb, cv::COLOR_GRAY2RGB);
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
     cv::circle(img_rgb, cv::Point2f(i->px[0], i->px[1]), 4*(i->level+1), cv::Scalar(0,255,0), 1);
+    cv::arrowedLine(img_rgb, cv::Point2f(i->px[0], i->px[1]), cv::Point2f((i->px[0])+(30*i->grad[0]),(i->px[1])+(30*i->grad[1])), cv::Scalar(0,255,0), 2);
   });
-  cv::imshow("ref_img", img_rgb);
+
+  int dist=svo::Config::gridSize();
+
+  int width=img_rgb.size().width;
+  int height=img_rgb.size().height;
+
+  for(int i=0;i<height;i+=dist)
+    cv::line(img_rgb,cv::Point(0,i),cv::Point(width,i),cv::Scalar(255,255,255));
+
+  for(int i=0;i<width;i+=dist)
+    cv::line(img_rgb,cv::Point(i,0),cv::Point(i,height),cv::Scalar(255,255,255));
+
+  
+  cv::imshow("ref_img_edge_features", img_rgb);
   cv::waitKey(0);
 
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){ delete i; });
@@ -105,7 +131,7 @@ void testEdgeDetector()
 
 int main(int argc, char **argv)
 {
-   //testCornerDetector();
+   testCornerDetector();
    testEdgeDetector();
 
   return 0;

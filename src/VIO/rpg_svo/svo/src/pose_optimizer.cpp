@@ -49,8 +49,14 @@ void optimizeGaussNewton(
   {
     if((*it)->point == NULL)
       continue;
-    Vector2d e = vk::project2d((*it)->f)
-               - vk::project2d(frame->T_f_w_ * (*it)->point->pos_);
+
+    Vector2d e;
+    if((*it)->type == Feature::EDGELET)
+      e = ((*it)->grad)*((*it)->grad).dot((vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_)));   ///handle for edgelet fatures
+    else
+      e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_); 
+
+
     e *= 1.0 / (1<<(*it)->level);
     errors.push_back(e.norm());
   }
@@ -81,7 +87,13 @@ void optimizeGaussNewton(
       Matrix26d J;
       Vector3d xyz_f(frame->T_f_w_ * (*it)->point->pos_);
       Frame::jacobian_xyz2uv(xyz_f, J);
-      Vector2d e = vk::project2d((*it)->f) - vk::project2d(xyz_f);
+
+      Vector2d e;
+      if((*it)->type == Feature::EDGELET)
+        e = ((*it)->grad)*((*it)->grad).dot((vk::project2d((*it)->f) - vk::project2d(xyz_f)));   ///handle for edgelet fatures
+      else
+        e = vk::project2d((*it)->f) - vk::project2d(xyz_f);   ///handle for edgelet fatures
+
       double sqrt_inv_cov = 1.0 / (1<<(*it)->level);
       e *= sqrt_inv_cov;
       if(iter == 0)
@@ -134,7 +146,13 @@ void optimizeGaussNewton(
       ++it;
       continue;
     }
-    Vector2d e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_);
+
+    Vector2d e;
+    if((*it)->type == Feature::EDGELET)
+      e = ((*it)->grad)*((*it)->grad).dot((vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_)));   ///handle for edgelet fatures
+    else
+      e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_); 
+
     double sqrt_inv_cov = 1.0 / (1<<(*it)->level);
     e *= sqrt_inv_cov;
     chi2_vec_final.push_back(e.squaredNorm());

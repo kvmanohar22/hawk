@@ -535,7 +535,7 @@ float CannyEdgeDetector::cvCanny3(const void* srcarr, void* dstarr, void* dxarr,
         }
     }
 
-    return (low+high)/2;
+    return (high);
 }
 
 float CannyEdgeDetector::Canny3(InputArray image, OutputArray _edges,

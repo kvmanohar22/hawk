@@ -137,7 +137,7 @@ public:
 
   float Canny3(InputArray image, OutputArray _edges,
       OutputArray _sobel_x, OutputArray _sobel_y,
-      int apertureSize = 3, bool L2gradient = false);
+      int apertureSize = 5, bool L2gradient = false);
   
 
   inline Vector2d angle2grad(float angle)

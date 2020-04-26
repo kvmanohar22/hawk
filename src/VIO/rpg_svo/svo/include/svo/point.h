@@ -20,11 +20,6 @@
 #include <boost/noncopyable.hpp>
 #include <svo/global.h>
 
-namespace g2o {
-  class VertexSBAPointXYZ;
-}
-typedef g2o::VertexSBAPointXYZ g2oPoint;
-
 namespace svo {
 
 class Feature;
@@ -52,7 +47,6 @@ public:
   bool                        normal_set_;              //!< Flag whether the surface normal was estimated or not.
   list<Feature*>              obs_;                     //!< References to keyframes which observe the point.
   size_t                      n_obs_;                   //!< Number of obervations: Keyframes AND successful reprojections in intermediate frames.
-  g2oPoint*                   v_pt_;                    //!< Temporary pointer to the point-vertex in g2o during bundle adjustment.
   int                         last_published_ts_;       //!< Timestamp of last publishing.
   int                         last_projected_kf_id_;    //!< Flag for the reprojection: don't reproject a pt twice.
   PointType                   type_;                    //!< Quality of the point.
@@ -60,7 +54,8 @@ public:
   int                         n_succeeded_reproj_;      //!< Number of succeeded reprojections. Used to assess the quality of the point.
   int                         last_structure_optim_;    //!< Timestamp of last point optimization
   int                         n_inertial_updates_;      //!< Number of times the point was optimized in inertial estimator
-  int                         last_projected_cid_;      //!< Used in the inertial estimator not to project a point twice
+  int                         last_updated_cid_;        //!< Used in the inertial estimator not to project a point twice
+  int                         ba_projection_id_;         //!< Used in local ba
 
   Point(const Vector3d& pos);
   Point(const Vector3d& pos, Feature* ftr);

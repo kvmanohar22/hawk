@@ -25,11 +25,6 @@
 #include <svo/global.h>
 #include <ros/ros.h>
 
-namespace g2o {
-class VertexSE3Expmap;
-}
-typedef g2o::VertexSE3Expmap g2oFrameSE3;
-
 namespace svo {
 
 class Point;
@@ -57,7 +52,6 @@ public:
   Features                      fts_;                   //!< List of features in the image.
   vector<Feature*>              key_pts_;               //!< Five features and associated 3D points which are used to detect if two frames have overlapping field of view.
   bool                          is_keyframe_;           //!< Was this frames selected as keyframe?
-  g2oFrameSE3*                  v_kf_;                  //!< Temporary pointer to the g2o node object of the keyframe.
   int                           last_published_ts_;     //!< Timestamp of last publishing.
   int                           n_new_filters_init_;    //!< New filters initialized in Depth Filter
   int                           n_filters_converged_;   //!< How many of the above converged?

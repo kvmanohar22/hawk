@@ -2,7 +2,7 @@
 # user build settings
 
 SET(TRACE TRUE)
-SET(HAVE_G2O FALSE) 
+SET(USE_BA TRUE) 
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
@@ -20,7 +20,7 @@ SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 IF(TRACE)
   ADD_DEFINITIONS(-DSVO_TRACE)
 ENDIF()
-IF(HAVE_G2O)
+IF(USE_BA)
   ADD_DEFINITIONS(-DUSE_BUNDLE_ADJUSTMENT)
 ENDIF()
 IF(USE_ROS)
@@ -118,18 +118,9 @@ LIST(APPEND SOURCEFILES
   src/inertial_initialization.cpp)
 
 # Add g2o if available
-IF(HAVE_G2O)
-  FIND_PACKAGE(G2O REQUIRED)
-  INCLUDE_DIRECTORIES(
-    ${G2O_INCLUDE_DIR}
-    /usr/include/suitesparse # for cholmod
-  )
-  LIST(APPEND LINK_LIBS
-    ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
-    ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse
-  )
+IF(USE_BA)
   LIST(APPEND SOURCEFILES src/bundle_adjustment.cpp)
-ENDIF(HAVE_G2O)
+ENDIF(USE_BA)
 
 # Create svo library
 ADD_LIBRARY(svo SHARED ${SOURCEFILES})

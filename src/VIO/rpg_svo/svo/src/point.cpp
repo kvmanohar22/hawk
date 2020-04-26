@@ -29,7 +29,6 @@ Point::Point(const Vector3d& pos) :
   pos_(pos),
   normal_set_(false),
   n_obs_(0),
-  v_pt_(NULL),
   last_published_ts_(0),
   last_projected_kf_id_(-1),
   type_(TYPE_UNKNOWN),
@@ -37,7 +36,8 @@ Point::Point(const Vector3d& pos) :
   n_succeeded_reproj_(0),
   last_structure_optim_(0),
   n_inertial_updates_(0),
-  last_projected_cid_(-1)
+  last_updated_cid_(-1),
+  ba_projection_id_(-1)
 {}
 
 Point::Point(const Vector3d& pos, Feature* ftr) :
@@ -45,7 +45,6 @@ Point::Point(const Vector3d& pos, Feature* ftr) :
   pos_(pos),
   normal_set_(false),
   n_obs_(1),
-  v_pt_(NULL),
   last_published_ts_(0),
   last_projected_kf_id_(-1),
   type_(TYPE_UNKNOWN),
@@ -53,7 +52,8 @@ Point::Point(const Vector3d& pos, Feature* ftr) :
   n_succeeded_reproj_(0),
   last_structure_optim_(0),
   n_inertial_updates_(0),
-  last_projected_cid_(-1)
+  last_updated_cid_(-1),
+  ba_projection_id_(-1)
 {
   obs_.push_front(ftr);
 }

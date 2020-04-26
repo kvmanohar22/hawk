@@ -84,46 +84,8 @@ void BA::localBA(
 
       gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera((*it_ft)->frame->T_f_w_, K);
       gtsam::Point2 measurement = camera.project(xyz);
-      graph.emplace_shared<
-        gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+      graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
           measurement, noise, Symbol::X(kf_idx), Symbol::L(pt_idx), K);
-    }
-  }
-
-  gtsam::Values initial_estimate;
-  for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
-  {
-    for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
-    {
-      if((*it_ft)->point == nullptr)
-        continue;
-
-      // make sure we project a point only once
-      if((*it_ft)->point->ba_projection_id_ == center_kf->id_)
-        continue;
-      (*it_ft)->point->ba_projection_id_ = center_kf->id_;
-
-      // add initial estimate for the point
-      const int pt_idx = (*it_ft)->point->id_;
-      const Vector3d xyz = (*it_ft)->point->pos_;
-      initial_estimate.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
-
-      // TODO: What if this landmark is observed only in one of the core keyframes?
-      // iterate through all the keyframes that observe this point
-      for(Features::iterator it_f=(*it_ft)->point->obs_.begin(); it_f!=(*it_ft)->point->obs_.end(); ++it_f)
-      {
-        const int kf_idx = (*it_f)->frame->id_;
-
-        // could be possible that this frame is not part of core_kfs
-        if(core_kf_ids.find(kf_idx) == core_kf_ids.end())
-          continue;
-
-        gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera((*it_f)->frame->T_f_w_, K);
-        gtsam::Point2 measurement = camera.project(xyz);
-        graph.emplace_shared<
-          gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
-            measurement, noise, Symbol::X(kf_idx), Symbol::L(pt_idx), K);
-      }
     }
   }
 
@@ -140,6 +102,7 @@ void BA::localBA(
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Point3>>(Symbol::L(pt->id_), pt->pos_, point_noise);
 
   // create initialization for optimization (structure is already initialized above)
+  gtsam::Values initial_estimate;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
   {
     const int kf_idx = (*it_kf)->id_;
@@ -196,7 +159,7 @@ void BA::localBA(
 
 gtsam::PinholePose<gtsam::Cal3DS2> BA::createCamera(
     const SE3& T_f_w,
-    boost::shared_ptr<gtsam::Cal3DS2> K)
+    const boost::shared_ptr<gtsam::Cal3DS2> K)
 {
   const SE3 T_w_f = T_f_w.inverse();
   const gtsam::Pose3 pose = createPose(T_w_f);
@@ -210,8 +173,8 @@ gtsam::Pose3 BA::createPose(
 {
   const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
   const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
-  const gtsam::Pose3 pose(R_w_f, t_w_f);
-  return pose;  
+
+  return gtsam::Pose3 pose(R_w_f, t_w_f);
 }
 
 SE3 BA::createSE3(

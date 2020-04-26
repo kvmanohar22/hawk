@@ -328,11 +328,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   else if(res == initialization::NO_KEYFRAME)
     return RESULT_NO_KEYFRAME;
 
-  // two-frame bundle adjustment
-#ifdef USE_BUNDLE_ADJUSTMENT
-  ba::twoViewBA(new_frame_.get(), map_.lastKeyframe().get(), Config::lobaThresh(), &map_);
-#endif
-
   new_frame_->setKeyframe();
   double depth_mean, depth_min;
   frame_utils::getSceneDepth(*new_frame_, depth_mean, depth_min);
@@ -512,9 +507,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     setCoreKfs(Config::coreNKfs());
     size_t loba_n_erredges_init, loba_n_erredges_fin;
     double loba_err_init, loba_err_fin;
-    ba::localBA(new_frame_.get(), &core_kfs_, &map_,
-                loba_n_erredges_init, loba_n_erredges_fin,
-                loba_err_init, loba_err_fin);
+    ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
+                    loba_n_erredges_init, loba_n_erredges_fin,
+                    loba_err_init, loba_err_fin);
     SVO_STOP_TIMER("local_ba");
     SVO_LOG4(loba_n_erredges_init, loba_n_erredges_fin, loba_err_init, loba_err_fin);
     SVO_DEBUG_STREAM("Local BA:\t RemovedEdges {"<<loba_n_erredges_init<<", "<<loba_n_erredges_fin<<"} \t "

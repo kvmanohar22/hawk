@@ -57,12 +57,39 @@ void BA::localBA(
 
   // generate a set of core keyframe ids that will be optimized
   set<int> core_kf_ids;
+  set<Point*> mps;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
   {
+    for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+      mps.insert((*it_ft)->point);      
+    }
     core_kf_ids.insert((*it_kf)->id_);
   }
 
-  // create graph and add initial estimates for points
+  // create graph
+  for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
+  {
+    const int pt_idx = (*it_ft)->point->id_;
+    const Vector3d xyz = (*it_ft)->point->pos_;
+    for(Features::iterator it_ft = (*it_pt)->obs_.begin(); it_ft != (*it_pt)->obs_.end(); ++it_pt)
+    {
+      const int kf_idx = (*it_ft)->frame->id_;
+
+      // could be possible that this frame is not part of core_kfs
+      if(core_kf_ids.find(kf_idx) == core_kf_ids.end())
+        continue;
+
+      gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera((*it_ft)->frame->T_f_w_, K);
+      gtsam::Point2 measurement = camera.project(xyz);
+      graph.emplace_shared<
+        gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+          measurement, noise, Symbol::X(kf_idx), Symbol::L(pt_idx), K);
+    }
+  }
+
   gtsam::Values initial_estimate;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
   {

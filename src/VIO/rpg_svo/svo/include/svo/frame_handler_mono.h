@@ -82,6 +82,9 @@ public:
   /// Access to member of inertial estimator
   inline VisualInertialEstimator* inertialEstimator() const { return inertial_estimator_; }
 
+  /// Handles interrupt from inertial estimator
+  void handleInterrupt();
+
   /// An external place recognition module may know where to relocalize.
   bool relocalizeFrameAtPose(
       const int keyframe_id,

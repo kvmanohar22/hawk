@@ -116,10 +116,44 @@ void VisualInertialEstimator::addImuFactorToGraph()
   n_integrated_measures_ = 0;
 }
 
+gtsam::PinholePose<gtsam::Cal3DS2> VisualInertialEstimator::createCamera(const SE3& T_w_f)
+{
+  const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
+  const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
+  const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
+  gtsam::PinholePose<gtsam::Cal3DS2> camera(pose_w_f, isam2_K_);
+
+  return camera;
+}
+
+VisualInertialEstimator::SmartFactorPtr VisualInertialEstimator::createNewSmartFactor(const Point* point)
+{
+  SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_));
+  for(auto it=point->obs_.begin(); it!=point->obs_.end(); ++it)
+  {
+    const SE3 T_w_f = (*it)->frame->T_f_w_.inverse();
+    gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera(T_w_f);
+
+    gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
+    new_factor->add(measurement, Symbol::X((*it)->frame->correction_id_));
+  }
+  return new_factor;
+}
+
+void VisualInertialEstimator::updateSmartFactor(SmartFactorPtr& factor, FramePtr& frame, Point* point)
+{
+  assert(point->obs_.front()->frame == frame.get());
+  const SE3 T_w_f = frame->T_f_w_.inverse();
+  gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera(T_w_f);
+
+  gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
+  factor->add(measurement, Symbol::X(frame->correction_id_));
+}
+
 void VisualInertialEstimator::addVisionFactorToGraph()
 {
   FramePtr newkf = keyframes_.front();
-  size_t fts_count=0;
+  size_t n_new_factors = 0, n_updated = 0;
   for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
   {
     const auto point = (*it_ftr)->point;
@@ -127,38 +161,28 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     if(point == NULL)
       continue;
 
-    // make sure we project a point only once
-    if((*it_ftr)->point->last_projected_cid_ == newkf->correction_id_)
-      continue;
-    (*it_ftr)->point->last_projected_cid_ = newkf->correction_id_;
-
-    // cout << "key = " << (*it_ftr)->point->id_ << "\t pt = " << (*it_ftr)->point->pos_.transpose() << endl;
-
     if(point->obs_.size() < 2) {
       SVO_WARN_STREAM("Detected a point observed in only a single frame");
       continue;
     }
 
-    const Vector3d pt = (*it_ftr)->point->pos_;
-    SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_));
-    // SmartFactorPtr new_factor(new SmartFactor(imu_helper_->measurement_noise_, isam2_K_, body_P_camera_));
-    smart_factors_[(*it_ftr)->point->id_] = new_factor;
-    for(auto it_pt=point->obs_.begin(); it_pt!=point->obs_.end(); ++it_pt)
+    const int key = (*it_ftr)->point->id_;
+    if(smart_factors_.find(key) == smart_factors_.end())
     {
-      const SE3 T_w_f = (*it_pt)->frame->T_f_w_.inverse();
-      const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
-      const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
-      const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
-      gtsam::PinholePose<gtsam::Cal3DS2> camera(pose_w_f, isam2_K_);
-
-      // pose should be of the camera in the world i.e, T_w_f
-      gtsam::Point2 measurement = camera.project(gtsam::Point3(point->pos_));
-      new_factor->add(measurement, Symbol::X((*it_pt)->frame->correction_id_));
+      // we create a new factor
+      SmartFactorPtr new_factor = createNewSmartFactor(point);
+      smart_factors_[key] = new_factor;
+      graph_->push_back(new_factor);
+      ++n_new_factors;
+    } else {
+      // since the factor already exists, we update it with new measurement
+      SmartFactorPtr factor = smart_factors_.find(key)->second;
+      updateSmartFactor(factor, newkf, point);
+      factor->print();
+      ++n_updated;
     }
-    graph_->push_back(new_factor);
-    ++fts_count;
   }
-  SVO_DEBUG_STREAM("[Estimator]: Adding " << fts_count << " landmarks to the graph");
+  SVO_DEBUG_STREAM("[Estimator]: Adding " << n_new_factors << " smart factors, updated = " << n_updated);
 }
 
 void VisualInertialEstimator::addFactorsToGraph()
@@ -269,11 +293,13 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   // Initialize the variables
   initializeNewVariables();
 
-  // run the optimization 
+  // run the optimization
+  graph_->print();
   SVO_DEBUG_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
   initial_values_.print();
+  // SVO_DEBUG_STREAM("[Estimator]: Initial error = " << graph_->error(initial_values_));
   isam2_.update(*graph_, initial_values_);
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
@@ -282,6 +308,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   // update the optimized variables
   // TODO: Analyze whether optimization was converged!
   const gtsam::Values result = isam2_.calculateEstimate();
+  SVO_DEBUG_STREAM("[Estimator]: Final error = " << graph_->error(result));
   result.print();
   updateState(result);
 
@@ -291,7 +318,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   initial_values_.clear();
 
   // clean up the integration from the above optimization
-  cleanUp(); 
+  cleanUp();
 
   return opt_result;
 }
@@ -334,36 +361,77 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
   new_kf->T_f_w_ = T_w_f.inverse();
 
+  // update the state of all the poses
+  const size_t n_points = smart_factors_.size();
+  size_t n_valid = 0;
+  list<FramePtr> all_kfs = motion_estimator_->map().getAllKeyframes();
+  for(auto it=all_kfs.begin(); it!=all_kfs.end(); ++it)
+  {
+    const auto pose       = result.at<gtsam::Pose3>(Symbol::X((*it)->correction_id_));
+    gtsam::Matrix33 R_w_b = pose.rotation().matrix();
+    gtsam::Vector3 t_w_b  = pose.translation().vector();
+    const SE3 T_w_b       = Sophus::SE3(R_w_b, t_w_b);
+    const SE3 T_w_f       = T_w_b;
+    (*it)->T_f_w_         = T_w_f.inverse();
+
+    // update the corresponding structure as well
+    for(auto it_ft=(*it)->fts_.begin(); it_ft!=(*it)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+
+      // update the point only once
+      if((*it_ft)->point->last_updated_cid_ == new_kf->correction_id_)
+        continue;
+      (*it_ft)->point->last_updated_cid_ = new_kf->correction_id_;
+
+      const size_t key = (*it_ft)->point->id_;
+      if(smart_factors_.find(key) == smart_factors_.end())
+        continue;
+
+      const SmartFactorPtr factor = smart_factors_[key];
+      boost::optional<gtsam::Point3> p = factor->point(result);
+      if(p) {
+        Vector3d point(p->x(), p->y(), p->z());
+        (*it_ft)->point->pos_ = point;
+        ++n_valid;
+      } else {
+        // TODO: Handle this case separately
+      }
+      // smart_factors_.erase(key);
+    }
+
+  }
+
+
   // update the optimized state
-  curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
+  // curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
   // curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
   // curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
   // imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
 
   // update the structure
-  const size_t n_points = smart_factors_.size();
-  size_t n_valid = 0;
-  for(auto it_ftr=new_kf->fts_.begin(); it_ftr!=new_kf->fts_.end(); ++it_ftr)
-  {
-    if((*it_ftr)->point == NULL)
-      continue;
+  // for(auto it_ftr=new_kf->fts_.begin(); it_ftr!=new_kf->fts_.end(); ++it_ftr)
+  // {
+  //   if((*it_ftr)->point == NULL)
+  //     continue;
 
-    const size_t key = (*it_ftr)->point->id_;
-    if(smart_factors_.find(key) == smart_factors_.end())
-      continue;
+  //   const size_t key = (*it_ftr)->point->id_;
+  //   if(smart_factors_.find(key) == smart_factors_.end())
+  //     continue;
 
-    const SmartFactorPtr factor = smart_factors_[key];
-    boost::optional<gtsam::Point3> p = factor->point(result);
-    if(p) {
-      Vector3d point(p->x(), p->y(), p->z());
-      (*it_ftr)->point->pos_ = point;
-      ++n_valid;
-    } else {
-      // TODO: Handle this case separately
-    }
-    smart_factors_.erase(key);
-  }
-  assert(smart_factors_.size() == 0);
+  //   const SmartFactorPtr factor = smart_factors_[key];
+  //   boost::optional<gtsam::Point3> p = factor->point(result);
+  //   if(p) {
+  //     Vector3d point(p->x(), p->y(), p->z());
+  //     (*it_ftr)->point->pos_ = point;
+  //     ++n_valid;
+  //   } else {
+  //     // TODO: Handle this case separately
+  //   }
+  //   smart_factors_.erase(key);
+  // }
+  // assert(smart_factors_.size() == 0);
 
   SVO_DEBUG_STREAM("[Estimator]: Optimized state updated for KF = "
       << correction_count_ << " remaining kfs = " << keyframes_.size() << " "

@@ -247,13 +247,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 
 void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const ros::Time ts)
 {
-  // check if we have received a stop request
-  if(stopRequested())
-  {
-    setStop();
-    while(!isReleased())
-      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
-  }
+  handleInterrupt();
 
   if(init_type_ != FrameHandlerBase::InitType::STEREO) {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
@@ -391,6 +385,17 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   return RESULT_IS_KEYFRAME;
 }
 
+void FrameHandlerMono::handleInterrupt()
+{
+  // check if we have received a stop request
+  if(stopRequested())
+  {
+    setStop();
+    while(!isReleased())
+      boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+  }
+}
+
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
   if(Config::useMotionPriors())
@@ -474,6 +479,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_START_TIMER("point_optimizer");
   optimizeStructure(new_frame_, Config::structureOptimMaxPts(), Config::structureOptimNumIter());
   SVO_STOP_TIMER("point_optimizer");
+
+  handleInterrupt();
 
   // select keyframe
   core_kfs_.insert(new_frame_);

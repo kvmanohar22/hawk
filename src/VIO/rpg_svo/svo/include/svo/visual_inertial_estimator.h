@@ -18,6 +18,7 @@ namespace svo {
 
 class FrameHandlerMono;
 class DepthFilter;
+class Point;
 
 namespace Symbol = gtsam::symbol_shorthand;
 
@@ -97,6 +98,15 @@ public:
   void addFactorsToGraph();
 
 private:
+  /// Creates a new smart factor
+  SmartFactorPtr createNewSmartFactor(const Point* point);
+
+  /// Update an existing smart factor
+  void updateSmartFactor(SmartFactorPtr& factor, FramePtr& frame, Point* point);
+
+  /// creates a camera with the specified pose
+  gtsam::PinholePose<gtsam::Cal3DS2> createCamera(const SE3& T_w_f);
+
   /// Adds imu factor to graph
   void addImuFactorToGraph();
 

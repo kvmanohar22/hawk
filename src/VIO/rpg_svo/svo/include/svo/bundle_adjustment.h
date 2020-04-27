@@ -50,7 +50,11 @@ public:
     size_t& n_incorrect_edges_2,
     double& init_error,
     double& final_error,
-    bool verbose=true);
+    double& init_error_avg,
+    double& final_error_avg,
+    bool verbose=false);
+
+  static double computeError(const set<Point*>& mps);
 
   static gtsam::PinholePose<gtsam::Cal3DS2> createCamera(
     const SE3& T_w_f,

@@ -37,11 +37,16 @@ void BA::localBA(
     size_t& n_incorrect_edges_2,
     double& init_error,
     double& final_error,
+    double& init_error_avg,
+    double& final_error_avg,
     bool verbose)
 {
   // we need atleast two core keyframes
   if(core_kfs->size() < 2)
     return;
+
+  size_t n_mps = 0;
+  size_t n_kfs = 0;
 
   // initialize graph
   gtsam::NonlinearFactorGraph graph;
@@ -62,32 +67,35 @@ void BA::localBA(
   {
     for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
-      if((*it_ft)->point == nullptr)
-        continue;
-      mps.insert((*it_ft)->point);      
+      if((*it_ft)->point != nullptr)
+        mps.insert((*it_ft)->point);      
     }
     core_kf_ids.insert((*it_kf)->id_);
   }
+  n_kfs = core_kfs->size();
 
   // create graph
-  for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
-    const int pt_idx = (*it_ft)->point->id_;
-    const Vector3d xyz = (*it_ft)->point->pos_;
-    for(Features::iterator it_ft = (*it_pt)->obs_.begin(); it_ft != (*it_pt)->obs_.end(); ++it_pt)
+    const int pt_idx = (*it_pt)->id_;
+    const Vector3d xyz = (*it_pt)->pos_;
+    for(Features::iterator it_ft=(*it_pt)->obs_.begin(); it_ft!=(*it_pt)->obs_.end(); ++it_ft)
     {
       const int kf_idx = (*it_ft)->frame->id_;
+      ++n_incorrect_edges_1;
 
       // could be possible that this frame is not part of core_kfs
       if(core_kf_ids.find(kf_idx) == core_kf_ids.end())
         continue;
 
-      gtsam::PinholePose<gtsam::Cal3DS2> camera = createCamera((*it_ft)->frame->T_f_w_, K);
-      gtsam::Point2 measurement = camera.project(xyz);
+      gtsam::Point2 measurement((*it_ft)->px);
       graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
           measurement, noise, Symbol::X(kf_idx), Symbol::L(pt_idx), K);
     }
   }
+  n_mps = mps.size();
+  init_error = computeError(mps);
+  init_error_avg = init_error / n_incorrect_edges_1;
 
   // add prior on pose
   gtsam::noiseModel::Diagonal::shared_ptr pose_noise = gtsam::noiseModel::Diagonal::Sigmas(
@@ -96,12 +104,7 @@ void BA::localBA(
   gtsam::Pose3 prior_pose = createPose(frame->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame->id_), prior_pose, pose_noise);
 
-  // add prior on landmark
-  gtsam::noiseModel::Isotropic::shared_ptr point_noise = gtsam::noiseModel::Isotropic::Sigma(3, 0.1);
-  Point* pt = frame->fts_.front()->point;
-  graph.emplace_shared<gtsam::PriorFactor<gtsam::Point3>>(Symbol::L(pt->id_), pt->pos_, point_noise);
-
-  // create initialization for optimization (structure is already initialized above)
+  // create initialization for optimization
   gtsam::Values initial_estimate;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
   {
@@ -110,25 +113,23 @@ void BA::localBA(
     gtsam::Pose3 pose = createPose(T_w_f);
     initial_estimate.insert(Symbol::X(kf_idx), pose);
   }
+  for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
+  {
+    const int pt_idx = (*it_pt)->id_;
+    const Vector3d xyz = (*it_pt)->pos_;
+    initial_estimate.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
+  }
 
   // optimize
-  // graph.print("Graph:\n");
-  init_error = graph.error(initial_estimate);
+  double init_error_gtsam = graph.error(initial_estimate);
   gtsam::LevenbergMarquardtParams params;
-  params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
-  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
-  gtsam::Values result = optimizer.optimize();
-  final_error = graph.error(result);
-  optimizer.print("Optimizer:\n");
-  // result.print("Result:\n");
-
   if(verbose)
   {
-    cout << "initial error = " << init_error << "\t"
-         << "final error = " << final_error
-         << "iterations  = " << optimizer.iterations()
-         << endl;
+    params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
   }
+  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+  gtsam::Values result = optimizer.optimize();
+  double final_error_gtsam = graph.error(result);
 
   // update the poses
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
@@ -138,23 +139,53 @@ void BA::localBA(
   }
 
   // update landmarks
-  for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
+  for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
-    for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    const int pt_idx = (*it_pt)->id_;
+    gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(pt_idx));
+    (*it_pt)->pos_ = Vector3d(pt.x(), pt.y(), pt.z());
+  }
+
+  // remove any outliers that diverged from the optimization
+  const double reproj_thresh = Config::lobaThresh();
+  size_t n_removed_edges = 0;
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    const Vector3d xyz = (*it_pt)->pos_;
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
     {
-      if((*it_ft)->point == nullptr)
-        continue;
+      const Vector2d uv_true = (*it_obs)->px;
+      const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
+      const double error = (uv_true-uv_repr).norm();
 
-      // update the point only once
-      if((*it_ft)->point->ba_projection_id_ == -1)
-        continue;
-      (*it_ft)->point->ba_projection_id_ = -1;
-
-      const int pt_idx = (*it_ft)->point->id_;
-      gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(pt_idx));
-      (*it_ft)->point->pos_ = Vector3d(pt.x(), pt.y(), pt.z());
+      if(error > reproj_thresh) {
+        n_removed_edges += (*it_pt)->obs_.size();
+        map->removePtFrameRef((*it_obs)->frame, *it_obs);
+        break;
+      }
+      final_error += error;
     }
   }
+  n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
+  n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
+  final_error_avg = final_error / n_incorrect_edges_2;
+}
+
+double BA::computeError(const set<Point*>& mps)
+{
+  double tot_error = 0.0;
+  for(set<Point*>::const_iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    const Vector3d xyz = (*it_pt)->pos_;
+    for(Features::iterator it_ft=(*it_pt)->obs_.begin(); it_ft!=(*it_pt)->obs_.end(); ++it_ft)
+    {
+      const Vector2d uv_true = (*it_ft)->px;
+      const Vector2d uv_repr = (*it_ft)->frame->w2c(xyz);
+      const double error = (uv_true-uv_repr).norm();
+      tot_error += error;
+    }
+  }
+  return tot_error;
 }
 
 gtsam::PinholePose<gtsam::Cal3DS2> BA::createCamera(
@@ -174,7 +205,7 @@ gtsam::Pose3 BA::createPose(
   const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
   const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
 
-  return gtsam::Pose3 pose(R_w_f, t_w_f);
+  return gtsam::Pose3(R_w_f, t_w_f);
 }
 
 SE3 BA::createSE3(

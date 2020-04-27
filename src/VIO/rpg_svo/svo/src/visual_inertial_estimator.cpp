@@ -396,7 +396,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
         (*it_ft)->point->pos_ = point;
         ++n_valid;
       } else {
-        // TODO: Handle this case separately
+        // map.removePtFrameRef((*it).get(), *it_ft);
       }
       // smart_factors_.erase(key);
     }

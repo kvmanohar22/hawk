@@ -84,6 +84,12 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
   - Raw image data for the left camera: `/hawk/stereo/left/image_raw`
   - Raw image data for the right camera: `/hawk/stereo/right/image_raw`
 
+### Misc
+- Local bundle adjustment (BA) is controlled via `loba_num_iter` param as opposed to pre-process directive `#USE_BUNDLE_ADJUSTMENT`.
+- Two kinds of BA are supported:
+  - BA1: Using normal projection factors from gtsam
+  - BA2: Using smart factors from gtsam (computationally more efficient)
+
 <a name="launch"></a>
 ## Launch files
 - Launch camera node with continuous triggering

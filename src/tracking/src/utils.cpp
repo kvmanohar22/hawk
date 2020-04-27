@@ -16,6 +16,6 @@ dlib::array2d<unsigned char> Utils::cvToDlib2d(cv::Mat mat_img) {
     return dlib_img;
 }
 
-dlib::drectangle cvtRectToDrect(cv::Rect _rect) {
+dlib::drectangle Utils::cvtRectToDrect(cv::Rect _rect) {
     return dlib::drectangle(_rect.tl().x, _rect.tl().y, _rect.br().x - 1, _rect.br().y - 1);
 }

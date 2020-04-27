@@ -512,15 +512,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     size_t loba_n_erredges_init, loba_n_erredges_fin;
     double loba_err_init, loba_err_fin;
     double loba_err_init_avg, loba_err_fin_avg;
-    ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
+    ba::BA::smartLocalBA(new_frame_.get(), &core_kfs_, &map_,
                     loba_n_erredges_init, loba_n_erredges_fin,
                     loba_err_init, loba_err_fin,
                     loba_err_init_avg, loba_err_fin_avg,
-                    false);
+                    true);
     SVO_STOP_TIMER("local_ba");
     SVO_LOG2(loba_n_erredges_init, loba_n_erredges_fin);
     SVO_LOG4(loba_err_init, loba_err_init_avg, loba_err_fin, loba_err_fin_avg);
-    SVO_DEBUG_STREAM("Local BA:\t RemovedEdges {"<<loba_n_erredges_init<<", "<<loba_n_erredges_fin<<"} \t "
+    SVO_DEBUG_STREAM("Local BA:\t Edges (i, f) {"<<loba_n_erredges_init<<", "<<loba_n_erredges_fin<<"} \t "
                      "Error {"<<loba_err_init<<", "<<loba_err_fin<<"} \t"
                      "Error Avg {"<<loba_err_init_avg<<", "<<loba_err_fin_avg<<"}");
   }

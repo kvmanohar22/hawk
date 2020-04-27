@@ -35,6 +35,7 @@ class Map;
 namespace ba {
 
 namespace Symbol = gtsam::symbol_shorthand;
+typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
 
 class BA
 {
@@ -43,6 +44,19 @@ public:
   /// Optimizes core_kfs and their observed map points while keeping the
   /// neighbourhood fixed.
   static void localBA(
+    Frame* center_kf,
+    set<FramePtr>* core_kfs,
+    Map* map,
+    size_t& n_incorrect_edges_1,
+    size_t& n_incorrect_edges_2,
+    double& init_error,
+    double& final_error,
+    double& init_error_avg,
+    double& final_error_avg,
+    bool verbose=false);
+
+  /// Local bundle adjustment using smart vision factors from gtsam
+  static void smartLocalBA(
     Frame* center_kf,
     set<FramePtr>* core_kfs,
     Map* map,

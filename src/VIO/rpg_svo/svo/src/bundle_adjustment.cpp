@@ -104,6 +104,11 @@ void BA::localBA(
   gtsam::Pose3 prior_pose = createPose(frame->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame->id_), prior_pose, pose_noise);
 
+  // add prior on second pose (to fix the scale)
+  FramePtr frame2 = *std::next(core_kfs->begin());
+  gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
+  graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
+
   // create initialization for optimization
   gtsam::Values initial_estimate;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
@@ -249,10 +254,10 @@ void BA::smartLocalBA(
   gtsam::Pose3 prior_pose1 = createPose(frame1->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame1->id_), prior_pose1, pose_noise);
 
-  // add prior on second pose (to fix the scale)
-  FramePtr frame2 = *std::next(core_kfs->begin());
-  gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
-  graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
+  // // add prior on second pose (to fix the scale)
+  // FramePtr frame2 = *std::next(core_kfs->begin());
+  // gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
+  // graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
 
   if(verbose) {
     // graph.print("Factor graph:\n");

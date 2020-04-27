@@ -14,6 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge 
 )
 
+# add launch files to catkin for checks
+if (CATKIN_ENABLE_TESTING)
+  find_package(roslaunch REQUIRED)
+  roslaunch_add_file_check(launch)
+endif()
+
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

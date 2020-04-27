@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
   std::vector<cv::String> fn;
   std::string path_to_video_frames;
   nh.getParam("fpath", path_to_video_frames);
-  ROS_INFO("Got parameter (path to video frames) : %s", path_to_video_frames.c_str());
+  std::cout << "passed path to video frames " << path_to_video_frames << std::endl;
   path_to_video_frames += "/*";
   cv::glob(path_to_video_frames, fn, false);
   std::sort(fn.begin(), fn.end());

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRACKING_TRACKER_H
+#define TRACKING_TRACKER_H
 
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
@@ -41,4 +42,5 @@ namespace tracking {
             void setIsStarted(bool res) { this->is_started = res; }
     };
 }
+#endif // TRACKING_TRACKER_H
 

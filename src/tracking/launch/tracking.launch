@@ -1,0 +1,12 @@
+<launch>
+    <arg name="fpath"/>
+
+    <!-- Publish images from given path -->
+    <node pkg="tracking" name="image_pub_node" type="image_pub_node" args="$(arg fpath)" />
+
+    <!-- Run tracking node -->
+    <node pkg="tracking" name="tracking_node" type="tracking_node" />
+
+</launch>
+
+

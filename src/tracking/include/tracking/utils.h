@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRACKING_UTILS_H
+#define TRACKING_UTILS_H
 
 #include <dlib/image_processing.h>
 #include <dlib/image_io.h>
@@ -12,5 +13,5 @@ namespace tracking {
             static dlib::drectangle cvtRectToDrect(cv::Rect _rect);
     };
 }
-
+#endif // TRACKING_UTILS_H
 

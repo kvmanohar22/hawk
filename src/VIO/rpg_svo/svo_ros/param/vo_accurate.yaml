@@ -1,10 +1,10 @@
 grid_size: 7
 max_n_kfs: 50
-loba_num_iter: 0
+loba_num_iter: 10
 max_fts: 200
 triang_min_corner_score: 20.0
 quality_max_drop_fts: 80
 map_scale: 1.0
 kfselect_mindist: 0.12
 publish_map_every_frame: false
-loba_type: 0
+loba_type: 1

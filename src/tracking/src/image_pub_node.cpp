@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
   std::vector<cv::String> fn;
   std::string path_to_video_frames;
-  nh.getParam("fpath", path_to_video_frames);
+  nh.getParam("/image_pub_node/fpath", path_to_video_frames);
   std::cout << "passed path to video frames " << path_to_video_frames << std::endl;
   path_to_video_frames += "/*";
   cv::glob(path_to_video_frames, fn, false);

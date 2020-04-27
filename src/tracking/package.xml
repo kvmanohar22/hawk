@@ -16,7 +16,6 @@
   <!-- Examples: -->
   <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
 
-    <depend>roslaunch</depend>
     <depend>roscpp</depend>
     <depend>sensor_msgs</depend>
     <depend>image_transport</depend>

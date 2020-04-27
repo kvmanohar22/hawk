@@ -12,7 +12,11 @@ int main(int argc, char** argv) {
   image_transport::Publisher pub = it.advertise("camera/image", 1);
 
   std::vector<cv::String> fn;
-  cv::glob("/home/sipah00/hawk_ws/src/tracking/video_frames/*.jpg", fn, false);
+  std::string path_to_video_frames;
+  nh.getParam("fpath", path_to_video_frames);
+  ROS_INFO("Got parameter (path to video frames) : %s", path_to_video_frames.c_str());
+  path_to_video_frames += "/*";
+  cv::glob(path_to_video_frames, fn, false);
   std::sort(fn.begin(), fn.end());
   if (fn.size() == 0) {
     std::cout << "No images found " << std::endl;

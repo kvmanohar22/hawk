@@ -16,9 +16,9 @@ int main(int argc, char** argv) try {
     cv::startWindowThread();
     image_transport::ImageTransport it(nh);
 
-    Tracker tracker(dlib::centered_rect(dlib::point(93,110), 38, 86));
+    tracking::Tracker tracker(dlib::centered_rect(dlib::point(300,300), 100, 100));
 
-    image_transport::Subscriber sub = it.subscribe("camera/image", 1, &Tracker::imgCallback, &tracker);
+    image_transport::Subscriber sub = it.subscribe("camera/image", 1, &tracking::Tracker::imgCallback, &tracker);
     ros::spin();
     cv::destroyWindow("view");
 

@@ -4,7 +4,6 @@
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
-#include <dlib/dir_nav.h>
 #include <dlib/opencv.h>
 
 #include <ros/ros.h>
@@ -12,7 +11,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-int Tracker::startTracker(cv::Mat& mat_img) {
+int tracking::Tracker::startTracker(cv::Mat& mat_img) {
     if (mat_img.empty()) {
         std::cout << "Empty Image" << std::endl;
         return 0;
@@ -24,7 +23,7 @@ int Tracker::startTracker(cv::Mat& mat_img) {
     return 1;
 }
 
-int Tracker::doTracking(cv::Mat& mat_img) {
+int tracking::Tracker::doTracking(cv::Mat& mat_img) {
     if (mat_img.empty()) {
         std::cout << "Empty Image" << std::endl;
         return 0;
@@ -43,7 +42,7 @@ int Tracker::doTracking(cv::Mat& mat_img) {
     return 1;
 }
 
-void Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
+void tracking::Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
     auto cvMatImage = cv_bridge::toCvShare(msg, "bgr8")->image;
     cv::imshow("view", cvMatImage);
     // auto dlibImage = Utils::cvToDlib2d(cvMatImage);

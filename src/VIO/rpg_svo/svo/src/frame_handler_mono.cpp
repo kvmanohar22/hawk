@@ -26,9 +26,7 @@
 #include <vikit/camera_loader.h>
 #include <svo/depth_filter.h>
 #include <boost/thread.hpp>
-#ifdef USE_BUNDLE_ADJUSTMENT
 #include <svo/bundle_adjustment.h>
-#endif
 
 namespace svo {
 
@@ -507,7 +505,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   map_.point_candidates_.addCandidatePointToFrame(new_frame_);
 
   // optional bundle adjustment
-#ifdef USE_BUNDLE_ADJUSTMENT
   if(Config::lobaNumIter() > 0)
   {
     SVO_START_TIMER("local_ba");
@@ -527,7 +524,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
                      "Error {"<<loba_err_init<<", "<<loba_err_fin<<"} \t"
                      "Error Avg {"<<loba_err_init_avg<<", "<<loba_err_fin_avg<<"}");
   }
-#endif
 
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);

@@ -2,7 +2,6 @@
 # user build settings
 
 SET(TRACE TRUE)
-SET(USE_BA TRUE)
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
@@ -19,9 +18,6 @@ SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Set definitions
 IF(TRACE)
   ADD_DEFINITIONS(-DSVO_TRACE)
-ENDIF()
-IF(USE_BA)
-  ADD_DEFINITIONS(-DUSE_BUNDLE_ADJUSTMENT)
 ENDIF()
 IF(USE_ROS)
   ADD_DEFINITIONS(-DSVO_USE_ROS)
@@ -115,12 +111,8 @@ LIST(APPEND SOURCEFILES
   src/imu.cpp
   src/visual_inertial_estimator.cpp
   src/stereo.cpp
-  src/inertial_initialization.cpp)
-
-# Add g2o if available
-IF(USE_BA)
-  LIST(APPEND SOURCEFILES src/bundle_adjustment.cpp)
-ENDIF(USE_BA)
+  src/inertial_initialization.cpp
+  src/bundle_adjustment.cpp)
 
 # Create svo library
 ADD_LIBRARY(svo SHARED ${SOURCEFILES})

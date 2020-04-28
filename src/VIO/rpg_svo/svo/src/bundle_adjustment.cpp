@@ -222,12 +222,19 @@ void BA::smartLocalBA(
   }
   n_kfs = core_kfs->size();
 
+  gtsam::SmartProjectionParams smart_params;
+  smart_params.triangulation.enableEPI = true;
+  smart_params.triangulation.rankTolerance = 1e-9;
+  smart_params.verboseCheirality = true;
+  smart_params.throwCheirality = true;
+  smart_params.print("Smart params:\n");
+
   // create graph
   unordered_map<int, SmartFactor::shared_ptr> smart_factors;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
-    SmartFactor::shared_ptr factor(new SmartFactor(noise, K));
+    SmartFactor::shared_ptr factor(new SmartFactor(noise, K, smart_params));
     for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
     {
       const int kf_idx = (*it_obs)->frame->id_;
@@ -273,6 +280,33 @@ void BA::smartLocalBA(
     initial_estimate.insert(Symbol::X(kf_idx), pose);
   }
 
+  // compute reprojection error based on initial estimate
+  size_t valid_pts = 0, invalid_pts = 0;
+  double error = 0.0;
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    const int key = (*it_pt)->id_;
+    if(smart_factors.find(key) == smart_factors.end())
+      continue;
+
+    const SmartFactor::shared_ptr factor = smart_factors[key];
+    boost::optional<gtsam::Point3> p = factor->point(initial_estimate);
+    if(p) {
+      Vector3d pt(p->x(), p->y(), p->z());
+      Vector3d new_pt = Vector3d(pt.x(), pt.y(), pt.z());
+      ++valid_pts;
+      error += ((pt-new_pt).norm());
+    } else {
+      ++invalid_pts;
+    }
+  }
+  cout << "Total error = " << error << "\t"
+       << "avg error = " << error / n_mps << "\t"
+       << "#valid = " << valid_pts << "\t"
+       << "#invalid = " << invalid_pts << "\t"
+       << "#total = " << n_mps
+       << endl;
+
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
   gtsam::LevenbergMarquardtParams params;
@@ -297,6 +331,9 @@ void BA::smartLocalBA(
 
   // update landmarks (from smart factors) and remove outliers if any
   size_t n_removed_edges = 0;
+  valid_pts = 0;
+  invalid_pts = 0;
+  error = 0.0;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const int key = (*it_pt)->id_;
@@ -307,13 +344,17 @@ void BA::smartLocalBA(
     boost::optional<gtsam::Point3> p = factor->point(result);
     if(p) {
       Vector3d pt(p->x(), p->y(), p->z());
-      (*it_pt)->pos_ = Vector3d(pt.x(), pt.y(), pt.z());
+      Vector3d new_pt(pt.x(), pt.y(), pt.z());
+      error += ((new_pt-(*it_pt)->pos_).norm());
+      (*it_pt)->pos_ = new_pt;
+      ++valid_pts;
     } else {
       // point is diverged. remove references to all the keyframes
       Frame* frame = (*it_pt)->obs_.front()->frame;
       Feature* feature = (*it_pt)->obs_.front();
       n_removed_edges += (*it_pt)->obs_.size();
       map->removePtFrameRef(frame, feature);
+      ++invalid_pts;
       continue;
     }
 
@@ -325,6 +366,12 @@ void BA::smartLocalBA(
       final_error += ((uv_true-uv_repr).norm());
     }
   }
+  cout << "Total error = " << error << "\t"
+       << "avg error = " << error / valid_pts << "\t"
+       << "#valid = " << valid_pts << "\t"
+       << "#invalid = " << invalid_pts << "\t"
+       << "#total = " << n_mps
+       << endl;
   n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
   n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
   final_error_avg = final_error / n_incorrect_edges_2;

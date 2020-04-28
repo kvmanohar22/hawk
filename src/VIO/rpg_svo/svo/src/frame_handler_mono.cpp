@@ -509,16 +509,18 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   {
     SVO_START_TIMER("local_ba");
     setCoreKfs(Config::coreNKfs());
-    size_t loba_n_erredges_init, loba_n_erredges_fin;
-    double loba_err_init, loba_err_fin;
-    double loba_err_init_avg, loba_err_fin_avg;
+    size_t loba_n_erredges_init=0, loba_n_erredges_fin=0;
+    double loba_err_init=0.0, loba_err_fin=0.0;
+    double loba_err_init_avg=0.0, loba_err_fin_avg=0.0;
     if(Config::lobaType() == 0) {
+      SVO_INFO_STREAM_ONCE("BA using generic projection factors");
       ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
                       loba_n_erredges_init, loba_n_erredges_fin,
                       loba_err_init, loba_err_fin,
                       loba_err_init_avg, loba_err_fin_avg,
                       true);
     } else {
+      SVO_INFO_STREAM_ONCE("BA using smart projection factors");
       ba::BA::smartLocalBA(new_frame_.get(), &core_kfs_, &map_,
                            loba_n_erredges_init, loba_n_erredges_fin,
                            loba_err_init, loba_err_fin,

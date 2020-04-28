@@ -42,7 +42,7 @@ void BA::localBA(
     bool verbose)
 {
   // we need atleast two core keyframes
-  if(core_kfs->size() < 2)
+  if(core_kfs->size() < 3)
     return;
 
   size_t n_mps = 0;
@@ -190,7 +190,7 @@ void BA::smartLocalBA(
   bool verbose)
 {
   // we need atleast two core keyframes
-  if(core_kfs->size() < 2)
+  if(core_kfs->size() < 3)
     return;
 
   size_t n_mps = 0;
@@ -224,9 +224,10 @@ void BA::smartLocalBA(
 
   gtsam::SmartProjectionParams smart_params;
   smart_params.triangulation.enableEPI = true;
-  smart_params.triangulation.rankTolerance = 1e-9;
+  smart_params.triangulation.rankTolerance = 1;
+  smart_params.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
   smart_params.verboseCheirality = true;
-  smart_params.throwCheirality = true;
+  smart_params.throwCheirality = false;
   smart_params.print("Smart params:\n");
 
   // create graph

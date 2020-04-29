@@ -30,6 +30,7 @@ namespace svo {
 class Feature;
 
 typedef Matrix<double, 2, 3> Matrix23d;
+typedef Matrix<double, 1, 3> Matrix13d;
 
 /// A 3D point on the surface of the scene.
 class Point : boost::noncopyable

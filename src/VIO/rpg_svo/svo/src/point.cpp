@@ -136,13 +136,24 @@ void Point::optimize(const size_t n_iter)
     // compute residuals
     for(auto it=obs_.begin(); it!=obs_.end(); ++it)
     {
-      Matrix23d J;
       const Vector3d p_in_f((*it)->frame->T_f_w_ * pos_);
-      Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), J);
-      const Vector2d e(vk::project2d((*it)->f) - vk::project2d(p_in_f));
-      new_chi2 += e.squaredNorm();
-      A.noalias() += J.transpose() * J;
-      b.noalias() -= J.transpose() * e;
+      if((*it)->type == Feature::CORNER)
+      {
+        Matrix23d J;
+        Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), J);
+        const Vector2d e(vk::project2d((*it)->f) - vk::project2d(p_in_f));
+        new_chi2 += e.squaredNorm();
+        A.noalias() += J.transpose() * J;
+        b.noalias() -= J.transpose() * e;
+      } else {
+        Matrix23d Jhat;
+        Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), Jhat);
+        const double e = (*it)->grad.transpose() * (vk::project2d((*it)->f) - vk::project2d(p_in_f));
+        new_chi2 += e;
+        Matrix13d J = (*it)->grad.transpose() * Jhat;
+        A.noalias() += J.transpose() * J;
+        b.noalias() -= J.transpose() * e;
+      }
     }
 
     // solve linear system

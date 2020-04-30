@@ -19,6 +19,7 @@ namespace svo {
 class FrameHandlerMono;
 class DepthFilter;
 class Point;
+class Map;
 
 namespace Symbol = gtsam::symbol_shorthand;
 
@@ -26,6 +27,7 @@ namespace Symbol = gtsam::symbol_shorthand;
 enum class EstimatorStage {
   PAUSED,
   FIRST_KEYFRAME,
+  SECOND_KEYFRAME,
   DEFAULT_KEYFRAME,
 };
 
@@ -51,7 +53,7 @@ public:
   typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
   typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
 
-  VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb);
+  VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb, Map& map);
   virtual ~VisualInertialEstimator();
 
   /// Imu callback
@@ -124,6 +126,7 @@ public:
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
+  gtsam::SmartProjectionParams smart_params_;          //!< Parameters for smart projection factors
   PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   const double                 dt_;                    //!< IMU sampling rate
@@ -148,6 +151,7 @@ public:
 
   FrameHandlerMono*            motion_estimator_;      //!< Reference to motion estimation thread
   DepthFilter*                 depth_filter_;          //!< Reference to depth filter thread
+  Map&                         map_;                   //!< Map
 
   ImuContainerPtr              imu_container_;         //!< Container for storing imu messages
   double                       prev_imu_ts_;           //!< used for calculating dt for imu integration

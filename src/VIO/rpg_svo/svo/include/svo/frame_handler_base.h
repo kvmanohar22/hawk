@@ -72,6 +72,9 @@ public:
   /// Get the current map.
   const Map& map() const { return map_; }
 
+  /// Get the current map.
+  Map& getMap() { return map_; }
+
   /// Will reset the map as soon as the current frame is finished processing.
   void reset() { set_reset_ = true; }
 

@@ -128,7 +128,7 @@ void FrameHandlerMono::initialize()
     VisualInertialEstimator::callback_t update_bias_cb = boost::bind(
       &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
-    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb);
+    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb, map_);
 
     inertial_estimator_->motion_estimator_ = this;
     inertial_estimator_->depth_filter_ = depth_filter_;
@@ -551,11 +551,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
 
-  // add this to graph for inertial state estimation
-  if (Config::runInertialEstimator()) {
-    inertial_estimator_->addKeyFrame(new_frame_);
-  }
-
   // if limited number of keyframes, remove the one furthest apart
   if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())
   {
@@ -566,6 +561,11 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // add keyframe to map
   map_.addKeyframe(new_frame_);
+
+  // add this to graph for inertial state estimation
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
 
   return RESULT_IS_KEYFRAME;
 }

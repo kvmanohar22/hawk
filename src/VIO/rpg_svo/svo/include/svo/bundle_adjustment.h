@@ -37,6 +37,16 @@ namespace ba {
 namespace Symbol = gtsam::symbol_shorthand;
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
 
+
+/// all the factors related to a single 3D point
+struct PointFactors
+{
+  vector<gtsam::Point2> measurements_;
+  vector<int> kf_ids_;
+
+  PointFactors() {}
+};
+
 class BA
 {
 public:
@@ -53,7 +63,8 @@ public:
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose=false);
+    bool verbose=false,
+    bool use_isam2=false);
 
   /// Local bundle adjustment using smart vision factors from gtsam
   static void smartLocalBA(

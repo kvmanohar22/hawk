@@ -25,6 +25,7 @@
 #include <svo/map.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/ISAM2.h>
 
 namespace svo {
 namespace ba {
@@ -39,7 +40,8 @@ void BA::localBA(
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose)
+    bool verbose,
+    bool use_isam2)
 {
   // we need atleast two core keyframes
   if(core_kfs->size() < 3)
@@ -75,10 +77,13 @@ void BA::localBA(
   n_kfs = core_kfs->size();
 
   // create graph
+  set<int> invalid_pts_ids;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
     const Vector3d xyz = (*it_pt)->pos_;
+
+    PointFactors factors;
     for(Features::iterator it_ft=(*it_pt)->obs_.begin(); it_ft!=(*it_pt)->obs_.end(); ++it_ft)
     {
       const int kf_idx = (*it_ft)->frame->id_;
@@ -89,10 +94,24 @@ void BA::localBA(
         continue;
 
       gtsam::Point2 measurement((*it_ft)->px);
-      graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
-          measurement, noise, Symbol::X(kf_idx), Symbol::L(pt_idx), K);
+      factors.measurements_.push_back(measurement);
+      factors.kf_ids_.push_back(kf_idx);
+    }
+
+    // we need atleast two measurements
+    if(factors.measurements_.size() < 2) {
+      invalid_pts_ids.insert(pt_idx);
+      SVO_WARN_STREAM("Found invalid point: id = " << pt_idx);
+    } else {
+      for(size_t i=0; i<factors.measurements_.size(); ++i) {
+        graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+            factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
+      }
+      factors.measurements_.clear();
+      factors.kf_ids_.clear();
     }
   }
+  SVO_WARN_STREAM("Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;
@@ -118,22 +137,41 @@ void BA::localBA(
     gtsam::Pose3 pose = createPose(T_w_f);
     initial_estimate.insert(Symbol::X(kf_idx), pose);
   }
+  size_t invalid_count=0;
   for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
+    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end()) {
+      ++invalid_count;
+      continue;
+    }
     const Vector3d xyz = (*it_pt)->pos_;
     initial_estimate.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
   }
+  SVO_WARN_STREAM("invalid COUNT = " << invalid_count);
+  initial_estimate.print("Initial estimate:\n");
 
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
-  gtsam::LevenbergMarquardtParams params;
-  if(verbose)
+
+  gtsam::Values result;
+  if(use_isam2)
   {
-    params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+    gtsam::ISAM2 isam2;
+    isam2.update(graph, initial_estimate);
+    for(size_t i=0; i<10; ++i)
+      isam2.update();
+    result = isam2.calculateEstimate();
+  } else {
+    gtsam::LevenbergMarquardtParams params;
+    if(verbose)
+    {
+      params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+    }
+    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    result = optimizer.optimize();
   }
-  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
-  gtsam::Values result = optimizer.optimize();
+
   double final_error_gtsam = graph.error(result);
 
   // update the poses
@@ -147,6 +185,9 @@ void BA::localBA(
   for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
+    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end()) {
+      continue;
+    }
     gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(pt_idx));
     (*it_pt)->pos_ = Vector3d(pt.x(), pt.y(), pt.z());
   }
@@ -231,11 +272,12 @@ void BA::smartLocalBA(
   smart_params.print("Smart params:\n");
 
   // create graph
+  set<int> invalid_pts_ids;
   unordered_map<int, SmartFactor::shared_ptr> smart_factors;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
-    SmartFactor::shared_ptr factor(new SmartFactor(noise, K, smart_params));
+    PointFactors factors;    
     for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
     {
       const int kf_idx = (*it_obs)->frame->id_;
@@ -246,8 +288,25 @@ void BA::smartLocalBA(
         continue;
 
       gtsam::Point2 measurement((*it_obs)->px);
-      factor->add(measurement, Symbol::X(kf_idx));
+      factors.measurements_.push_back(measurement);
+      factors.kf_ids_.push_back(kf_idx);
+
     }
+
+    // we need atleast two measurements
+    if(factors.measurements_.size() < 2) {
+      invalid_pts_ids.insert(pt_idx);
+      SVO_WARN_STREAM("Found invalid point: id = " << pt_idx);
+      continue;
+    }
+
+    // create a new smart factor
+    SmartFactor::shared_ptr factor(new SmartFactor(noise, K, smart_params));
+    for(size_t i=0; i<factors.measurements_.size(); ++i) {
+      factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
+    }
+    factors.measurements_.clear();
+    factors.kf_ids_.clear();
     graph.push_back(factor);
     smart_factors[pt_idx] = factor;
   }
@@ -310,12 +369,18 @@ void BA::smartLocalBA(
 
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
-  gtsam::LevenbergMarquardtParams params;
-  if(verbose) {
-    params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
-  }
-  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
-  gtsam::Values result = optimizer.optimize();
+  // gtsam::LevenbergMarquardtParams params;
+  // if(verbose) {
+  //   params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+  // }
+  // gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+  // gtsam::Values result = optimizer.optimize();
+  gtsam::ISAM2 isam2;
+  isam2.update(graph, initial_estimate);
+  for(size_t i=0; i<10; ++i)
+    isam2.update();
+  gtsam::Values result = isam2.calculateEstimate();
+
   double final_error_gtsam = graph.error(result);
   if(verbose) {
     cout << "whitened error init = " << init_error_gtsam << "\t"

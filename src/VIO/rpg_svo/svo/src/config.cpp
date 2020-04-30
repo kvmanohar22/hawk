@@ -44,6 +44,7 @@ Config::Config() :
     loba_robust_huber_width(vk::getParam<double>("/hawk/svo/loba_robust_huber_width", 1.0)),
     loba_num_iter(vk::getParam<int>("/hawk/svo/loba_num_iter", 0)),
     loba_type(vk::getParam<int>("/hawk/svo/loba_type", 0)),
+    loba_opt_type(vk::getParam<int>("/hawk/svo/loba_opt_type", 0)),
     kfselect_mindist(vk::getParam<double>("/hawk/svo/kfselect_mindist", 0.12)),
     triang_min_corner_score(vk::getParam<double>("/hawk/svo/triang_min_corner_score", 20.0)),
     triang_half_patch_size(vk::getParam<int>("/hawk/svo/triang_half_patch_size", 4)),

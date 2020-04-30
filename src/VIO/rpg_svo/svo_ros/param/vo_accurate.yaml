@@ -7,4 +7,13 @@ quality_max_drop_fts: 80
 map_scale: 1.0
 kfselect_mindist: 0.12
 publish_map_every_frame: false
+
+# Factor type to be used in local bundle adjustment
+# 0: Generic projection factors
+# 1: Smart factors
 loba_type: 1
+
+# Optimizer type for Local bundle adjustment
+# 0: LM
+# 1: ISAM2
+loba_opt_type: 1

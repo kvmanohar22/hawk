@@ -63,8 +63,7 @@ public:
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose=false,
-    bool use_isam2=false);
+    bool verbose=false);
 
   /// Local bundle adjustment using smart vision factors from gtsam
   static void smartLocalBA(
@@ -77,8 +76,7 @@ public:
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose=false,
-    bool use_isam2=false);
+    bool verbose=false);
 
   static double computeError(const set<Point*>& mps);
 

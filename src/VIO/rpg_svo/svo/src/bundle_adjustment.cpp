@@ -40,8 +40,7 @@ void BA::localBA(
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose,
-    bool use_isam2)
+    bool verbose)
 {
   // we need atleast two core keyframes
   if(core_kfs->size() < 3)
@@ -153,7 +152,7 @@ void BA::localBA(
   double init_error_gtsam = graph.error(initial_estimate);
 
   gtsam::Values result;
-  if(use_isam2)
+  if(Config::lobaOptType() == 1)
   {
     gtsam::ISAM2 isam2;
     isam2.update(graph, initial_estimate);
@@ -225,8 +224,7 @@ void BA::smartLocalBA(
   double& final_error,
   double& init_error_avg,
   double& final_error_avg,
-  bool verbose,
-  bool use_isam2)
+  bool verbose)
 {
   // we need atleast two core keyframes
   if(core_kfs->size() < 3)
@@ -355,7 +353,7 @@ void BA::smartLocalBA(
   double init_error_gtsam = graph.error(initial_estimate);
 
   gtsam::Values result;
-  if(use_isam2)
+  if(Config::lobaOptType() == 1)
   {
     gtsam::ISAM2 isam2;
     isam2.update(graph, initial_estimate);

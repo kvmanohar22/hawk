@@ -94,8 +94,11 @@ public:
   /// Number of iterations in the local bundle adjustment.
   static size_t& lobaNumIter() { return getInstance().loba_num_iter; }
 
-  /// Type of local bundle adjustment (generic v/s smart).
+  /// Type of local bundle adjustment (generic=0 v/s smart=1).
   static size_t& lobaType() { return getInstance().loba_type; }
+
+  /// Type of local bundle adjustment optimizer (LM=0 v/s isam2=1).
+  static size_t& lobaOptType() { return getInstance().loba_opt_type; }
 
   /// Minimum distance between two keyframes. Relative to the average height in the map.
   static double& kfSelectMinDist() { return getInstance().kfselect_mindist; }
@@ -166,6 +169,7 @@ private:
   double loba_robust_huber_width;
   size_t loba_num_iter;
   size_t loba_type;
+  size_t loba_opt_type;
   double kfselect_mindist;
   double triang_min_corner_score;
   size_t triang_half_patch_size;

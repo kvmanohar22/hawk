@@ -150,6 +150,21 @@ void FrameHandlerMono::initialize()
 
   // 5s of storage time. This will be emptied pretty quickly
   imu_container_ = boost::make_shared<ImuContainer>(5.0);
+
+  if(Config::lobaNumIter() > 0)
+  {
+    // Factor type
+    if(Config::lobaType() == 0)
+      SVO_INFO_STREAM("Local BA using generic projection factors");
+    else
+      SVO_INFO_STREAM("Local BA using smart projection factors");
+
+    // Optimizer type
+    if(Config::lobaOptType() == 0)
+      SVO_INFO_STREAM("Local BA using Leveberg-Marquardt Optimizer");
+    else
+      SVO_INFO_STREAM("Local BA using incremental smoothing (isam2)");
+  }
 }
 
 FrameHandlerMono::~FrameHandlerMono()
@@ -513,19 +528,17 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     double loba_err_init=0.0, loba_err_fin=0.0;
     double loba_err_init_avg=0.0, loba_err_fin_avg=0.0;
     if(Config::lobaType() == 0) {
-      SVO_INFO_STREAM_ONCE("BA using generic projection factors");
       ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
                       loba_n_erredges_init, loba_n_erredges_fin,
                       loba_err_init, loba_err_fin,
                       loba_err_init_avg, loba_err_fin_avg,
-                      true, false);
+                      true);
     } else {
-      SVO_INFO_STREAM_ONCE("BA using smart projection factors");
       ba::BA::smartLocalBA(new_frame_.get(), &core_kfs_, &map_,
                            loba_n_erredges_init, loba_n_erredges_fin,
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
-                           true, true);
+                           true);
     }
     SVO_STOP_TIMER("local_ba");
     SVO_LOG2(loba_n_erredges_init, loba_n_erredges_fin);

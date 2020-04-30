@@ -56,7 +56,7 @@ VisualInertialEstimator::VisualInertialEstimator(
   smart_params_.triangulation.enableEPI = true;
   smart_params_.triangulation.rankTolerance = 1;
   smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
-  smart_params_.verboseCheirality = true;
+  smart_params_.verboseCheirality = false;
   smart_params_.throwCheirality = false;
 
   graph_ = new gtsam::NonlinearFactorGraph();
@@ -161,17 +161,19 @@ void VisualInertialEstimator::addVisionFactorToGraph()
     if((*it_ftr)->point == NULL)
       continue;
 
-    if((*it_ftr)->point->obs_.size() < 2) {
-      SVO_DEBUG_STREAM("Detected a point observed in only a single frame");
-      continue;
-    }
-
     const int key = (*it_ftr)->point->id_;
     if(smart_factors_.find(key) == smart_factors_.end())
     {
+      // first make sure we atleast have two observations to triangulate
+      if((*it_ftr)->point->obs_.size() < 2) {
+        SVO_DEBUG_STREAM("Detected a point observed in only a single frame");
+        continue;
+      }
+
       // we create a new factor
       SmartFactorPtr new_factor = createNewSmartFactor((*it_ftr)->point);
       smart_factors_[key] = new_factor;
+      new_factor->print("New factor:\n");
       graph_->push_back(new_factor);
       ++n_new_factors;
     } else {

@@ -11,7 +11,7 @@ ImuHelper::ImuHelper()
     vk::getParam<double>("/hawk/svo/imu0/gyroscope_random_walk"));
 
   prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.5, 0.5, 0.5).finished());
+      (gtsam::Vector(6) << 0.1, 0.1, 0.1, 0.3, 0.3, 0.3).finished());
   prior_vel_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(3, 0.01);
   prior_bias_noise_model_ = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3);
   measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);

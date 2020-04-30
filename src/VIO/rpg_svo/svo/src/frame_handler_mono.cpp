@@ -367,10 +367,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
 
-  if (Config::runInertialEstimator()) {
-    inertial_estimator_->addKeyFrame(new_frame_);
-  }
-
   // Reset the frames
   last_frame_ = new_frame_;
   new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), last_frame_->timestamp_));
@@ -389,6 +385,10 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
+
+  if (Config::runInertialEstimator()) {
+    inertial_estimator_->addKeyFrame(new_frame_);
+  }
 
   if(res == initialization::FAILURE)
     return RESULT_FAILURE;

@@ -525,7 +525,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
                            loba_n_erredges_init, loba_n_erredges_fin,
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
-                           true);
+                           true, true);
     }
     SVO_STOP_TIMER("local_ba");
     SVO_LOG2(loba_n_erredges_init, loba_n_erredges_fin);

@@ -77,7 +77,8 @@ public:
     double& final_error,
     double& init_error_avg,
     double& final_error_avg,
-    bool verbose=false);
+    bool verbose=false,
+    bool use_isam2=false);
 
   static double computeError(const set<Point*>& mps);
 

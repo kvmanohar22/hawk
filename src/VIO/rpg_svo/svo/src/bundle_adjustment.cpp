@@ -101,17 +101,17 @@ void BA::localBA(
     // we need atleast two measurements
     if(factors.measurements_.size() < 2) {
       invalid_pts_ids.insert(pt_idx);
-      SVO_WARN_STREAM("Found invalid point: id = " << pt_idx);
-    } else {
-      for(size_t i=0; i<factors.measurements_.size(); ++i) {
-        graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
-            factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
-      }
-      factors.measurements_.clear();
-      factors.kf_ids_.clear();
+      continue;
     }
+
+    for(size_t i=0; i<factors.measurements_.size(); ++i) {
+      graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+          factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
+    }
+    factors.measurements_.clear();
+    factors.kf_ids_.clear();
   }
-  SVO_WARN_STREAM("Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
+  SVO_DEBUG_STREAM("[Generic BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;
@@ -128,7 +128,7 @@ void BA::localBA(
   gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
 
-  // create initialization for optimization
+  // create initial estimates for poses
   gtsam::Values initial_estimate;
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
   {
@@ -137,19 +137,17 @@ void BA::localBA(
     gtsam::Pose3 pose = createPose(T_w_f);
     initial_estimate.insert(Symbol::X(kf_idx), pose);
   }
-  size_t invalid_count=0;
+
+  // create initial estimates for points
   for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
-    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end()) {
-      ++invalid_count;
+    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end())
       continue;
-    }
+
     const Vector3d xyz = (*it_pt)->pos_;
     initial_estimate.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
   }
-  SVO_WARN_STREAM("invalid COUNT = " << invalid_count);
-  initial_estimate.print("Initial estimate:\n");
 
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
@@ -171,7 +169,6 @@ void BA::localBA(
     gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
     result = optimizer.optimize();
   }
-
   double final_error_gtsam = graph.error(result);
 
   // update the poses
@@ -228,7 +225,8 @@ void BA::smartLocalBA(
   double& final_error,
   double& init_error_avg,
   double& final_error_avg,
-  bool verbose)
+  bool verbose,
+  bool use_isam2)
 {
   // we need atleast two core keyframes
   if(core_kfs->size() < 3)
@@ -269,7 +267,6 @@ void BA::smartLocalBA(
   smart_params.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
   smart_params.verboseCheirality = true;
   smart_params.throwCheirality = false;
-  smart_params.print("Smart params:\n");
 
   // create graph
   set<int> invalid_pts_ids;
@@ -290,13 +287,11 @@ void BA::smartLocalBA(
       gtsam::Point2 measurement((*it_obs)->px);
       factors.measurements_.push_back(measurement);
       factors.kf_ids_.push_back(kf_idx);
-
     }
 
     // we need atleast two measurements
     if(factors.measurements_.size() < 2) {
       invalid_pts_ids.insert(pt_idx);
-      SVO_WARN_STREAM("Found invalid point: id = " << pt_idx);
       continue;
     }
 
@@ -305,11 +300,10 @@ void BA::smartLocalBA(
     for(size_t i=0; i<factors.measurements_.size(); ++i) {
       factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
     }
-    factors.measurements_.clear();
-    factors.kf_ids_.clear();
     graph.push_back(factor);
     smart_factors[pt_idx] = factor;
   }
+  SVO_DEBUG_STREAM("[Smart BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;
@@ -325,10 +319,6 @@ void BA::smartLocalBA(
   FramePtr frame2 = *std::next(core_kfs->begin());
   gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
-
-  if(verbose) {
-    // graph.print("Factor graph:\n");
-  }
 
   // create initialization for optimization
   gtsam::Values initial_estimate;
@@ -360,33 +350,28 @@ void BA::smartLocalBA(
       ++invalid_pts;
     }
   }
-  cout << "Total error = " << error << "\t"
-       << "avg error = " << error / n_mps << "\t"
-       << "#valid = " << valid_pts << "\t"
-       << "#invalid = " << invalid_pts << "\t"
-       << "#total = " << n_mps
-       << endl;
 
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
-  // gtsam::LevenbergMarquardtParams params;
-  // if(verbose) {
-  //   params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
-  // }
-  // gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
-  // gtsam::Values result = optimizer.optimize();
-  gtsam::ISAM2 isam2;
-  isam2.update(graph, initial_estimate);
-  for(size_t i=0; i<10; ++i)
-    isam2.update();
-  gtsam::Values result = isam2.calculateEstimate();
 
-  double final_error_gtsam = graph.error(result);
-  if(verbose) {
-    cout << "whitened error init = " << init_error_gtsam << "\t"
-         << "whitened error final = " << final_error_gtsam
-         << endl;
+  gtsam::Values result;
+  if(use_isam2)
+  {
+    gtsam::ISAM2 isam2;
+    isam2.update(graph, initial_estimate);
+    for(size_t i=0; i<10; ++i)
+      isam2.update();
+    result = isam2.calculateEstimate();
+  } else {
+    gtsam::LevenbergMarquardtParams params;
+    if(verbose)
+    {
+      params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+    }
+    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    result = optimizer.optimize();
   }
+  double final_error_gtsam = graph.error(result);
 
   // update the poses
   for(set<FramePtr>::iterator it_kf=core_kfs->begin(); it_kf!=core_kfs->end(); ++it_kf)
@@ -432,12 +417,6 @@ void BA::smartLocalBA(
       final_error += ((uv_true-uv_repr).norm());
     }
   }
-  cout << "Total error = " << error << "\t"
-       << "avg error = " << error / valid_pts << "\t"
-       << "#valid = " << valid_pts << "\t"
-       << "#invalid = " << invalid_pts << "\t"
-       << "#total = " << n_mps
-       << endl;
   n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
   n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
   final_error_avg = final_error / n_incorrect_edges_2;

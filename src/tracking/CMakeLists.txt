@@ -28,6 +28,7 @@ endif()
 find_package(dlib REQUIRED COMPONENTS system)
 
 find_package(OpenCV REQUIRED)
+FIND_PACKAGE(Boost REQUIRED)
 
 
 ## The catkin_package macro generates cmake config files for your package
@@ -40,7 +41,7 @@ catkin_package(
  INCLUDE_DIRS include
  LIBRARIES tracking
  CATKIN_DEPENDS roscpp sensor_msgs image_transport cv_bridge rosbag message_filters
- DEPENDS OpenCV
+ DEPENDS OpenCV Boost
 )
 
 ###########
@@ -51,6 +52,8 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
+  ${OpenCV_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -87,7 +90,7 @@ add_executable(tracking_bag_node src/tracking_bag.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS} dlib::dlib)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
-target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 # target_link_libraries(${PROJECT_NAME}_node dlib::dlib)
 
 

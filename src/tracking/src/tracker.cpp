@@ -44,7 +44,7 @@ int tracking::Tracker::doTracking(cv::Mat& mat_img) {
 
 void tracking::Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
     auto cvMatImage = cv_bridge::toCvShare(msg, "bgr8")->image;
-    cv::imshow("view", cvMatImage);
+    // cv::imshow("view", cvMatImage);
     // auto dlibImage = Utils::cvToDlib2d(cvMatImage);
     if (this->is_started == false) {
         this->startTracker(cvMatImage);

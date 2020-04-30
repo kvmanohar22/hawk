@@ -11,7 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   image_transport
-  cv_bridge 
+  cv_bridge
+  rosbag
+  message_filters
 )
 
 # add launch files to catkin for checks
@@ -37,7 +39,7 @@ find_package(OpenCV REQUIRED)
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES tracking
- CATKIN_DEPENDS roscpp sensor_msgs image_transport cv_bridge
+ CATKIN_DEPENDS roscpp sensor_msgs image_transport cv_bridge rosbag message_filters
  DEPENDS OpenCV
 )
 
@@ -69,6 +71,7 @@ add_library(${PROJECT_NAME} SHARED
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node src/tracking_node.cpp)
 add_executable(image_pub_node src/image_pub_node.cpp)
+add_executable(tracking_bag_node src/tracking_bag.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -84,6 +87,7 @@ add_executable(image_pub_node src/image_pub_node.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS} dlib::dlib)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 # target_link_libraries(${PROJECT_NAME}_node dlib::dlib)
 
 

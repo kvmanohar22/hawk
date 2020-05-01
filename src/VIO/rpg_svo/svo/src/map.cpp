@@ -102,7 +102,7 @@ void Map::addKeyframe(FramePtr new_keyframe)
 {
   for(auto kf: keyframes_)
   {
-    cout << "id = " << kf->correction_id_ << "\t #updates = " << kf->n_inertial_updates_ << endl;
+    // cout << "id = " << kf->correction_id_ << "\t #updates = " << kf->n_inertial_updates_ << endl;
   }
 
   keyframes_.push_back(new_keyframe);

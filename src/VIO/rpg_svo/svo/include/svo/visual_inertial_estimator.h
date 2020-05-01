@@ -138,6 +138,7 @@ public:
   gtsam::NavState              curr_state_;            //!< current state used for Imu state prediction
   gtsam::Pose3                 curr_pose_;             //!< optimized pose
   gtsam::Vector3               curr_velocity_;         //!< Velocity vector
+  gtsam::Values                prev_result_;           //!< Result of previous optimization (to compute error)
 
   ImuHelper*                   imu_helper_;            //!< Helper to hold all imu related params
 

@@ -155,32 +155,31 @@ void VisualInertialEstimator::addVisionFactorToGraph()
 {
   FramePtr newkf = keyframes_.front();
   size_t n_new_factors = 0, n_updated = 0;
-  for(auto it_ftr=newkf->fts_.begin(); it_ftr!=newkf->fts_.end(); ++it_ftr)
+  set<Point*> mps;
+  for(Features::iterator it_ft=newkf->fts_.begin(); it_ft!=newkf->fts_.end(); ++it_ft)
   {
-    // check if the feature has mappoint assigned
-    if((*it_ftr)->point == NULL)
-      continue;
+    if((*it_ft)->point != nullptr)
+      mps.insert((*it_ft)->point);
+  }
 
-    const int key = (*it_ftr)->point->id_;
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    if((*it_pt)->obs_.size() < 2) {
+      SVO_DEBUG_STREAM("Detected a point observed in only a single frame");
+      continue;
+    }
+    const int key = (*it_pt)->id_;
     if(smart_factors_.find(key) == smart_factors_.end())
     {
-      // first make sure we atleast have two observations to triangulate
-      if((*it_ftr)->point->obs_.size() < 2) {
-        SVO_DEBUG_STREAM("Detected a point observed in only a single frame");
-        continue;
-      }
-
-      // we create a new factor
-      SmartFactorPtr new_factor = createNewSmartFactor((*it_ftr)->point);
+      // create new smart factor
+      SmartFactorPtr new_factor = createNewSmartFactor(*it_pt);
       smart_factors_[key] = new_factor;
-      new_factor->print("New factor:\n");
       graph_->push_back(new_factor);
       ++n_new_factors;
     } else {
-      // since the factor already exists, we update it with new measurement
+      // update the existing smart factor
       SmartFactorPtr factor = smart_factors_.find(key)->second;
-      updateSmartFactor(factor, newkf, (*it_ftr)->point);
-      // factor->print();
+      updateSmartFactor(factor, newkf, *it_pt);
       ++n_updated;
     }
   }
@@ -283,9 +282,11 @@ void VisualInertialEstimator::initializeNewVariables()
       curr_state_, imu_helper_->curr_imu_bias_);
 */
 
-  if(stage_ == EstimatorStage::SECOND_KEYFRAME)
+  if(stage_ == EstimatorStage::FIRST_KEYFRAME) {
+    SVO_DEBUG_STREAM("Adding second pose factor to fix map scale");
     graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
           Symbol::X(correction_count_), init_pose, imu_helper_->prior_pose_noise_model_));
+  }
 
 
 /*  cout << "pose (rpy) = " << vk::dcm2rpy(T_w_b.rotation_matrix()).transpose()*180/PI << "\t"
@@ -312,11 +313,14 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
   // run the optimization
   // graph_->print();
+
+  prev_result_.insert(initial_values_);
+  SVO_DEBUG_STREAM("[Estimator]: Initial error = " << graph_->error(prev_result_));
   SVO_DEBUG_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
   // initial_values_.print();
-  // SVO_DEBUG_STREAM("[Estimator]: Initial error = " << graph_->error(initial_values_));
+
   isam2_.update(*graph_, initial_values_);
   for(int i=0; i<n_iters_; ++i)
     isam2_.update();
@@ -325,6 +329,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   // update the optimized variables
   // TODO: Analyze whether optimization was converged!
   const gtsam::Values result = isam2_.calculateEstimate();
+  prev_result_ = result;
   SVO_DEBUG_STREAM("[Estimator]: Final error = " << graph_->error(result));
   // result.print();
   updateState(result);
@@ -386,6 +391,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
     const SE3 T_w_f       = T_w_b;
     (*it_kf)->T_f_w_      = T_w_f.inverse();
     ++(*it_kf)->n_inertial_updates_;
+    // cout << (*it_kf)->correction_id_ << " " << (*it_kf)->T_f_w_.rotation_matrix() << "\t" << (*it_kf)->T_f_w_.translation().transpose() << endl;
 
     // update the corresponding structure as well
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)

@@ -24,6 +24,9 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3DS2_Base.h>
 
+#include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+
 namespace svo {
 
 class Frame;
@@ -36,6 +39,7 @@ namespace ba {
 
 namespace Symbol = gtsam::symbol_shorthand;
 typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
+typedef SmartFactor::shared_ptr SmartFactorPtr;
 
 
 /// all the factors related to a single 3D point
@@ -89,6 +93,36 @@ public:
 
   static SE3 createSE3(
     const gtsam::Pose3& pose);
+};
+
+class IncrementalBA
+{
+public:
+  IncrementalBA(vk::AbstractCamera* camera, Map& map);
+
+  list<Frame*> keyframes_;
+  unordered_map<int, SmartFactor::shared_ptr> smart_factors_;
+  gtsam::NonlinearFactorGraph *graph_;
+  boost::shared_ptr<gtsam::Cal3DS2> K_;
+  gtsam::noiseModel::Isotropic::shared_ptr noise_;
+  gtsam::noiseModel::Diagonal::shared_ptr pose_noise_;
+  gtsam::SmartProjectionParams smart_params_;
+  gtsam::Values initial_estimate_;
+  gtsam::Values prev_result_;
+  gtsam::ISAM2 isam2_;
+  size_t n_kfs_recieved_;
+  size_t total_edges_;
+  Map& map_;
+
+  /// Incremental Local bundle adjustment using smart vision factors from gtsam
+  void incrementalSmartLocalBA(
+    Frame* center_kf,
+    double& init_error,
+    double& final_error,
+    double& init_error_avg,
+    double& final_error_avg,
+    bool verbose=false);
+
 };
 
 } // namespace ba

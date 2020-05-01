@@ -25,6 +25,7 @@
 #include <svo/imu.h>
 #include <svo/initialization.h>
 #include <svo/visual_inertial_estimator.h>
+#include <svo/bundle_adjustment.h>
 #include <sensor_msgs/Imu.h>
 #include <gtsam/navigation/ImuFactor.h>
 
@@ -130,6 +131,7 @@ public:
   bool  prior_pose_set_;
   ImuContainerPtr imu_container_;             //!< Container for imu messages
   double prev_imu_ts_;                        //!< used for calculating dt for imu integration
+  ba::IncrementalBA* iba_;                        //!< Incremental BA
 
 protected:
   /// Initialize the visual odometry algorithm.

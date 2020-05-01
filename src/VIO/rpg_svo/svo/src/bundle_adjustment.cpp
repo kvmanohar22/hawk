@@ -466,5 +466,156 @@ SE3 BA::createSE3(
   return T_f_w;
 }
 
+IncrementalBA::IncrementalBA(
+  vk::AbstractCamera* camera,
+  Map& map) :
+    n_kfs_recieved_(0),
+    map_(map)
+{
+  const auto c = dynamic_cast<vk::PinholeCamera*>(camera);
+  K_ = boost::make_shared<gtsam::Cal3DS2>(
+       c->fx(), c->fy(), 0.0,
+       c->cx(), c->cy(),
+       c->d0(), c->d1(), c->d2(), c->d3());
+  noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+  pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.3)).finished());
+
+  smart_params_.triangulation.enableEPI = true;
+  smart_params_.triangulation.rankTolerance = 1;
+  smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
+  smart_params_.verboseCheirality = true;
+  smart_params_.throwCheirality = false;
+
+  graph_ = new gtsam::NonlinearFactorGraph();
+}
+
+void IncrementalBA::incrementalSmartLocalBA(
+  Frame* center_kf,
+  double& init_error,
+  double& final_error,
+  double& init_error_avg,
+  double& final_error_avg,
+  bool verbose)
+{
+  ++n_kfs_recieved_;
+
+  // we add prior for the first two keyframes
+  if(n_kfs_recieved_ == 1 || n_kfs_recieved_ == 2)
+  {
+    gtsam::Pose3 prior_pose = BA::createPose(center_kf->T_f_w_.inverse());
+    graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
+    initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
+    SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
+    return;
+  }
+
+  // we only start optimizing once we have 3 keyframes
+  set<Point*> mps;
+  for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
+  {
+    if((*it_ft)->point != nullptr)
+      mps.insert((*it_ft)->point);      
+  }
+
+  // create graph
+  set<int> invalid_pts_ids;
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    const int pt_idx = (*it_pt)->id_;
+    if(smart_factors_.find(pt_idx) == smart_factors_.end())
+    {
+      ba::PointFactors factors;    
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        const int kf_idx = (*it_obs)->frame->id_;
+
+        gtsam::Point2 measurement((*it_obs)->px);
+        factors.measurements_.push_back(measurement);
+        factors.kf_ids_.push_back(kf_idx);
+      }
+
+      // we need atleast two measurements
+      if(factors.measurements_.size() < 2)
+      {
+        invalid_pts_ids.insert(pt_idx);
+        continue;
+      }
+
+      // create a new smart factor
+      SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
+      for(size_t i=0; i<factors.measurements_.size(); ++i) {
+        factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
+        ++total_edges_;
+      }
+      graph_->push_back(factor);
+      smart_factors_[pt_idx] = factor;
+    } else {
+      // update the existing smart factor
+      SmartFactorPtr factor = smart_factors_.find(pt_idx)->second;
+      gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
+      factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
+      ++total_edges_;
+    }
+  }
+  SVO_DEBUG_STREAM("[Incremental Smart BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
+
+  // create initial estimate of the latest pose for optimization
+  const int kf_idx = center_kf->id_;
+  const SE3 T_w_f = center_kf->T_f_w_.inverse();
+  gtsam::Pose3 pose = BA::createPose(T_w_f);
+  initial_estimate_.insert(Symbol::X(kf_idx), pose);
+
+  // optimize
+  prev_result_.insert(initial_estimate_);
+  init_error = graph_->error(prev_result_);
+  init_error_avg = init_error / total_edges_;
+  gtsam::Values result;
+  isam2_.update(*graph_, initial_estimate_);
+  for(size_t i=0; i<10; ++i)
+    isam2_.update();
+  result = isam2_.calculateEstimate();
+  prev_result_ = result;
+  final_error = graph_->error(result);
+  final_error_avg = final_error / total_edges_;
+
+  // update poses landmarks and remove outliers if any
+  list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    const auto pose   = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->id_));
+    (*it_kf)->T_f_w_  = BA::createSE3(pose);
+
+    // update the corresponding structure as well
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+
+/*      // update the point only once
+      if((*it_ft)->point->last_updated_cid_ == center_kf->id_)
+        continue;
+      (*it_ft)->point->last_updated_cid_ = center_kf->id_;*/
+
+      const size_t key = (*it_ft)->point->id_;
+      if(smart_factors_.find(key) == smart_factors_.end())
+        continue;
+
+      const SmartFactorPtr factor = smart_factors_[key];
+      boost::optional<gtsam::Point3> p = factor->point(result);
+      if(p) {
+        Vector3d point(p->x(), p->y(), p->z());
+        (*it_ft)->point->pos_ = point;
+      } else {
+        map_.removePtFrameRef((*it_kf).get(), *it_ft);
+      }
+    }
+  }
+
+  // clean up
+  graph_->resize(0);
+  initial_estimate_.clear();
+}
+
 } // namespace ba
 } // namespace svo

@@ -54,6 +54,7 @@ FrameHandlerMono::FrameHandlerMono(
   n_integrated_measurements_(0),
   save_trajectory_(Config::saveTrajectory()),
   prior_pose_set_(false),
+  iba_(nullptr),
   stop_requested_(false),
   is_stopped_(false)
 {
@@ -84,6 +85,7 @@ FrameHandlerMono::FrameHandlerMono(
   n_integrated_measurements_(0),
   save_trajectory_(Config::saveTrajectory()),
   prior_pose_set_(false),
+  iba_(nullptr),
   stop_requested_(false),
   is_stopped_(false)
 {
@@ -156,8 +158,12 @@ void FrameHandlerMono::initialize()
     // Factor type
     if(Config::lobaType() == 0)
       SVO_INFO_STREAM("Local BA using generic projection factors");
-    else
+    else if(Config::lobaType() == 1)
       SVO_INFO_STREAM("Local BA using smart projection factors");
+    else {
+      SVO_INFO_STREAM("Incremental Local BA using smart projection factors");
+      iba_ = new ba::IncrementalBA(cam_, map_);
+    }
 
     // Optimizer type
     if(Config::lobaOptType() == 0)
@@ -390,6 +396,17 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
+  if(Config::lobaType() == 2)
+  {
+    // this is added just to add in prior states for optimization
+    double loba_err_init, loba_err_init_avg;
+    double loba_err_fin, loba_err_fin_avg;
+    iba_->incrementalSmartLocalBA(new_frame_.get(),
+                           loba_err_init, loba_err_fin,
+                           loba_err_init_avg, loba_err_fin_avg,
+                           true);    
+  }
+
   if(res == initialization::FAILURE)
     return RESULT_FAILURE;
   else if(res == initialization::NO_KEYFRAME)
@@ -527,18 +544,24 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     size_t loba_n_erredges_init=0, loba_n_erredges_fin=0;
     double loba_err_init=0.0, loba_err_fin=0.0;
     double loba_err_init_avg=0.0, loba_err_fin_avg=0.0;
-    if(Config::lobaType() == 0) {
+    if(Config::lobaType() == 0)
+    {
       ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
                       loba_n_erredges_init, loba_n_erredges_fin,
                       loba_err_init, loba_err_fin,
                       loba_err_init_avg, loba_err_fin_avg,
                       true);
-    } else {
+    } else if(Config::lobaType() == 1) {
       ba::BA::smartLocalBA(new_frame_.get(), &core_kfs_, &map_,
                            loba_n_erredges_init, loba_n_erredges_fin,
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
                            true);
+    } else {
+      iba_->incrementalSmartLocalBA(new_frame_.get(),
+                             loba_err_init, loba_err_fin,
+                             loba_err_init_avg, loba_err_fin_avg,
+                             true);
     }
     SVO_STOP_TIMER("local_ba");
     SVO_LOG2(loba_n_erredges_init, loba_n_erredges_fin);

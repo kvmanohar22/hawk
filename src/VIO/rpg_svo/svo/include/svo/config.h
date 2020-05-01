@@ -94,7 +94,7 @@ public:
   /// Number of iterations in the local bundle adjustment.
   static size_t& lobaNumIter() { return getInstance().loba_num_iter; }
 
-  /// Type of local bundle adjustment (generic=0 v/s smart=1).
+  /// Type of local bundle adjustment (generic=0 v/s smart=1 v/s ismart=2).
   static size_t& lobaType() { return getInstance().loba_type; }
 
   /// Type of local bundle adjustment optimizer (LM=0 v/s isam2=1).

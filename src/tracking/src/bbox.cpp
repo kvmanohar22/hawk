@@ -1,7 +1,9 @@
+#include <tracking/bbox.h>
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
-
+#include <tuple>
 
 // Required for dnn modules.
 #include <opencv2/dnn.hpp>
@@ -10,7 +12,8 @@
 #include <opencv2/opencv.hpp>
 
 using namespace std;
-using namespace dnn;
+using namespace cv;
+using namespace cv::dnn;
 
 
 tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> tracking::Bbox::predict(Mat frame) {
@@ -34,7 +37,7 @@ tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> tracking::Bbox::p
     std::vector<float> confidences;
     std::vector<Rect> boxes;
 
-    this->postprocess(frame, outs, net, classIds, confidence, boxes);
+    this->postprocess(frame, outs, net, classIds, confidences, boxes);
 
     // Put efficiency information.
     std::vector<double> layersTimes;
@@ -45,7 +48,7 @@ tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> tracking::Bbox::p
 
     imshow(this->kWinName, frame);
 
-    return {classIds, confidence, boxes};
+    return make_tuple(classIds, confidences, boxes);
 
 }
 

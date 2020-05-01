@@ -17,7 +17,7 @@ int main(int argc, char** argv) try {
     image_transport::ImageTransport it(nh);
 
     std::string img_topic;
-    nh.getParam("/tracking_node/img_topic", img_topic);
+    nh.getParam("/tracking_node/img_topic", img_topic); // if check here
 
     tracking::Tracker tracker(dlib::centered_rect(dlib::point(300,300), 100, 100));
 

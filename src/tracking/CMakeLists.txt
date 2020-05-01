@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(tracking)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -51,9 +51,6 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
-  ${OpenCV_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -62,6 +59,12 @@ add_library(${PROJECT_NAME} SHARED
   src/tracker.cpp
   src/utils.cpp
 )
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+add_library(bbox SHARED
+  src/bbox.cpp
+)
+target_include_directories(bbox PUBLIC include/bbox.h)
 
 
 ## Add cmake target dependencies of the library

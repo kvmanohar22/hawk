@@ -130,7 +130,7 @@ void FrameHandlerMono::initialize()
     VisualInertialEstimator::callback_t update_bias_cb = boost::bind(
       &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
-    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb, map_);
+    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb, std::ref(map_));
 
     inertial_estimator_->motion_estimator_ = this;
     inertial_estimator_->depth_filter_ = depth_filter_;
@@ -470,7 +470,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     img_align.motion_prior_verbose_ = false;
     img_align.setPriors(delta_R_, delta_t_);
   }
-  size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
+  size_t img_align_n_tracked = img_align.run(map_.getClosestKeyframe(new_frame_), new_frame_);
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);

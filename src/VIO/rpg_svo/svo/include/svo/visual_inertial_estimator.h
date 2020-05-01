@@ -159,6 +159,18 @@ public:
   double                       t0_;                    //!< timestamp of the previous keyframe
 }; // class VisualInertialEstimator
 
+
+namespace inertial_utils
+{
+
+  /// created pose is of the camera in the world frame
+  gtsam::Pose3 createGtsamPose(const SE3& T_f_w);
+
+  /// Returns conventional svo pose stored for each frame
+  SE3 createSvoPose(const gtsam::Pose3& pose);
+
+}
+
 } // namespace svo
 
 #endif // SVO_VISUAL_INERTIAL_ESTIMATOR_H_

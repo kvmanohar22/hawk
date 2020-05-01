@@ -209,9 +209,6 @@ void DepthFilter::updateSeedsLoop()
     }
     updateSeeds(frame);
 
-    // look for any interruptions from inertial estimator thread
-    handleInterrupt();
-
     if(frame->isKeyframe())
       initializeSeeds(frame);
   }
@@ -232,8 +229,9 @@ void DepthFilter::updateSeeds(FramePtr frame)
   while( it!=seeds_.end())
   {
     // thread safe check to see if a stop interuption is requested
-    if(stopRequested())
-      return;
+    if(stopRequested()) {
+      handleInterrupt();
+    }
 
     // set this value true when seeds updating should be interrupted
     if(seeds_updating_halt_)

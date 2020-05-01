@@ -100,7 +100,6 @@ class IncrementalBA
 public:
   IncrementalBA(vk::AbstractCamera* camera, Map& map);
 
-  list<Frame*> keyframes_;
   unordered_map<int, SmartFactor::shared_ptr> smart_factors_;
   gtsam::NonlinearFactorGraph *graph_;
   boost::shared_ptr<gtsam::Cal3DS2> K_;

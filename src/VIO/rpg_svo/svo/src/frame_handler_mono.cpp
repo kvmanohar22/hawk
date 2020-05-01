@@ -396,7 +396,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
-  if(Config::lobaType() == 2)
+  if(Config::lobaNumIter() > 0 && Config::lobaType() == 2)
   {
     // this is added just to add in prior states for optimization
     double loba_err_init, loba_err_init_avg;
@@ -586,7 +586,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   map_.addKeyframe(new_frame_);
 
   // add this to graph for inertial state estimation
-  if (Config::runInertialEstimator()) {
+  if(Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 

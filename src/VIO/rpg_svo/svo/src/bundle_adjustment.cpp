@@ -592,10 +592,10 @@ void IncrementalBA::incrementalSmartLocalBA(
       if((*it_ft)->point == nullptr)
         continue;
 
-/*      // update the point only once
+      // update the point only once
       if((*it_ft)->point->last_updated_cid_ == center_kf->id_)
         continue;
-      (*it_ft)->point->last_updated_cid_ = center_kf->id_;*/
+      (*it_ft)->point->last_updated_cid_ = center_kf->id_;
 
       const size_t key = (*it_ft)->point->id_;
       if(smart_factors_.find(key) == smart_factors_.end())

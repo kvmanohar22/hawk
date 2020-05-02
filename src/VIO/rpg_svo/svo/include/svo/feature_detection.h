@@ -19,11 +19,15 @@
 
 #include <svo/global.h>
 #include <svo/frame.h>
+#include<opencv2/opencv.hpp>
+
 
 namespace svo {
 
 /// Implementation of various feature detectors.
 namespace feature_detection {
+
+using namespace cv;
 
 /// Temporary container used for corner detection. Features are initialized from these.
 struct Corner
@@ -63,7 +67,7 @@ public:
   /// Set grid cells of existing features as occupied
   void setExistingFeatures(const Features& fts);
 
-protected:
+public:
 
   static const int border_ = 8; //!< no feature should be within 8px of border.
   const int cell_size_;
@@ -81,6 +85,7 @@ protected:
   }
 };
 typedef boost::shared_ptr<AbstractDetector> DetectorPtr;
+
 
 /// FAST detector by Edward Rosten.
 class FastDetector : public AbstractDetector
@@ -100,6 +105,51 @@ public:
       const double detection_threshold,
       Features& fts);
 };
+
+///Canny Edge detector from open cv
+class CannyEdgeDetector : public AbstractDetector
+{
+public:
+  CannyEdgeDetector(
+      const int img_width,
+      const int img_height,
+      const int cell_size,
+      const int n_pyr_levels);
+
+  virtual ~CannyEdgeDetector() {}
+
+  virtual void detect(
+      Frame* frame,
+      const ImgPyr& img_pyr,
+      const double detection_threshold,
+      Features& fts);
+
+  void detect(
+      Frame* frame,
+      const ImgPyr& img_pyr,
+      const double detection_threshold_low,
+      const double detection_threshold_high,
+      Features& fts);
+
+  float cvCanny3(const void* srcarr, void* dstarr,
+      void* dxarr, void* dyarr,
+      int aperture_size);
+
+  float Canny3(InputArray image, OutputArray _edges,
+      OutputArray _sobel_x, OutputArray _sobel_y,
+      int apertureSize = 5, bool L2gradient = false);
+  
+
+  inline Vector2d angle2grad(float angle)
+  {
+    Vector2d v(cos(angle), sin(angle));
+    v.normalize();
+    return v;
+  }  
+  
+};
+typedef boost::shared_ptr<CannyEdgeDetector> CannyEdgeDetectorPtr;
+
 
 } // namespace feature_detection
 } // namespace svo

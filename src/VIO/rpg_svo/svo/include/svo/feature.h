@@ -68,6 +68,18 @@ struct Feature
     point(_point),
     grad(1.0,0.0)
   {}
+  //constructor for edge feature
+
+  Feature(Frame* _frame, const Vector2d& _px, int _level, const Vector2d& _grad) :
+    type(EDGELET),
+    frame(_frame),
+    px(_px),
+    f(frame->cam_->cam2world(px)),
+    level(_level),
+    point(NULL),
+    grad(_grad)
+  {}
+
 };
 
 } // namespace svo

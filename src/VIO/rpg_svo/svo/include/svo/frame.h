@@ -33,6 +33,9 @@ struct Feature;
 typedef list<Feature*> Features;
 typedef vector<cv::Mat> ImgPyr;
 
+typedef Matrix<double, 2, 3> Matrix23d;
+typedef Matrix<double, 3, 3> Matrix3d;
+
 /// A frame saves the image, the associated features and the estimated pose.
 class Frame : boost::noncopyable
 {
@@ -144,6 +147,33 @@ public:
     J(1,3) = 1.0 + y*J(1,2);      // 1.0 + y^2/z^2
     J(1,4) = -J(0,3);             // -x*y/z^2
     J(1,5) = -x*z_inv;            // -x/z
+  }
+
+  /// Used in pose optimizer
+  inline static void po_jacobian_xyz2uv(
+      const Vector3d& xyz_in_f,
+      const Vector3d& xyz_in_w,
+      const Matrix3d& R_f_w,
+      Matrix<double,2,6>& J)
+  {
+    const double x = xyz_in_f[0];
+    const double y = xyz_in_f[1];
+    const double z_inv = 1./xyz_in_f[2];
+    const double z_inv_2 = z_inv*z_inv;
+
+    // Jacobian of projection of point to unit plane (z = 1)
+    Matrix23d J_g = (Matrix23d() << z_inv, 0, -x*z_inv_2, 0, z_inv, -y*z_inv_2).finished();
+
+    // point in world coordinates
+    Matrix3d p_w = vk::sqew(xyz_in_w);
+
+    // jacobian wrt phi (rotation vector element)
+    Matrix23d J_phi = J_g * R_f_w * p_w;
+
+    Matrix23d J_p = -J_g * R_f_w;
+
+    J.topLeftCorner(2, 3).noalias() = J_p;
+    J.topRightCorner(2, 3).noalias() = J_phi;
   }
 
   // Required in sparse image alignment step

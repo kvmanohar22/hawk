@@ -48,6 +48,7 @@ void BA::localBA(
 
   size_t n_mps = 0;
   size_t n_kfs = 0;
+  size_t n_edges = 0;
 
   // initialize graph
   gtsam::NonlinearFactorGraph graph;
@@ -104,13 +105,12 @@ void BA::localBA(
     }
 
     for(size_t i=0; i<factors.measurements_.size(); ++i) {
+      ++n_edges;
       graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
           factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
     }
-    factors.measurements_.clear();
-    factors.kf_ids_.clear();
   }
-  SVO_DEBUG_STREAM("[Generic BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
+  SVO_DEBUG_STREAM("[Generic BA]: kfs = " << n_kfs << "\t n_mps = " << mps.size()-invalid_pts_ids.size() << "\t n_edges = " << n_edges);
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;

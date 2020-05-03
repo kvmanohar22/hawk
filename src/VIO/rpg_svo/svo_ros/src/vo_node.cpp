@@ -112,6 +112,7 @@ VoNode::VoNode() :
   else
     vo_ = new svo::FrameHandlerMono(cam_, cam1_);
   vo_->start();
+  cout.precision(std::numeric_limits<double>::max_digits10);
 }
 
 VoNode::~VoNode()

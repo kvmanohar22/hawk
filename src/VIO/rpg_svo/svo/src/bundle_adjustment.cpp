@@ -562,7 +562,11 @@ void IncrementalBA::incrementalSmartLocalBA(
       SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
       ++n_new_factors;
       for(size_t i=0; i<factors.measurements_.size(); ++i) {
-        factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
+        if(shouldAdd(factors.kf_ids_[i]))
+        {
+          factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
+          addEdge(factors.kf_ids_[i]);
+        }
         ++total_edges_;
       }
       graph_->push_back(factor);
@@ -571,7 +575,11 @@ void IncrementalBA::incrementalSmartLocalBA(
       // update the existing smart factor
       SmartFactorPtr factor = smart_factors_.find(pt_idx)->second;
       gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
-      factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
+      if(shouldAdd((*it_pt)->obs_.front()->frame->id_))
+      {
+        factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
+        addEdge((*it_pt)->obs_.front()->frame->id_);
+      }
       ++n_updated_factors;
       ++total_edges_;
     }
@@ -579,6 +587,11 @@ void IncrementalBA::incrementalSmartLocalBA(
   SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts_ids.size() << "/" << mps_.size() <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors);
+  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
+  {
+    cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
+  }
+
   mps_.clear();
 
   // create initial estimate of the latest pose for optimization
@@ -673,6 +686,28 @@ void IncrementalBA::incrementalSmartLocalBA(
   initial_estimate_.clear();
   total_removed_so_far_ += n_diverged;
 }
+
+void IncrementalBA::addEdge(const int& kfid)
+{
+  if(kf_landmarks_edges_.find(kfid) == kf_landmarks_edges_.end())
+    kf_landmarks_edges_[kfid] = 1;
+  else
+    kf_landmarks_edges_[kfid] += 1;
+}
+
+bool IncrementalBA::shouldAdd(const int& kfid)
+{
+  return true;
+
+/*
+  This was to test if there was any correlation between #landmarks per frame and pose based indeterminate system
+  As of now there is no such correlation
+  if(kf_landmarks_edges_.find(kfid) == kf_landmarks_edges_.end())
+    return true;
+  return kf_landmarks_edges_[kfid] < 8000;
+*/
+}
+
 
 } // namespace ba
 } // namespace svo

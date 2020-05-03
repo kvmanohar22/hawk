@@ -117,6 +117,7 @@ public:
   // for debugging purposes
   size_t total_removed_so_far_;
   size_t min_n_obs_;
+  map<int, int> kf_landmarks_edges_;
 
   /// Incremental Local bundle adjustment using smart vision factors from gtsam
   void incrementalSmartLocalBA(
@@ -126,6 +127,10 @@ public:
     double& init_error_avg,
     double& final_error_avg,
     bool verbose=false);
+
+  void addEdge(const int& kfid);
+
+  bool shouldAdd(const int& kfid);
 
 };
 

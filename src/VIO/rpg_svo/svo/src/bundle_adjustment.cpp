@@ -26,6 +26,7 @@
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/geometry/triangulation.h>
 
 namespace svo {
 namespace ba {
@@ -470,7 +471,8 @@ IncrementalBA::IncrementalBA(
   vk::AbstractCamera* camera,
   Map& map) :
     n_kfs_recieved_(0),
-    map_(map)
+    map_(map),
+    total_removed_so_far_(0)
 {
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera);
   K_ = boost::make_shared<gtsam::Cal3DS2>(
@@ -507,20 +509,28 @@ void IncrementalBA::incrementalSmartLocalBA(
     graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
     initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
     SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
+
+    // add in these points that will be later added to smart factors
+    for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);      
+    }
     return;
   }
 
   // we only start optimizing once we have 3 keyframes
-  set<Point*> mps;
   for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
   {
     if((*it_ft)->point != nullptr)
-      mps.insert((*it_ft)->point);      
+      mps_.insert((*it_ft)->point);      
   }
 
   // create graph
   set<int> invalid_pts_ids;
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  size_t n_new_factors=0;
+  size_t n_updated_factors=0;
+  for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
     if(smart_factors_.find(pt_idx) == smart_factors_.end())
@@ -544,6 +554,7 @@ void IncrementalBA::incrementalSmartLocalBA(
 
       // create a new smart factor
       SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
+      ++n_new_factors;
       for(size_t i=0; i<factors.measurements_.size(); ++i) {
         factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
         ++total_edges_;
@@ -555,10 +566,14 @@ void IncrementalBA::incrementalSmartLocalBA(
       SmartFactorPtr factor = smart_factors_.find(pt_idx)->second;
       gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
       factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
+      ++n_updated_factors;
       ++total_edges_;
     }
   }
-  SVO_DEBUG_STREAM("[Incremental Smart BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts_ids.size() << "/" << mps_.size() <<
+                   "\t New factors = " << n_new_factors <<
+                   "\t Updated factors = " << n_updated_factors);
+  mps_.clear();
 
   // create initial estimate of the latest pose for optimization
   const int kf_idx = center_kf->id_;
@@ -579,14 +594,20 @@ void IncrementalBA::incrementalSmartLocalBA(
   final_error = graph_->error(result);
   final_error_avg = final_error / total_edges_;
 
-  // update poses landmarks and remove outliers if any
+  // update poses
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  size_t n_diverged=0;
+  size_t n_updated=0;
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     const auto pose   = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->id_));
     (*it_kf)->T_f_w_  = BA::createSE3(pose);
+  }
 
-    // update the corresponding structure as well
+  // update the corresponding structure as well
+  size_t n_newly_triangulated=0;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
       if((*it_ft)->point == nullptr)
@@ -599,22 +620,52 @@ void IncrementalBA::incrementalSmartLocalBA(
 
       const size_t key = (*it_ft)->point->id_;
       if(smart_factors_.find(key) == smart_factors_.end())
+      {
+        if((*it_ft)->point->obs_.size() < 2)
+          continue;
+
+        // triangulate the point based on the updated poses
+
+        // 1. create poses of cameras that observe this point
+        // 2. collect the corresponding measurements
+        vector<gtsam::Pose3> poses; poses.reserve((*it_ft)->point->obs_.size());
+        std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+        measurements.reserve((*it_ft)->point->obs_.size());
+        for(Features::iterator it_obs=(*it_ft)->point->obs_.begin(); it_obs!=(*it_ft)->point->obs_.end(); ++it_obs)
+        {
+          poses.push_back(BA::createPose((*it_obs)->frame->T_f_w_.inverse()));
+          measurements.push_back(gtsam::Point2((*it_obs)->px));
+        }
+        const gtsam::Point3 initial_estimate((*it_ft)->point->pos_);
+
+        // optimize and update
+        const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, K_, measurements, initial_estimate);
+        (*it_ft)->point->pos_ = refined_estimate;
+        ++n_newly_triangulated;
         continue;
+      }
 
       const SmartFactorPtr factor = smart_factors_[key];
       boost::optional<gtsam::Point3> p = factor->point(result);
       if(p) {
         Vector3d point(p->x(), p->y(), p->z());
         (*it_ft)->point->pos_ = point;
+        ++n_updated;
       } else {
         map_.removePtFrameRef((*it_kf).get(), *it_ft);
+        ++n_diverged;
       }
     }
   }
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Removed (curr) = " << n_diverged <<
+                   "\t Removed (cumu) = " << total_removed_so_far_ <<
+                   "\t Updated points = " << n_updated <<
+                   "\t newly triangulated = " << n_newly_triangulated);
 
   // clean up
   graph_->resize(0);
   initial_estimate_.clear();
+  total_removed_so_far_ += n_diverged;
 }
 
 } // namespace ba

@@ -112,6 +112,10 @@ public:
   size_t n_kfs_recieved_;
   size_t total_edges_;
   Map& map_;
+  set<Point*> mps_; //!< map points
+
+  // for debugging purposes
+  size_t total_removed_so_far_;
 
   /// Incremental Local bundle adjustment using smart vision factors from gtsam
   void incrementalSmartLocalBA(

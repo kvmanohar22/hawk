@@ -326,10 +326,21 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
   stage_ = STAGE_SECOND_FRAME;
   SVO_INFO_STREAM("Init: Selected first frame.");
 
-  if (Config::runInertialEstimator()) {
+  if (Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
+  if(Config::lobaNumIter() > 0 && Config::lobaType() == 2)
+  {
+    // this is added just to add in prior states for optimization
+    double loba_err_init, loba_err_init_avg;
+    double loba_err_fin, loba_err_fin_avg;
+    iba_->incrementalSmartLocalBA(new_frame_.get(),
+                           loba_err_init, loba_err_fin,
+                           loba_err_init_avg, loba_err_fin_avg,
+                           true);    
+  }
   return RESULT_IS_KEYFRAME;
 }
 
@@ -352,8 +363,20 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   klt_homography_init_.reset();
   SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
 
-  if(Config::runInertialEstimator()) {
+  if(Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
+  }
+
+  if(Config::lobaNumIter() > 0 && Config::lobaType() == 2)
+  {
+    // this is added just to add in prior states for optimization
+    double loba_err_init, loba_err_init_avg;
+    double loba_err_fin, loba_err_fin_avg;
+    iba_->incrementalSmartLocalBA(new_frame_.get(),
+                           loba_err_init, loba_err_fin,
+                           loba_err_init_avg, loba_err_fin_avg,
+                           true);    
   }
 
   return RESULT_IS_KEYFRAME;

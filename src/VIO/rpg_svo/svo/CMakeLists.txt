@@ -2,6 +2,7 @@
 # user build settings
 
 SET(TRACE TRUE)
+SET(USE_EDGELETS FALSE) # Set TRUE if you want to use edgelet features
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
@@ -24,6 +25,9 @@ IF(USE_ROS)
 ENDIF()
 IF(DEBUG_OUTPUT)
   ADD_DEFINITIONS(-DSVO_DEBUG_OUTPUT)
+ENDIF()
+IF(USE_EDGELETS)
+  ADD_DEFINITIONS(-DSVO_USE_EDGELETS)
 ENDIF()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid

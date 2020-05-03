@@ -587,11 +587,11 @@ void IncrementalBA::incrementalSmartLocalBA(
   SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts_ids.size() << "/" << mps_.size() <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors);
-  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
+/*  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
   {
     cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
   }
-
+*/
   mps_.clear();
 
   // create initial estimate of the latest pose for optimization

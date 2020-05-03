@@ -545,8 +545,8 @@ void IncrementalBA::incrementalSmartLocalBA(
         factors.kf_ids_.push_back(kf_idx);
       }
 
-      // we need atleast two measurements
-      if(factors.measurements_.size() < 2)
+      // we need atleast two measurements (but using 3 in case baseline is less between two)
+      if(factors.measurements_.size() < 3)
       {
         invalid_pts_ids.insert(pt_idx);
         continue;

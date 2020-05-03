@@ -151,14 +151,9 @@ void VisualInertialEstimator::addVisionFactorToGraph()
 {
   FramePtr newkf = keyframes_.front();
   size_t n_new_factors = 0, n_updated = 0;
-  set<Point*> mps;
-  for(Features::iterator it_ft=newkf->fts_.begin(); it_ft!=newkf->fts_.end(); ++it_ft)
-  {
-    if((*it_ft)->point != nullptr)
-      mps.insert((*it_ft)->point);
-  }
+  updateMapPoints(newkf);
 
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end(); ++it_pt)
   {
     if((*it_pt)->obs_.size() < 2) {
       SVO_DEBUG_STREAM("Detected a point observed in only a single frame");
@@ -179,6 +174,7 @@ void VisualInertialEstimator::addVisionFactorToGraph()
       ++n_updated;
     }
   }
+  mps_.clear();
   SVO_DEBUG_STREAM("[Estimator]: Adding " << n_new_factors << " smart factors, updated = " << n_updated);
 }
 
@@ -211,6 +207,15 @@ void VisualInertialEstimator::stopThread()
   }
 }
 
+void VisualInertialEstimator::updateMapPoints(const FramePtr& frame)
+{
+  for(Features::iterator it_ft=frame->fts_.begin(); it_ft!=frame->fts_.end(); ++it_ft)
+  {
+    if((*it_ft)->point != nullptr)
+      mps_.insert((*it_ft)->point);
+  }  
+}
+
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
   keyframe->correction_id_ = ++correction_count_;
@@ -219,12 +224,14 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   if(stage_ == EstimatorStage::PAUSED) {
     SVO_DEBUG_STREAM("[Estimator]: First KF arrived: id = " << keyframe->correction_id_);
     initializePrior();
+    updateMapPoints(keyframe);
     t0_ = keyframe->timestamp_;
     keyframes_.pop();
     stage_ = EstimatorStage::FIRST_KEYFRAME;
   } else if(stage_ == EstimatorStage::FIRST_KEYFRAME) {
     SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->correction_id_);
     initializePrior();
+    updateMapPoints(keyframe);
     keyframes_.pop();
     stage_ = EstimatorStage::SECOND_KEYFRAME;
   } else if(stage_ == EstimatorStage::SECOND_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
@@ -273,11 +280,9 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
   // update the optimized variables
-  // TODO: Analyze whether optimization was converged!
   const gtsam::Values result = isam2_.calculateEstimate();
   prev_result_ = result;
   SVO_DEBUG_STREAM("[Estimator]: Final error = " << graph_->error(result));
-  // result.print();
   updateState(result);
 
   // clean up the integration from the above optimization
@@ -303,6 +308,29 @@ void VisualInertialEstimator::resumeOtherThreads()
   depth_filter_->release();
 }
 
+bool VisualInertialEstimator::reTriangulate(Point* point)
+{
+  if(point->obs_.size() < 2)
+    return false;
+
+  // 1. create poses of cameras that observe this point
+  // 2. collect the corresponding measurements
+  vector<gtsam::Pose3> poses; poses.reserve(point->obs_.size());
+  std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+  measurements.reserve(point->obs_.size());
+  for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
+  {
+    poses.push_back(inertial_utils::createGtsamPose((*it_obs)->frame->T_f_w_));
+    measurements.push_back(gtsam::Point2((*it_obs)->px));
+  }
+  const gtsam::Point3 initial_estimate(point->pos_);
+
+  // optimize and update
+  const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, isam2_K_, measurements, initial_estimate);
+  point->pos_ = Vector3d(refined_estimate);
+  return true;
+}
+
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
   // wait for other threads to stop
@@ -311,16 +339,20 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   FramePtr curr_kf = keyframes_.front();
   keyframes_.pop();
 
-  // update the state of all the poses
-  size_t n_valid = 0;
+  // update the state of all poses
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     const auto pose  = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->correction_id_));
     (*it_kf)->T_f_w_ = inertial_utils::createSvoPose(pose);
     ++(*it_kf)->n_inertial_updates_;
+  }
 
-    // update the corresponding structure as well
+  // update the corresponding structure as well
+  size_t n_valid = 0;
+  size_t n_newly_triangulated = 0;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
       if((*it_ft)->point == nullptr)
@@ -333,7 +365,11 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
       const size_t key = (*it_ft)->point->id_;
       if(smart_factors_.find(key) == smart_factors_.end())
+      {
+        if(reTriangulate((*it_ft)->point))
+          ++n_newly_triangulated;
         continue;
+      }
 
       const SmartFactorPtr factor = smart_factors_[key];
       boost::optional<gtsam::Point3> p = factor->point(result);
@@ -344,8 +380,6 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
       } else {
         // remove the diverged point from map
         map_.removePtFrameRef((*it_kf).get(), *it_ft);
-
-        // remove diverged point from graph
       }
     }
   }

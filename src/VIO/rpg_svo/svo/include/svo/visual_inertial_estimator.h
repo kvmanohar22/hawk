@@ -115,8 +115,17 @@ private:
   /// Adds visual factor to graph
   void addVisionFactorToGraph();
 
+  /// Stops other threads for pose and structure updation
   void stopOtherThreads();
+
+  /// Releases other threads after pose and structure is updated
   void resumeOtherThreads();
+
+  /// Given a keyframe, this updates map points visible in this keyframe
+  void updateMapPoints(const FramePtr& frame);
+
+  /// Retriangulates a point (returns true if point was triangulated)
+  bool reTriangulate(Point* point);
 
 public:
   EstimatorStage               stage_;                 //!< Current stage of the system
@@ -157,19 +166,17 @@ public:
   ImuContainerPtr              imu_container_;         //!< Container for storing imu messages
   double                       prev_imu_ts_;           //!< used for calculating dt for imu integration
   double                       t0_;                    //!< timestamp of the previous keyframe
+  set<Point*>                  mps_;                   //!< Map points that will be used to create smart factor
 }; // class VisualInertialEstimator
 
 
-namespace inertial_utils
-{
-
+namespace inertial_utils {
   /// created pose is of the camera in the world frame
   gtsam::Pose3 createGtsamPose(const SE3& T_f_w);
 
   /// Returns conventional svo pose stored for each frame
   SE3 createSvoPose(const gtsam::Pose3& pose);
-
-}
+} // namespace inertial_utils
 
 } // namespace svo
 

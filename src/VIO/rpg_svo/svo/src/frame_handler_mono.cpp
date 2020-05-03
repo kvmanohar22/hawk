@@ -493,7 +493,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     img_align.motion_prior_verbose_ = false;
     img_align.setPriors(delta_R_, delta_t_);
   }
-  size_t img_align_n_tracked = img_align.run(map_.getClosestKeyframe(new_frame_), new_frame_);
+  size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
+  // size_t img_align_n_tracked = img_align.run(map_.getClosestKeyframe(new_frame_), new_frame_);
+  // size_t img_align_n_tracked = img_align.run(map_.lastKeyframe(), new_frame_);
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);

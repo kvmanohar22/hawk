@@ -472,7 +472,8 @@ IncrementalBA::IncrementalBA(
   Map& map) :
     n_kfs_recieved_(0),
     map_(map),
-    total_removed_so_far_(0)
+    total_removed_so_far_(0),
+    min_n_obs_(2)
 {
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera);
   K_ = boost::make_shared<gtsam::Cal3DS2>(
@@ -545,8 +546,13 @@ void IncrementalBA::incrementalSmartLocalBA(
         factors.kf_ids_.push_back(kf_idx);
       }
 
-      // we need atleast two measurements (but using 3 in case baseline is less between two)
-      if(factors.measurements_.size() < 3)
+      /*
+       * This is so that there is enough disparity for the points to be triangulated later on
+       * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
+       * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
+       */
+      min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
+      if(factors.measurements_.size() < min_n_obs_)
       {
         invalid_pts_ids.insert(pt_idx);
         continue;

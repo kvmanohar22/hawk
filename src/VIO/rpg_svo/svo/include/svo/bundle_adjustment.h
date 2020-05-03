@@ -116,6 +116,7 @@ public:
 
   // for debugging purposes
   size_t total_removed_so_far_;
+  size_t min_n_obs_;
 
   /// Incremental Local bundle adjustment using smart vision factors from gtsam
   void incrementalSmartLocalBA(

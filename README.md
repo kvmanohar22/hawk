@@ -128,11 +128,17 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
   - Imu data and image data are time synchronized (hardware-level) upto sub-millisecond accuracy
 
 - Visualize camera data from a bagfile
+  - For monocular camera,
   - ```bash
-      roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile
+      roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile monocular:=true
     ```
   - `bag_path` has to be absolute
   - By default, the topic is `/hawk/camera_0/image_raw`. Pass in the argument through command line if it is a different topic (eg: `image_topic:=/image/topic`)
+  - For a stereo camera, use
+  - ```bash
+      roslaunch svo_ros playback_camera.launch bag_path:=/path/to/bagfile stereo:=true
+    ```
+  - Additionally set `left_image_topic` and `right_image_topic` params. Defaults to (`/hawk/stereo/left/image_raw` and `/hawk/stereo/right/image_raw` respectively.)
 
 - Run svo from a bagfile
   - ```bash

@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(tracking)
 
+add_subdirectory(bbox)
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
+
+# SET(OpenCV_DIR /usr/share/OpenCV)
+
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -40,18 +45,17 @@ add_library(${PROJECT_NAME} SHARED
  )
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-
 add_executable(${PROJECT_NAME}_node src/tracking_node.cpp)
 add_executable(image_pub_node src/image_pub_node.cpp)
 add_executable(tracking_bag_node src/tracking_bag.cpp)
+
+
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS} dlib::dlib)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node dlib::dlib)
 
-add_subdirectory(bbox)
 
 #############
 ## Testing ##

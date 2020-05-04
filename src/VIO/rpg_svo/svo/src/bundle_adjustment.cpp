@@ -88,7 +88,6 @@ void BA::localBA(
     for(Features::iterator it_ft=(*it_pt)->obs_.begin(); it_ft!=(*it_pt)->obs_.end(); ++it_ft)
     {
       const int kf_idx = (*it_ft)->frame->id_;
-      ++n_incorrect_edges_1;
 
       // could be possible that this frame is not part of core_kfs
       if(core_kf_ids.find(kf_idx) == core_kf_ids.end())
@@ -97,21 +96,29 @@ void BA::localBA(
       gtsam::Point2 measurement((*it_ft)->px);
       factors.measurements_.push_back(measurement);
       factors.kf_ids_.push_back(kf_idx);
+      ++n_incorrect_edges_1;
     }
 
     // we need atleast two measurements
-    if(factors.measurements_.size() < 2) {
+    size_t min_n_obs = core_kfs->size() > 3 ? 3 : 2;
+    if(factors.measurements_.size() < min_n_obs)
+    {
       invalid_pts_ids.insert(pt_idx);
       continue;
     }
 
-    for(size_t i=0; i<factors.measurements_.size(); ++i) {
-      ++n_edges;
+    for(size_t i=0; i<factors.measurements_.size(); ++i)
+    {
       graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
           factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
     }
+    n_edges += factors.measurements_.size();
   }
-  SVO_DEBUG_STREAM("[Generic BA]: kfs = " << n_kfs << "\t n_mps = " << mps.size()-invalid_pts_ids.size() << "\t n_edges = " << n_edges);
+  SVO_DEBUG_STREAM("[Generic BA]: kfs = " << n_kfs <<
+                   "\t n_mps = " << mps.size() <<
+                   "\t n_invalid = " << invalid_pts_ids.size() <<
+                   "\t n_valid = " << mps.size()-invalid_pts_ids.size() <<
+                   "\t n_edges = " << n_edges);
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;
@@ -151,7 +158,6 @@ void BA::localBA(
 
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
-
   gtsam::Values result;
   if(Config::lobaOptType() == 1)
   {
@@ -166,6 +172,7 @@ void BA::localBA(
     {
       params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
     }
+    gtsam::LevenbergMarquardtParams::SetCeresDefaults(&params);
     gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
     result = optimizer.optimize();
   }
@@ -192,6 +199,7 @@ void BA::localBA(
   // remove any outliers that diverged from the optimization
   const double reproj_thresh = Config::lobaThresh();
   size_t n_removed_edges = 0;
+  size_t n_removed_points = 0;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const Vector3d xyz = (*it_pt)->pos_;
@@ -202,8 +210,10 @@ void BA::localBA(
       const double error = (uv_true-uv_repr).norm();
 
       // FIXME: need not break. only remove that one edge
-      if(error > reproj_thresh) {
+      if(error > reproj_thresh)
+      {
         n_removed_edges += (*it_pt)->obs_.size();
+        ++n_removed_points;
         map->removePtFrameRef((*it_obs)->frame, *it_obs);
         break;
       }
@@ -213,6 +223,7 @@ void BA::localBA(
   n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
   n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
   final_error_avg = final_error / n_incorrect_edges_2;
+  SVO_DEBUG_STREAM("[Generic BA]: Number of points removed = " << n_removed_points);
 }
 
 void BA::smartLocalBA(

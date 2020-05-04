@@ -247,19 +247,6 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
   last_frame_ = new_frame_;
   new_frame_.reset();
 
-  if(save_trajectory_)
-  {
-    SVO_INFO_STREAM_ONCE("Saving trajectory estimates");
-    const SE3 T_w_f = last_frame_->T_f_w_.inverse();
-    const Vector3d t = T_w_f.translation();
-    const Quaterniond q = vk::dcm2quat(T_w_f.rotation_matrix());
-    ofstream ofs("/tmp/trajectory.txt", std::ios::app);
-    ofs << last_frame_->timestamp_ << " "
-        << t(0) << " " << t(1) << " " << t(2) << " "
-        << q.x() << " " << q.y() << " " << q.z() << " " << q.w()
-        << endl;
-  }
-
   // finish processing
   finishFrameProcessingCommon(last_frame_->id_, res, last_frame_->nObs());
 }
@@ -569,8 +556,20 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     size_t loba_n_erredges_init=0, loba_n_erredges_fin=0;
     double loba_err_init=0.0, loba_err_fin=0.0;
     double loba_err_init_avg=0.0, loba_err_fin_avg=0.0;
+
+/*    // do bundle adjustment on all the keyframes (global BA)
+    list<FramePtr>* all_kfs = map_.getAllKeyframes();
+    set<FramePtr>  all_kfs_set;
+    for(list<FramePtr>::iterator it=all_kfs->begin(); it!=all_kfs->end(); ++it)
+      all_kfs_set.insert(*it);
+*/
     if(Config::lobaType() == 0)
     {
+      // ba::BA::localBA(new_frame_.get(), &all_kfs_set, &map_,
+      //                 loba_n_erredges_init, loba_n_erredges_fin,
+      //                 loba_err_init, loba_err_fin,
+      //                 loba_err_init_avg, loba_err_fin_avg,
+      //                 true);
       ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
                       loba_n_erredges_init, loba_n_erredges_fin,
                       loba_err_init, loba_err_fin,

@@ -515,7 +515,7 @@ void IncrementalBA::incrementalSmartLocalBA(
     for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
     {
       if((*it_ft)->point != nullptr)
-        mps_.insert((*it_ft)->point);      
+        mps_.insert((*it_ft)->point);
     }
     return;
   }
@@ -533,26 +533,29 @@ void IncrementalBA::incrementalSmartLocalBA(
   size_t n_updated_factors=0;
   for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end(); ++it_pt)
   {
+    // ensure the point is not deleted by any chance
+    if((*it_pt) == nullptr)
+    {
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      continue;
+    }
+
+    if((*it_pt)->type_ == Point::TYPE_DELETED)
+    {
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      continue;
+    }
+
     const int pt_idx = (*it_pt)->id_;
     if(smart_factors_.find(pt_idx) == smart_factors_.end())
     {
-      ba::PointFactors factors;    
-      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
-      {
-        const int kf_idx = (*it_obs)->frame->id_;
-
-        gtsam::Point2 measurement((*it_obs)->px);
-        factors.measurements_.push_back(measurement);
-        factors.kf_ids_.push_back(kf_idx);
-      }
-
       /*
        * This is so that there is enough disparity for the points to be triangulated later on
        * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
        * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
        */
       min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
-      if(factors.measurements_.size() < min_n_obs_)
+      if((*it_pt)->obs_.size() < min_n_obs_)
       {
         invalid_pts_ids.insert(pt_idx);
         continue;
@@ -561,25 +564,21 @@ void IncrementalBA::incrementalSmartLocalBA(
       // create a new smart factor
       SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
       ++n_new_factors;
-      for(size_t i=0; i<factors.measurements_.size(); ++i) {
-        if(shouldAdd(factors.kf_ids_[i]))
-        {
-          factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
-          addEdge(factors.kf_ids_[i]);
-        }
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        factor->add(gtsam::Point2((*it_obs)->px), Symbol::X((*it_obs)->frame->id_));
+        addEdge((*it_obs)->frame->id_);
         ++total_edges_;
       }
+
       graph_->push_back(factor);
       smart_factors_[pt_idx] = factor;
     } else {
       // update the existing smart factor
       SmartFactorPtr factor = smart_factors_.find(pt_idx)->second;
       gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
-      if(shouldAdd((*it_pt)->obs_.front()->frame->id_))
-      {
-        factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
-        addEdge((*it_pt)->obs_.front()->frame->id_);
-      }
+      factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
+      addEdge((*it_pt)->obs_.front()->frame->id_);
       ++n_updated_factors;
       ++total_edges_;
     }
@@ -591,7 +590,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   {
     cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
   }
-*/
+*/ 
   mps_.clear();
 
   // create initial estimate of the latest pose for optimization

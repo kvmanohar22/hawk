@@ -100,6 +100,16 @@ class IncrementalBA
 public:
   IncrementalBA(vk::AbstractCamera* camera, Map& map);
 
+  /// Incremental Local bundle adjustment using smart vision factors from gtsam
+  void incrementalSmartLocalBA(
+    Frame* center_kf,
+    double& init_error,
+    double& final_error,
+    double& init_error_avg,
+    double& final_error_avg,
+    bool verbose=false);
+
+private:
   unordered_map<int, SmartFactor::shared_ptr> smart_factors_;
   gtsam::NonlinearFactorGraph *graph_;
   boost::shared_ptr<gtsam::Cal3DS2> K_;
@@ -118,15 +128,6 @@ public:
   size_t total_removed_so_far_;
   size_t min_n_obs_;
   map<int, int> kf_landmarks_edges_;
-
-  /// Incremental Local bundle adjustment using smart vision factors from gtsam
-  void incrementalSmartLocalBA(
-    Frame* center_kf,
-    double& init_error,
-    double& final_error,
-    double& init_error_avg,
-    double& final_error_avg,
-    bool verbose=false);
 
   void addEdge(const int& kfid);
 

@@ -31,6 +31,6 @@
     <node pkg="image_view" type="image_view" name="right"
       args="image:=$(arg image_topic) _autosize:=true _window_name:=hawk"
       output="$(arg output)"/>
-
   </group>
+
 </launch>

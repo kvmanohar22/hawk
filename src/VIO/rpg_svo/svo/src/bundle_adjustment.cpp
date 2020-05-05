@@ -78,8 +78,8 @@ void BA::localBA(
   n_kfs = core_kfs->size();
 
   // create graph
-  set<int> invalid_pts_ids;
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  set<Point*> invalid_pts;
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end();)
   {
     const int pt_idx = (*it_pt)->id_;
     const Vector3d xyz = (*it_pt)->pos_;
@@ -100,10 +100,13 @@ void BA::localBA(
     }
 
     // we need atleast two measurements
+    // initially 2 observations are required to be added to graph
+    // later on (#kfs >= 4), min. 3 observations are required
     size_t min_n_obs = core_kfs->size() > 3 ? 3 : 2;
     if(factors.measurements_.size() < min_n_obs)
     {
-      invalid_pts_ids.insert(pt_idx);
+      invalid_pts.insert(*it_pt);
+      it_pt = mps.erase(it_pt);
       continue;
     }
 
@@ -113,27 +116,38 @@ void BA::localBA(
           factors.measurements_[i], noise, Symbol::X(factors.kf_ids_[i]), Symbol::L(pt_idx), K);
     }
     n_edges += factors.measurements_.size();
+    ++it_pt;
   }
-  SVO_DEBUG_STREAM("[Generic BA]: kfs = " << n_kfs <<
-                   "\t n_mps = " << mps.size() <<
-                   "\t n_invalid = " << invalid_pts_ids.size() <<
-                   "\t n_valid = " << mps.size()-invalid_pts_ids.size() <<
+  SVO_DEBUG_STREAM("[Generic BA]:\t kfs = " << n_kfs <<
+                   "\t n_mps = " << invalid_pts.size()+mps.size() <<
+                   "\t n_invalid = " << invalid_pts.size() <<
+                   "\t n_valid = " << mps.size() <<
                    "\t n_edges = " << n_edges);
   n_mps = mps.size();
   init_error = computeError(mps);
   init_error_avg = init_error / n_incorrect_edges_1;
 
+  // sort the keyframes based on their ids
+  list<FramePtr> corekfs;
+  for(set<FramePtr>::iterator it=core_kfs->begin(); it!=core_kfs->end(); ++it)
+    corekfs.push_back(*it);
+  corekfs.sort([&](const FramePtr& f1, const FramePtr& f2) {
+      return f1->id_ < f2->id_;
+  });
+
   // add prior on pose
   gtsam::noiseModel::Diagonal::shared_ptr pose_noise = gtsam::noiseModel::Diagonal::Sigmas(
-    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.3)).finished());
-  FramePtr frame = *core_kfs->begin();
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.05), gtsam::Vector3::Constant(0.01)).finished());
+  FramePtr frame = *corekfs.begin();
   gtsam::Pose3 prior_pose = createPose(frame->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame->id_), prior_pose, pose_noise);
 
   // add prior on second pose (to fix the scale)
-  FramePtr frame2 = *std::next(core_kfs->begin());
+  FramePtr frame2 = *std::next(corekfs.begin());
   gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
+  corekfs.clear();
+  SVO_DEBUG_STREAM("[Generic BA]: \t Adding prior for poses: " << frame->id_ << " & " << frame2->id_);
 
   // create initial estimates for poses
   gtsam::Values initial_estimate;
@@ -149,9 +163,6 @@ void BA::localBA(
   for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
-    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end())
-      continue;
-
     const Vector3d xyz = (*it_pt)->pos_;
     initial_estimate.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
   }
@@ -189,17 +200,35 @@ void BA::localBA(
   for(set<Point*>::iterator it_pt = mps.begin(); it_pt != mps.end(); ++it_pt)
   {
     const int pt_idx = (*it_pt)->id_;
-    if(invalid_pts_ids.find(pt_idx) != invalid_pts_ids.end()) {
-      continue;
-    }
     gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(pt_idx));
     (*it_pt)->pos_ = Vector3d(pt.x(), pt.y(), pt.z());
+  }
+
+  // retriangulate the points that were part of invalid_pts
+  for(set<Point*>::iterator it_pt=invalid_pts.begin(); it_pt!=invalid_pts.end(); ++it_pt)
+  {
+    if((*it_pt)->obs_.size() < 2)
+      continue;
+    vector<gtsam::Pose3> poses; poses.reserve((*it_pt)->obs_.size());
+    std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+    measurements.reserve((*it_pt)->obs_.size());
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    {
+      poses.push_back(BA::createPose((*it_obs)->frame->T_f_w_.inverse()));
+      measurements.push_back(gtsam::Point2((*it_obs)->px));
+    }
+    const gtsam::Point3 initial_estimate((*it_pt)->pos_);
+
+    // optimize and update
+    const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, K, measurements, initial_estimate);
+    (*it_pt)->pos_ = refined_estimate;
   }
 
   // remove any outliers that diverged from the optimization
   const double reproj_thresh = Config::lobaThresh();
   size_t n_removed_edges = 0;
   size_t n_removed_points = 0;
+  mps.insert(invalid_pts.begin(), invalid_pts.end());
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const Vector3d xyz = (*it_pt)->pos_;
@@ -209,7 +238,6 @@ void BA::localBA(
       const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
       const double error = (uv_true-uv_repr).norm();
 
-      // FIXME: need not break. only remove that one edge
       if(error > reproj_thresh)
       {
         n_removed_edges += (*it_pt)->obs_.size();
@@ -223,7 +251,7 @@ void BA::localBA(
   n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
   n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
   final_error_avg = final_error / n_incorrect_edges_2;
-  SVO_DEBUG_STREAM("[Generic BA]: Number of points removed = " << n_removed_points);
+  SVO_DEBUG_STREAM("[Generic BA]: \tRemoved = " << n_removed_points << "\t Newly triangulated = " << invalid_pts.size());
 }
 
 void BA::smartLocalBA(

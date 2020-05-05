@@ -1,7 +1,7 @@
 grid_size: 7
-max_n_kfs: 50
+max_n_kfs: 30
 loba_num_iter: 1
-max_fts: 200
+max_fts: 500
 triang_min_corner_score: 20.0
 quality_max_drop_fts: 80
 map_scale: 1.0
@@ -17,4 +17,6 @@ loba_type: 2
 # Optimizer type for Local bundle adjustment
 # 0: LM
 # 1: ISAM2
-loba_opt_type: 1
+loba_opt_type: 0
+
+poseoptim_thresh: 2.0

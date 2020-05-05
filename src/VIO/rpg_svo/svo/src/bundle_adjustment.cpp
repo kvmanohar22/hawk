@@ -521,7 +521,7 @@ IncrementalBA::IncrementalBA(
        c->d0(), c->d1(), c->d2(), c->d3());
   noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
   pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
-    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.3)).finished());
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.05), gtsam::Vector3::Constant(0.01)).finished());
 
   smart_params_.triangulation.enableEPI = true;
   smart_params_.triangulation.rankTolerance = 1;
@@ -567,21 +567,23 @@ void IncrementalBA::incrementalSmartLocalBA(
   }
 
   // create graph
-  set<int> invalid_pts_ids;
+  set<Point*> invalid_pts;
   size_t n_new_factors=0;
   size_t n_updated_factors=0;
-  for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end(); ++it_pt)
+  for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end();)
   {
     // ensure the point is not deleted by any chance
     if((*it_pt) == nullptr)
     {
       SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
       continue;
     }
 
     if((*it_pt)->type_ == Point::TYPE_DELETED)
     {
       SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
       continue;
     }
 
@@ -596,7 +598,8 @@ void IncrementalBA::incrementalSmartLocalBA(
       min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
       if((*it_pt)->obs_.size() < min_n_obs_)
       {
-        invalid_pts_ids.insert(pt_idx);
+        invalid_pts.insert(*it_pt);
+        it_pt = mps_.erase(it_pt);
         continue;
       }
 
@@ -621,8 +624,9 @@ void IncrementalBA::incrementalSmartLocalBA(
       ++n_updated_factors;
       ++total_edges_;
     }
+    ++it_pt;
   }
-  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts_ids.size() << "/" << mps_.size() <<
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << mps_.size() <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors);
 /*  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)

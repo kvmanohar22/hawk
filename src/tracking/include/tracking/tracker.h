@@ -6,6 +6,8 @@
 #include <dlib/image_io.h>
 #include <dlib/opencv.h>
 
+// #include <bbox/bbox.h>
+
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>
@@ -21,7 +23,7 @@ namespace tracking {
         public:
             dlib::correlation_tracker tracker;
             dlib::image_window win;
-
+            // Bbox box;
             Tracker(cv::Rect rect) : confidence(0.0), is_started(false) { this->setRect(rect); this->setCenter(rect); }
             Tracker(dlib::drectangle rect) : confidence(0.0), is_started(false) { this->setRect(rect); this->setCenter(rect); }
             int startTracker(cv::Mat& mat_img);

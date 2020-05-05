@@ -18,7 +18,7 @@ target_include_directories(bbox PUBLIC include)
 # message(STATUS "    libraries: ${OpenCV_LIBS}")
 # message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
 
-target_link_libraries(bbox PRIVATE
+target_link_libraries(bbox PUBLIC
       opencv_core opencv_dnn opencv_imgcodecs opencv_videoio opencv_highgui)
 
 #############

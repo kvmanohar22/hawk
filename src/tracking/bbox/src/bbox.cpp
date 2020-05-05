@@ -16,7 +16,7 @@ using namespace cv;
 using namespace cv::dnn;
 
 
-tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> tracking::Bbox::predict(Mat frame) {
+tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat frame) {
     Mat blob;
     // frame = imread(file_path, CV_LOAD_IMAGE_COLOR);
     Size inpSize(this->inpWidth > 0 ? this->inpWidth : frame.cols,
@@ -52,7 +52,7 @@ tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> tracking::Bbox::p
 
 }
 
-void tracking::Bbox::postprocess(Mat& frame, const std::vector<Mat>& outs, Net& net,
+void Bbox::postprocess(Mat& frame, const std::vector<Mat>& outs, Net& net,
                     std::vector<int>& classIds, std::vector<float>& confidences, std::vector<Rect>& boxes) {
 
     if (this->outLayerType == "DetectionOutput") {
@@ -124,7 +124,7 @@ void tracking::Bbox::postprocess(Mat& frame, const std::vector<Mat>& outs, Net& 
     }
 }
 
-void tracking::Bbox::drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame) {
+void Bbox::drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame) {
     rectangle(frame, Point(left, top), Point(right, bottom), Scalar(0, 255, 0));
 
     std::string label = format("%.2f", conf);

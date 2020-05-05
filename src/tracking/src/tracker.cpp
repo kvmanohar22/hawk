@@ -1,6 +1,8 @@
 #include <tracking/tracker.h>
 #include <tracking/utils.h>
 
+#include <bbox/bbox.h>
+
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
@@ -16,6 +18,13 @@ int tracking::Tracker::startTracker(cv::Mat& mat_img) {
         std::cout << "Empty Image" << std::endl;
         return 0;
     }
+    // get bbox for this cv image
+    // std::vector<int> classIds;
+    // std::vector<float> confidences;
+    // std::vector<cv::Rect> boxes;
+
+    // std::tie (classIds, confidence, boxes) = this->box.predict(mat_img);
+
     dlib::array2d<unsigned char> dlib_frame = Utils::cvToDlib2d(mat_img);
     dlib::drectangle dlib_rect = Utils::cvtRectToDrect(this->getRect());
     this->tracker.start_track(dlib_frame, dlib_rect);
@@ -28,6 +37,7 @@ int tracking::Tracker::doTracking(cv::Mat& mat_img) {
         std::cout << "Empty Image" << std::endl;
         return 0;
     }
+    
     dlib::array2d<unsigned char> dlib_img = Utils::cvToDlib2d(mat_img);
     double confidence = this->tracker.update(dlib_img);
     dlib::drectangle updated_rect = this->tracker.get_position();

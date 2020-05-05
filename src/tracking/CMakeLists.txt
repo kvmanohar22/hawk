@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(tracking)
 
 add_subdirectory(bbox)
+# cv_bridge patch for opencv4, credit: https://github.com/fizyr-forks/vision_opencv.git (opencv4 branch)
+add_subdirectory(cv_bridge)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -13,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   image_transport
-  cv_bridge
   rosbag
   message_filters
 )
@@ -25,14 +26,15 @@ if (CATKIN_ENABLE_TESTING)
 endif()
 
 find_package(dlib REQUIRED)
-find_package(OpenCV 3.2 EXACT REQUIRED)
+# find_package(OpenCV 3.2 EXACT REQUIRED)
+find_package(OpenCV 4.2.0 CONFIG REQUIRED)
 FIND_PACKAGE(Boost REQUIRED)
 
 catkin_package(
- INCLUDE_DIRS include
- LIBRARIES tracking
- CATKIN_DEPENDS roscpp sensor_msgs image_transport cv_bridge rosbag message_filters
- DEPENDS OpenCV Boost
+#  INCLUDE_DIRS include
+#  LIBRARIES tracking
+ CATKIN_DEPENDS roscpp sensor_msgs image_transport rosbag message_filters
+#  DEPENDS OpenCV Boost
 )
 
 include_directories(
@@ -48,13 +50,15 @@ target_include_directories(${PROJECT_NAME} PUBLIC include)
 add_executable(${PROJECT_NAME}_node src/tracking_node.cpp)
 add_executable(image_pub_node src/image_pub_node.cpp)
 add_executable(tracking_bag_node src/tracking_bag.cpp)
+add_executable(bbox_test_node src/bbox_test.cpp)
 
 
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS} dlib::dlib)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} dlib::dlib bbox cv_bridge)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
-target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
-target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS} cv_bridge)
+target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} cv_bridge)
+target_link_libraries(bbox_test_node bbox ${catkin_LIBRARIES}  ${OpenCV_LIBS} cv_bridge)
 
 
 #############

@@ -521,7 +521,7 @@ IncrementalBA::IncrementalBA(
        c->d0(), c->d1(), c->d2(), c->d3());
   noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
   pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
-    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.05), gtsam::Vector3::Constant(0.01)).finished());
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.00001)).finished());
 
   smart_params_.triangulation.enableEPI = true;
   smart_params_.triangulation.rankTolerance = 1;
@@ -529,6 +529,17 @@ IncrementalBA::IncrementalBA(
   smart_params_.verboseCheirality = true;
   smart_params_.throwCheirality = false;
 
+  // gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
+  // doglegparams.verbose = true;
+
+  isam2_params_.factorization = gtsam::ISAM2Params::QR;
+  isam2_params_.enableDetailedResults = true;
+  isam2_params_.evaluateNonlinearError = true;
+  // isam2_params_.relinearizeThreshold = 1e-3;
+  // isam2_params_.optimizationParams = doglegparams;
+
+  isam2_ = gtsam::ISAM2(isam2_params_);
+  isam2_params_.print("ISAM2 params:\n");
   graph_ = new gtsam::NonlinearFactorGraph();
 }
 
@@ -546,6 +557,12 @@ void IncrementalBA::incrementalSmartLocalBA(
   if(n_kfs_recieved_ == 1 || n_kfs_recieved_ == 2)
   {
     gtsam::Pose3 prior_pose = BA::createPose(center_kf->T_f_w_.inverse());
+    if(n_kfs_recieved_ == 2)
+    {
+      pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.01)).finished());
+    }
+
     graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
     initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
     SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
@@ -570,6 +587,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   set<Point*> invalid_pts;
   size_t n_new_factors=0;
   size_t n_updated_factors=0;
+  size_t n_mps = mps_.size();
   for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end();)
   {
     // ensure the point is not deleted by any chance
@@ -595,7 +613,7 @@ void IncrementalBA::incrementalSmartLocalBA(
        * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
        * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
        */
-      min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
+      min_n_obs_ = n_kfs_recieved_ > 3 ? 2 : 2;
       if((*it_pt)->obs_.size() < min_n_obs_)
       {
         invalid_pts.insert(*it_pt);
@@ -626,7 +644,7 @@ void IncrementalBA::incrementalSmartLocalBA(
     }
     ++it_pt;
   }
-  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << mps_.size() <<
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << n_mps <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors);
 /*  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
@@ -647,13 +665,20 @@ void IncrementalBA::incrementalSmartLocalBA(
   init_error = graph_->error(prev_result_);
   init_error_avg = init_error / total_edges_;
   gtsam::Values result;
-  isam2_.update(*graph_, initial_estimate_);
+  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_);
+  printResult(detailed_result);
   for(size_t i=0; i<10; ++i)
-    isam2_.update();
+    detailed_result = isam2_.update();
+  printResult(detailed_result);
   result = isam2_.calculateEstimate();
   prev_result_ = result;
   final_error = graph_->error(result);
   final_error_avg = final_error / total_edges_;
+
+/*  // path
+  stringstream ss; ss << "/home/kv/ros/hawk/analysis/graph/graph_center_kf_" << center_kf->id_ << ".gv";
+  const string filename = ss.str();
+  isam2_.saveGraph(filename);*/
 
   // update poses
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
@@ -748,6 +773,15 @@ bool IncrementalBA::shouldAdd(const int& kfid)
     return true;
   return kf_landmarks_edges_[kfid] < 8000;
 */
+}
+
+void IncrementalBA::printResult(const gtsam::ISAM2Result& result)
+{
+  cout << "error before = " << *result.errorBefore << "\t"
+       << "error after = " << *result.errorAfter << "\t"
+       << "n_relinearized = " << result.variablesRelinearized
+       << endl;
+       // << "n_relinearized = " << result.variablesRelinearized << " "
 }
 
 

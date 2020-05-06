@@ -119,6 +119,7 @@ private:
   gtsam::Values initial_estimate_;
   gtsam::Values prev_result_;
   gtsam::ISAM2 isam2_;
+  gtsam::ISAM2Params isam2_params_;
   size_t n_kfs_recieved_;
   size_t total_edges_;
   Map& map_;
@@ -133,6 +134,7 @@ private:
 
   bool shouldAdd(const int& kfid);
 
+  void printResult(const gtsam::ISAM2Result& result);
 };
 
 } // namespace ba

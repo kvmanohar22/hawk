@@ -132,6 +132,7 @@ public:
   ImuContainerPtr imu_container_;             //!< Container for imu messages
   double prev_imu_ts_;                        //!< used for calculating dt for imu integration
   ba::IncrementalBA* iba_;                        //!< Incremental BA
+  bool init_ba_done_;
 
 protected:
   /// Initialize the visual odometry algorithm.

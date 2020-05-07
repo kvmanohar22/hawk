@@ -52,6 +52,7 @@ FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)
 FIND_PACKAGE(fast REQUIRED)
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem serialization regex timer)
+# SET(GTSAM_DIR /home/kv/slam/gtsam/build_debug)
 FIND_PACKAGE(GTSAM REQUIRED)
 
 IF(USE_ROS)

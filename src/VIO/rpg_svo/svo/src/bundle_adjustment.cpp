@@ -25,6 +25,7 @@
 #include <svo/map.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/geometry/triangulation.h>
 
@@ -44,7 +45,7 @@ void BA::localBA(
     bool verbose)
 {
   // we need atleast two core keyframes
-  if(core_kfs->size() < 3)
+  if(core_kfs->size() < 2)
     return;
 
   size_t n_mps = 0;
@@ -178,13 +179,15 @@ void BA::localBA(
       isam2.update();
     result = isam2.calculateEstimate();
   } else {
-    gtsam::LevenbergMarquardtParams params;
-    if(verbose)
-    {
-      params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
-    }
-    gtsam::LevenbergMarquardtParams::SetCeresDefaults(&params);
-    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    // gtsam::LevenbergMarquardtParams params;
+    // if(verbose)
+    // {
+    //   params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+    // }
+    // gtsam::LevenbergMarquardtParams::SetCeresDefaults(&params);
+    // gtsam::LevenbergMarquardtParams::SetCeresDefaults(&params);
+    gtsam::GaussNewtonOptimizer optimizer(graph, initial_estimate);
+    // gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
     result = optimizer.optimize();
   }
   double final_error_gtsam = graph.error(result);
@@ -307,56 +310,81 @@ void BA::smartLocalBA(
   smart_params.throwCheirality = false;
 
   // create graph
-  set<int> invalid_pts_ids;
+  set<Point*> invalid_pts;
   unordered_map<int, SmartFactor::shared_ptr> smart_factors;
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end();)
   {
-    const int pt_idx = (*it_pt)->id_;
-    PointFactors factors;    
-    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    // ensure the point is not deleted by any chance
+    if((*it_pt) == nullptr)
     {
-      const int kf_idx = (*it_obs)->frame->id_;
-      ++n_incorrect_edges_1;
-
-      // could be possible that this frame is not part of core_kfs
-      if(core_kf_ids.find(kf_idx) == core_kf_ids.end())
-        continue;
-
-      gtsam::Point2 measurement((*it_obs)->px);
-      factors.measurements_.push_back(measurement);
-      factors.kf_ids_.push_back(kf_idx);
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
+      continue;
     }
 
-    // we need atleast two measurements
-    if(factors.measurements_.size() < 2) {
-      invalid_pts_ids.insert(pt_idx);
+    if((*it_pt)->type_ == Point::TYPE_DELETED)
+    {
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
+      continue;
+    }
+
+    const int pt_idx = (*it_pt)->id_;
+    size_t min_n_obs = core_kfs->size() > 3 ? 3 : 2;
+    if((*it_pt)->obs_.size() < min_n_obs)
+    {
+      invalid_pts.insert(*it_pt);
+      it_pt = mps.erase(it_pt);
       continue;
     }
 
     // create a new smart factor
-    SmartFactor::shared_ptr factor(new SmartFactor(noise, K, smart_params));
-    for(size_t i=0; i<factors.measurements_.size(); ++i) {
-      factor->add(factors.measurements_[i], Symbol::X(factors.kf_ids_[i]));
+    SmartFactorPtr factor(new SmartFactor(noise, K, smart_params));
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    {
+      ++n_incorrect_edges_1;
+      factor->add(gtsam::Point2((*it_obs)->px), Symbol::X((*it_obs)->frame->id_));
     }
+
     graph.push_back(factor);
     smart_factors[pt_idx] = factor;
+    ++it_pt;
   }
-  SVO_DEBUG_STREAM("[Smart BA]: Total invalid points = " << invalid_pts_ids.size() << "/" << mps.size());
+  SVO_DEBUG_STREAM("[Generic BA]:\t kfs = " << n_kfs <<
+                   "\t n_mps = " << invalid_pts.size()+mps.size() <<
+                   "\t n_invalid = " << invalid_pts.size() <<
+                   "\t n_valid = " << mps.size() <<
+                   "\t n_edges = " << n_incorrect_edges_1);
   n_mps = mps.size();
-  init_error = computeError(mps);
+  set<Point*> init_points;
+  init_points.insert(mps.begin(), mps.end());
+  init_points.insert(invalid_pts.begin(), invalid_pts.end());
+  init_error = computeError(init_points);
   init_error_avg = init_error / n_incorrect_edges_1;
+
+  // sort the keyframes based on their ids
+  list<FramePtr> corekfs;
+  for(set<FramePtr>::iterator it=core_kfs->begin(); it!=core_kfs->end(); ++it)
+    corekfs.push_back(*it);
+  corekfs.sort([&](const FramePtr& f1, const FramePtr& f2) {
+      return f1->id_ < f2->id_;
+  });
 
   // add prior on pose
   gtsam::noiseModel::Diagonal::shared_ptr pose_noise = gtsam::noiseModel::Diagonal::Sigmas(
-    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.3)).finished());
-  FramePtr frame1 = *core_kfs->begin();
-  gtsam::Pose3 prior_pose1 = createPose(frame1->T_f_w_.inverse());
-  graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame1->id_), prior_pose1, pose_noise);
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.00001)).finished());
+  FramePtr frame = *corekfs.begin();
+  gtsam::Pose3 prior_pose = createPose(frame->T_f_w_.inverse());
+  graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame->id_), prior_pose, pose_noise);
 
   // add prior on second pose (to fix the scale)
-  FramePtr frame2 = *std::next(core_kfs->begin());
+  FramePtr frame2 = *std::next(corekfs.begin());
   gtsam::Pose3 prior_pose2 = createPose(frame2->T_f_w_.inverse());
+  pose_noise = gtsam::noiseModel::Diagonal::Sigmas(
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.5), gtsam::Vector3::Constant(0.1)).finished());
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(frame2->id_), prior_pose2, pose_noise);
+  corekfs.clear();
+  SVO_DEBUG_STREAM("[Smart BA]: \t Adding prior for poses: " << frame->id_ << " & " << frame2->id_);
 
   // create initialization for optimization
   gtsam::Values initial_estimate;
@@ -368,30 +396,8 @@ void BA::smartLocalBA(
     initial_estimate.insert(Symbol::X(kf_idx), pose);
   }
 
-  // compute reprojection error based on initial estimate
-  size_t valid_pts = 0, invalid_pts = 0;
-  double error = 0.0;
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
-  {
-    const int key = (*it_pt)->id_;
-    if(smart_factors.find(key) == smart_factors.end())
-      continue;
-
-    const SmartFactor::shared_ptr factor = smart_factors[key];
-    boost::optional<gtsam::Point3> p = factor->point(initial_estimate);
-    if(p) {
-      Vector3d pt(p->x(), p->y(), p->z());
-      Vector3d new_pt = Vector3d(pt.x(), pt.y(), pt.z());
-      ++valid_pts;
-      error += ((pt-new_pt).norm());
-    } else {
-      ++invalid_pts;
-    }
-  }
-
   // optimize
   double init_error_gtsam = graph.error(initial_estimate);
-
   gtsam::Values result;
   if(Config::lobaOptType() == 1)
   {
@@ -401,12 +407,13 @@ void BA::smartLocalBA(
       isam2.update();
     result = isam2.calculateEstimate();
   } else {
-    gtsam::LevenbergMarquardtParams params;
-    if(verbose)
-    {
-      params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
-    }
-    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    // gtsam::LevenbergMarquardtParams params;
+    // if(verbose)
+    // {
+    //   params.verbosityLM = gtsam::LevenbergMarquardtParams::SUMMARY;
+    // }
+    // gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+    gtsam::GaussNewtonOptimizer optimizer(graph, initial_estimate);
     result = optimizer.optimize();
   }
   double final_error_gtsam = graph.error(result);
@@ -418,11 +425,29 @@ void BA::smartLocalBA(
     (*it_kf)->T_f_w_  = createSE3(pose);
   }
 
+  // retriangulate the points that were part of invalid_pts
+  for(set<Point*>::iterator it_pt=invalid_pts.begin(); it_pt!=invalid_pts.end(); ++it_pt)
+  {
+    if((*it_pt)->obs_.size() < 2)
+      continue;
+    vector<gtsam::Pose3> poses; poses.reserve((*it_pt)->obs_.size());
+    std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+    measurements.reserve((*it_pt)->obs_.size());
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    {
+      poses.push_back(BA::createPose((*it_obs)->frame->T_f_w_.inverse()));
+      measurements.push_back(gtsam::Point2((*it_obs)->px));
+    }
+    const gtsam::Point3 initial_estimate((*it_pt)->pos_);
+
+    // optimize and update
+    const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, K, measurements, initial_estimate);
+    (*it_pt)->pos_ = refined_estimate;
+  }
+
   // update landmarks (from smart factors) and remove outliers if any
   size_t n_removed_edges = 0;
-  valid_pts = 0;
-  invalid_pts = 0;
-  error = 0.0;
+  size_t n_removed_points = 0;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const int key = (*it_pt)->id_;
@@ -433,17 +458,14 @@ void BA::smartLocalBA(
     boost::optional<gtsam::Point3> p = factor->point(result);
     if(p) {
       Vector3d pt(p->x(), p->y(), p->z());
-      Vector3d new_pt(pt.x(), pt.y(), pt.z());
-      error += ((new_pt-(*it_pt)->pos_).norm());
-      (*it_pt)->pos_ = new_pt;
-      ++valid_pts;
+      (*it_pt)->pos_ = pt;
     } else {
       // point is diverged. remove references to all the keyframes
       Frame* frame = (*it_pt)->obs_.front()->frame;
       Feature* feature = (*it_pt)->obs_.front();
       n_removed_edges += (*it_pt)->obs_.size();
+      ++n_removed_points;
       map->removePtFrameRef(frame, feature);
-      ++invalid_pts;
       continue;
     }
 
@@ -458,6 +480,7 @@ void BA::smartLocalBA(
   n_incorrect_edges_2 = n_incorrect_edges_1 - n_removed_edges;
   n_incorrect_edges_2 = n_incorrect_edges_2 > 0 ? n_incorrect_edges_2 : 1;
   final_error_avg = final_error / n_incorrect_edges_2;
+  SVO_DEBUG_STREAM("[Generic BA]: \tRemoved points = " << n_removed_points << "\tRemoved edges = " << n_removed_edges << "\t Newly triangulated = " << invalid_pts.size());
 }
 
 double BA::computeError(const set<Point*>& mps)
@@ -522,6 +545,8 @@ IncrementalBA::IncrementalBA(
   noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
   pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
     (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.00001)).finished());
+  later_pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
+    (gtsam::Vector(6) << gtsam::Vector3::Constant(0.5), gtsam::Vector3::Constant(0.1)).finished());
 
   smart_params_.triangulation.enableEPI = true;
   smart_params_.triangulation.rankTolerance = 1;
@@ -529,14 +554,14 @@ IncrementalBA::IncrementalBA(
   smart_params_.verboseCheirality = true;
   smart_params_.throwCheirality = false;
 
-  // gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
-  // doglegparams.verbose = true;
+  gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
+  doglegparams.verbose = true;
 
-  isam2_params_.factorization = gtsam::ISAM2Params::QR;
+  // isam2_params_.factorization = gtsam::ISAM2Params::QR;
   isam2_params_.enableDetailedResults = true;
   isam2_params_.evaluateNonlinearError = true;
-  // isam2_params_.relinearizeThreshold = 1e-3;
-  // isam2_params_.optimizationParams = doglegparams;
+  isam2_params_.relinearizeThreshold = 2e-4;
+  isam2_params_.optimizationParams = doglegparams;
 
   isam2_ = gtsam::ISAM2(isam2_params_);
   isam2_params_.print("ISAM2 params:\n");
@@ -567,12 +592,10 @@ void IncrementalBA::incrementalSmartLocalBA(
     initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
     SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
 
-    // add in these points that will be later added to smart factors
-    for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
-    {
-      if((*it_ft)->point != nullptr)
-        mps_.insert((*it_ft)->point);
-    }
+    if(first_kf_)
+      second_kf_ = center_kf;
+    else
+      first_kf_ = center_kf;
     return;
   }
 
@@ -580,7 +603,22 @@ void IncrementalBA::incrementalSmartLocalBA(
   for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
   {
     if((*it_ft)->point != nullptr)
-      mps_.insert((*it_ft)->point);      
+      mps_.insert((*it_ft)->point);
+  }
+
+  // add in points from first two keyframes
+  if(n_kfs_recieved_ == 3)
+  {
+    for(Features::iterator it_ft=first_kf_->fts_.begin(); it_ft!=first_kf_->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);      
+    }
+    for(Features::iterator it_ft=second_kf_->fts_.begin(); it_ft!=second_kf_->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);      
+    }
   }
 
   // create graph
@@ -659,13 +697,24 @@ void IncrementalBA::incrementalSmartLocalBA(
   const SE3 T_w_f = center_kf->T_f_w_.inverse();
   gtsam::Pose3 pose = BA::createPose(T_w_f);
   initial_estimate_.insert(Symbol::X(kf_idx), pose);
+  SVO_DEBUG_STREAM("KFID = " << kf_idx << " \t pose = " << pose.translation().transpose());
+
+  // just adding this here
+  if(n_kfs_recieved_ >= 3)
+  {
+    graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), pose, later_pose_noise_);
+  }
 
   // optimize
   prev_result_.insert(initial_estimate_);
   init_error = graph_->error(prev_result_);
   init_error_avg = init_error / total_edges_;
   gtsam::Values result;
+  initial_estimate_.print("Initial estimate:\n");
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_);
+  if(isam2_.valueExists(Symbol::X(center_kf->id_))) {
+    SVO_DEBUG_STREAM("Value: " << center_kf->id_ << " exists in hte graph!");
+  }
   printResult(detailed_result);
   for(size_t i=0; i<10; ++i)
     detailed_result = isam2_.update();

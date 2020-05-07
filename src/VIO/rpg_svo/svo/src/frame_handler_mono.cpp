@@ -114,6 +114,7 @@ void FrameHandlerMono::loadCalibration()
 
 void FrameHandlerMono::initialize()
 {
+  init_ba_done_ = false;
   feature_detection::DetectorPtr feature_detector(
       new feature_detection::FastDetector(
           cam_->width(), cam_->height(), Config::gridSize(), Config::nPyrLevels()));
@@ -508,7 +509,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   size_t sfba_n_edges_final;
   double sfba_thresh, sfba_error_init, sfba_error_final;
   pose_optimizer::optimizeGaussNewton(
-      Config::poseOptimThresh(), Config::poseOptimNumIter(), false,
+      Config::poseOptimThresh()*3.0, Config::poseOptimNumIter(), false,
       new_frame_, sfba_thresh, sfba_error_init, sfba_error_final, sfba_n_edges_final);
   SVO_STOP_TIMER("pose_optimizer");
   SVO_LOG4(sfba_thresh, sfba_error_init, sfba_error_final, sfba_n_edges_final);
@@ -548,6 +549,19 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
       (*it)->point->addFrameRef(*it);
   map_.point_candidates_.addCandidatePointToFrame(new_frame_);
 
+
+  // if limited number of keyframes, remove the one furthest apart
+  if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())
+  {
+    FramePtr furthest_frame = map_.getFurthestKeyframe(new_frame_->pos());
+    depth_filter_->removeKeyframe(furthest_frame); // TODO this interrupts the mapper thread, maybe we can solve this better
+    map_.safeDeleteFrame(furthest_frame);
+  }
+
+  // add keyframe to map
+  map_.addKeyframe(new_frame_);
+
+
   // optional bundle adjustment
   if(Config::lobaNumIter() > 0)
   {
@@ -557,31 +571,41 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     double loba_err_init=0.0, loba_err_fin=0.0;
     double loba_err_init_avg=0.0, loba_err_fin_avg=0.0;
 
-/*    // do bundle adjustment on all the keyframes (global BA)
+    // do bundle adjustment on all the keyframes (global BA)
     list<FramePtr>* all_kfs = map_.getAllKeyframes();
     set<FramePtr>  all_kfs_set;
     for(list<FramePtr>::iterator it=all_kfs->begin(); it!=all_kfs->end(); ++it)
       all_kfs_set.insert(*it);
-*/
+
     if(Config::lobaType() == 0)
     {
-      // ba::BA::localBA(new_frame_.get(), &all_kfs_set, &map_,
-      //                 loba_n_erredges_init, loba_n_erredges_fin,
-      //                 loba_err_init, loba_err_fin,
-      //                 loba_err_init_avg, loba_err_fin_avg,
-      //                 true);
-      ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
+      ba::BA::localBA(new_frame_.get(), &all_kfs_set, &map_,
                       loba_n_erredges_init, loba_n_erredges_fin,
                       loba_err_init, loba_err_fin,
                       loba_err_init_avg, loba_err_fin_avg,
                       true);
+      // ba::BA::localBA(new_frame_.get(), &core_kfs_, &map_,
+      //                 loba_n_erredges_init, loba_n_erredges_fin,
+      //                 loba_err_init, loba_err_fin,
+      //                 loba_err_init_avg, loba_err_fin_avg,
+      //                 true);
     } else if(Config::lobaType() == 1) {
-      ba::BA::smartLocalBA(new_frame_.get(), &core_kfs_, &map_,
+      ba::BA::smartLocalBA(new_frame_.get(), &all_kfs_set, &map_,
                            loba_n_erredges_init, loba_n_erredges_fin,
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
                            true);
     } else {
+      // if(!init_ba_done_)
+      // {
+      //   SVO_DEBUG_STREAM("Initial BA");
+      //   ba::BA::localBA(new_frame_.get(), &all_kfs_set, &map_,
+      //                   loba_n_erredges_init, loba_n_erredges_fin,
+      //                   loba_err_init, loba_err_fin,
+      //                   loba_err_init_avg, loba_err_fin_avg,
+      //                   true);
+      //   init_ba_done_ = true;
+      // }
       iba_->incrementalSmartLocalBA(new_frame_.get(),
                              loba_err_init, loba_err_fin,
                              loba_err_init_avg, loba_err_fin_avg,
@@ -597,7 +621,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
-
+/*
   // if limited number of keyframes, remove the one furthest apart
   if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())
   {
@@ -608,7 +632,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // add keyframe to map
   map_.addKeyframe(new_frame_);
-
+*/
   // add this to graph for inertial state estimation
   if(Config::runInertialEstimator())
   {

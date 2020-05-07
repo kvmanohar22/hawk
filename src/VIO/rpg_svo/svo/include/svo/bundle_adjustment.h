@@ -115,6 +115,7 @@ private:
   boost::shared_ptr<gtsam::Cal3DS2> K_;
   gtsam::noiseModel::Isotropic::shared_ptr noise_;
   gtsam::noiseModel::Diagonal::shared_ptr pose_noise_;
+  gtsam::noiseModel::Diagonal::shared_ptr later_pose_noise_;
   gtsam::SmartProjectionParams smart_params_;
   gtsam::Values initial_estimate_;
   gtsam::Values prev_result_;
@@ -123,6 +124,8 @@ private:
   size_t n_kfs_recieved_;
   size_t total_edges_;
   Map& map_;
+  Frame* first_kf_;
+  Frame* second_kf_;
   set<Point*> mps_; //!< map points
 
   // for debugging purposes

@@ -109,8 +109,19 @@ public:
     double& final_error_avg,
     bool verbose=false);
 
+  /// Incremental Local bundle adjustment using smart vision factors from gtsam
+  void incrementalGenericLocalBA(
+    Frame* center_kf,
+    double& init_error,
+    double& final_error,
+    double& init_error_avg,
+    double& final_error_avg,
+    bool verbose=false);
+
 private:
   unordered_map<int, SmartFactor::shared_ptr> smart_factors_;
+  unordered_map<int, set<int>> edges_; //<! edges already in the graph
+
   gtsam::NonlinearFactorGraph *graph_;
   boost::shared_ptr<gtsam::Cal3DS2> K_;
   gtsam::noiseModel::Isotropic::shared_ptr noise_;

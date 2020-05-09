@@ -555,13 +555,15 @@ IncrementalBA::IncrementalBA(
   smart_params_.throwCheirality = false;
 
   gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
-  doglegparams.verbose = true;
+  doglegparams.verbose = false;
+  doglegparams.wildfireThreshold = 0.001;
 
-  // isam2_params_.factorization = gtsam::ISAM2Params::QR;
+  isam2_params_.factorization = gtsam::ISAM2Params::QR;
   isam2_params_.enableDetailedResults = true;
   isam2_params_.evaluateNonlinearError = true;
   isam2_params_.relinearizeThreshold = 2e-4;
-  isam2_params_.optimizationParams = doglegparams;
+  // isam2_params_.relinearizeSkip = 1;
+  // isam2_params_.optimizationParams = doglegparams;
 
   isam2_ = gtsam::ISAM2(isam2_params_);
   isam2_params_.print("ISAM2 params:\n");
@@ -651,7 +653,7 @@ void IncrementalBA::incrementalSmartLocalBA(
        * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
        * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
        */
-      min_n_obs_ = n_kfs_recieved_ > 3 ? 2 : 2;
+      min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
       if((*it_pt)->obs_.size() < min_n_obs_)
       {
         invalid_pts.insert(*it_pt);
@@ -697,24 +699,13 @@ void IncrementalBA::incrementalSmartLocalBA(
   const SE3 T_w_f = center_kf->T_f_w_.inverse();
   gtsam::Pose3 pose = BA::createPose(T_w_f);
   initial_estimate_.insert(Symbol::X(kf_idx), pose);
-  SVO_DEBUG_STREAM("KFID = " << kf_idx << " \t pose = " << pose.translation().transpose());
-
-  // just adding this here
-  if(n_kfs_recieved_ >= 3)
-  {
-    graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), pose, later_pose_noise_);
-  }
 
   // optimize
   prev_result_.insert(initial_estimate_);
   init_error = graph_->error(prev_result_);
   init_error_avg = init_error / total_edges_;
   gtsam::Values result;
-  initial_estimate_.print("Initial estimate:\n");
-  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_);
-  if(isam2_.valueExists(Symbol::X(center_kf->id_))) {
-    SVO_DEBUG_STREAM("Value: " << center_kf->id_ << " exists in hte graph!");
-  }
+  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, gtsam::FactorIndices(), boost::none, boost::none, boost::none, true);
   printResult(detailed_result);
   for(size_t i=0; i<10; ++i)
     detailed_result = isam2_.update();
@@ -801,6 +792,265 @@ void IncrementalBA::incrementalSmartLocalBA(
   graph_->resize(0);
   initial_estimate_.clear();
   total_removed_so_far_ += n_diverged;
+}
+
+void IncrementalBA::incrementalGenericLocalBA(
+  Frame* center_kf,
+  double& init_error,
+  double& final_error,
+  double& init_error_avg,
+  double& final_error_avg,
+  bool verbose)
+{
+  ++n_kfs_recieved_;
+
+  // we add prior for the first two keyframes
+  if(n_kfs_recieved_ == 1 || n_kfs_recieved_ == 2)
+  {
+    gtsam::Pose3 prior_pose = BA::createPose(center_kf->T_f_w_.inverse());
+    if(n_kfs_recieved_ == 2)
+    {
+      pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.01)).finished());
+    }
+
+    graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
+    initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
+    SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
+
+    if(first_kf_)
+      second_kf_ = center_kf;
+    else
+      first_kf_ = center_kf;
+    return;
+  }
+
+  // we only start optimizing once we have 3 keyframes
+  for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
+  {
+    if((*it_ft)->point != nullptr)
+      mps_.insert((*it_ft)->point);
+  }
+
+  // add in points from first two keyframes
+  if(n_kfs_recieved_ == 3)
+  {
+    for(Features::iterator it_ft=first_kf_->fts_.begin(); it_ft!=first_kf_->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);      
+    }
+    for(Features::iterator it_ft=second_kf_->fts_.begin(); it_ft!=second_kf_->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);      
+    }
+  }
+
+  // create graph
+  set<Point*> invalid_pts;
+  set<Point*> new_points_in_graph;
+  const size_t n_mps = mps_.size();
+  for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end();)
+  {
+    // ensure the point is not deleted by any chance
+    if(*it_pt == nullptr)
+    {
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
+      continue;
+    }
+
+    if((*it_pt)->type_ == Point::TYPE_DELETED)
+    {
+      SVO_DEBUG_STREAM("Detected a deleted point");
+      ++it_pt;
+      continue;
+    }
+
+    const int pt_idx = (*it_pt)->id_;
+    if(edges_.find(pt_idx) == edges_.end())
+    {
+      /*
+       * This is so that there is enough disparity for the points to be triangulated later on
+       * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
+       * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
+       */
+      min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
+      if((*it_pt)->obs_.size() < min_n_obs_)
+      {
+        invalid_pts.insert(*it_pt);
+        it_pt = mps_.erase(it_pt);
+        continue;
+      }
+
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        graph_->emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+            (*it_obs)->px, noise_, Symbol::X((*it_obs)->frame->id_), Symbol::L(pt_idx), K_);
+        ++total_edges_;
+        edges_[pt_idx].insert((*it_obs)->frame->id_);
+      }
+      new_points_in_graph.insert(*it_pt);
+    } else {
+      set<int> all_obs;
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        all_obs.insert((*it_obs)->frame->id_);
+      }
+      set<int> remaining_obs;
+      set_difference(
+        all_obs.begin(), all_obs.end(),
+        edges_[pt_idx].begin(), edges_[pt_idx].end(),
+        std::inserter(remaining_obs, remaining_obs.end()));
+
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        if(remaining_obs.find((*it_obs)->frame->id_) != remaining_obs.end())
+        {
+          graph_->emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+              (*it_obs)->px, noise_, Symbol::X((*it_obs)->frame->id_), Symbol::L(pt_idx), K_);
+          ++total_edges_;
+          edges_[pt_idx].insert((*it_obs)->frame->id_);
+        }
+      }
+    }
+    ++it_pt;
+  }
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << n_mps <<
+                   "\t Total edges = " << total_edges_);
+  mps_.clear();
+  invalid_pts.clear();
+
+  // create initial estimate of the latest pose for optimization
+  const int kf_idx = center_kf->id_;
+  const SE3 T_w_f = center_kf->T_f_w_.inverse();
+  gtsam::Pose3 pose = BA::createPose(T_w_f);
+  initial_estimate_.insert(Symbol::X(kf_idx), pose);
+
+  // initial estimate of points
+  for(set<Point*>::iterator it_pt=new_points_in_graph.begin(); it_pt!=new_points_in_graph.end(); ++it_pt)
+  {
+    const int pt_idx = (*it_pt)->id_;
+    const Vector3d xyz = (*it_pt)->pos_;
+    initial_estimate_.insert(Symbol::L(pt_idx), gtsam::Point3(xyz));
+  }
+  new_points_in_graph.clear();
+
+  // optimize
+  prev_result_.insert(initial_estimate_);
+  init_error = graph_->error(prev_result_);
+  init_error_avg = init_error / total_edges_;
+  gtsam::Values result;
+  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_);
+  printResult(detailed_result);
+  // for(size_t i=0; i<10; ++i)
+  //   detailed_result = isam2_.update();
+  printResult(detailed_result);
+  result = isam2_.calculateEstimate();
+  prev_result_ = result;
+  final_error = graph_->error(result);
+  final_error_avg = final_error / total_edges_;
+
+  // update poses
+  list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  size_t n_diverged=0;
+  size_t n_updated=0;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    const auto pose  = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->id_));
+    (*it_kf)->T_f_w_ = BA::createSE3(pose);
+  }
+
+  // update the corresponding structure as well
+  size_t n_newly_triangulated=0;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+
+      // update the point only once
+      if((*it_ft)->point->last_updated_cid_ == center_kf->id_)
+        continue;
+      (*it_ft)->point->last_updated_cid_ = center_kf->id_;
+
+      const size_t key = (*it_ft)->point->id_;
+      if(edges_.find(key) == edges_.end())
+      {
+        if((*it_ft)->point->obs_.size() < 2)
+          continue;
+
+        // triangulate the point based on the updated poses
+
+        // 1. create poses of cameras that observe this point
+        // 2. collect the corresponding measurements
+        vector<gtsam::Pose3> poses; poses.reserve((*it_ft)->point->obs_.size());
+        std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+        measurements.reserve((*it_ft)->point->obs_.size());
+        for(Features::iterator it_obs=(*it_ft)->point->obs_.begin(); it_obs!=(*it_ft)->point->obs_.end(); ++it_obs)
+        {
+          poses.push_back(BA::createPose((*it_obs)->frame->T_f_w_.inverse()));
+          measurements.push_back(gtsam::Point2((*it_obs)->px));
+        }
+        const gtsam::Point3 initial_estimate((*it_ft)->point->pos_);
+
+        // optimize and update
+        const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, K_, measurements, initial_estimate);
+        (*it_ft)->point->pos_ = refined_estimate;
+        ++n_newly_triangulated;
+      } else {
+        gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(key));
+        Vector3d point(pt.x(), pt.y(), pt.z());
+        (*it_ft)->point->pos_ = point;
+        ++n_updated;
+      }
+    }
+  }
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Updated points = " << n_updated <<
+                   "\t newly triangulated = " << n_newly_triangulated);
+
+  // outlier rejection
+  const double reproj_thresh = Config::lobaThresh();
+  size_t n_removed_edges = 0;
+  size_t n_removed_points = 0;
+  set<Point*> mps;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+      mps.insert((*it_ft)->point);
+    }
+  }
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    const Vector3d xyz = (*it_pt)->pos_;
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    {
+      const Vector2d uv_true = (*it_obs)->px;
+      const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
+      const double error = (uv_true-uv_repr).norm();
+
+      if(error > reproj_thresh)
+      {
+        n_removed_edges += (*it_pt)->obs_.size();
+        ++n_removed_points;
+        map_.removePtFrameRef((*it_obs)->frame, *it_obs);
+        break;
+      }
+    }
+  }
+
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Removed points (curr) = " << n_removed_points <<
+                   "\t Removed points (cumu) = " << total_removed_so_far_ <<
+                   "\t Removed edges = " << n_removed_edges);
+  // clean up
+  graph_->resize(0);
+  initial_estimate_.clear();
+  total_removed_so_far_ += n_removed_points;
 }
 
 void IncrementalBA::addEdge(const int& kfid)

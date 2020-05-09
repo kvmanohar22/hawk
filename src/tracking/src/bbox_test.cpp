@@ -13,14 +13,13 @@
 
 using namespace std;
 
-
 void imgCallback(const sensor_msgs::ImageConstPtr& msg, Bbox& box) {
     auto cvMatImage = cv_bridge::toCvShare(msg, "bgr8")->image;
     if (cvMatImage.empty()) {
         std::cout << "Empty Image" << std::endl;
         return;
     }
-    cout << "in call back" << endl;
+    cout << "in callback " << endl;
     box.predict(cvMatImage);
 }
 
@@ -37,6 +36,13 @@ int main(int argc, char** argv) try {
     cv::String configuration = "/home/sipah00/hawk_ws/src/tracking/yolov3.weights";
     cv::String model = "/home/sipah00/hawk_ws/src/tracking/yolov3.cfg";
 
+    vector<string> _classes;
+    // get labels of all classes
+    string classesFile = "/home/sipah00/hawk_ws/src/tracking/coco.names";
+    ifstream ifs(classesFile.c_str());
+    string line;
+    while (getline(ifs, line)) _classes.push_back(line);
+
     float _confThreshold = 0.5;
     float _nmsThreshold = 0.4;
     int _inpW = 416;
@@ -45,11 +51,11 @@ int main(int argc, char** argv) try {
     bool _swapRB = true;
     string _kWinName = "bbox_test";
 
-    vector<string> _classes = {"person"};
-
     Bbox box(model, configuration, "yolo");
     // box.net = readNetFromDarknet(configuration, model, "yolo");
     box.setParams(_inpW, _inpH, _classes, _confThreshold, _nmsThreshold, _mean, _swapRB, _kWinName);
+
+    // image_transport::Subscriber sub = it.subscribe(img_topic, 1, &imgCallback);
 
     image_transport::Subscriber sub = it.subscribe(img_topic, 1, boost::bind(imgCallback, _1, box), ros::VoidPtr(), image_transport::TransportHints());
 

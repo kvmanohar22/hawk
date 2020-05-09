@@ -10,9 +10,9 @@
     </node> -->
 
     <!-- Run tracking node -->
-    <!-- <node pkg="tracking" name="tracking_node" type="tracking_node" output="screen">
+    <node pkg="tracking" name="tracking_node" type="tracking_node" output="screen">
         <param name="img_topic" value="$(arg img_topic)" type="string" />
-    </node> -->
+    </node>
 
     <!-- Run bbox test node -->
     <node pkg="tracking" name="bbox_test_node" type="bbox_test_node" output="screen">

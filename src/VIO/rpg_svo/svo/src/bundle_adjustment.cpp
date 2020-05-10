@@ -28,6 +28,7 @@
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/geometry/triangulation.h>
+#include <gtsam/nonlinear/ISAM2UpdateParams.h>
 
 namespace svo {
 namespace ba {
@@ -532,6 +533,7 @@ SE3 BA::createSE3(
 IncrementalBA::IncrementalBA(
   vk::AbstractCamera* camera,
   Map& map) :
+    curr_factor_idx_(-1),
     n_kfs_recieved_(0),
     map_(map),
     total_removed_so_far_(0),
@@ -561,7 +563,7 @@ IncrementalBA::IncrementalBA(
   isam2_params_.factorization = gtsam::ISAM2Params::QR;
   isam2_params_.enableDetailedResults = true;
   isam2_params_.evaluateNonlinearError = true;
-  isam2_params_.relinearizeThreshold = 2e-4;
+  // isam2_params_.relinearizeThreshold = 1e-7;
   // isam2_params_.relinearizeSkip = 1;
   // isam2_params_.optimizationParams = doglegparams;
 
@@ -628,6 +630,10 @@ void IncrementalBA::incrementalSmartLocalBA(
   size_t n_new_factors=0;
   size_t n_updated_factors=0;
   size_t n_mps = mps_.size();
+
+  // this is a fix while using smart factors
+  gtsam::FastMap<gtsam::FactorIndex, gtsam::KeySet> new_affected_keys;
+
   for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end();)
   {
     // ensure the point is not deleted by any chance
@@ -672,21 +678,26 @@ void IncrementalBA::incrementalSmartLocalBA(
       }
 
       graph_->push_back(factor);
-      smart_factors_[pt_idx] = factor;
+      smart_factors_[pt_idx] = make_pair(++curr_factor_idx_, factor);
     } else {
       // update the existing smart factor
-      SmartFactorPtr factor = smart_factors_.find(pt_idx)->second;
+      const int factor_idx = smart_factors_.find(pt_idx)->second.first;
+      SmartFactorPtr factor = smart_factors_.find(pt_idx)->second.second;
       gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
       factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
       addEdge((*it_pt)->obs_.front()->frame->id_);
       ++n_updated_factors;
       ++total_edges_;
+
+      // this particular factor was affected
+      new_affected_keys[factor_idx].insert(Symbol::X((*it_pt)->obs_.front()->frame->id_));
     }
     ++it_pt;
   }
   SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << n_mps <<
                    "\t New factors = " << n_new_factors <<
-                   "\t Updated factors = " << n_updated_factors);
+                   "\t Updated factors = " << n_updated_factors <<
+                   "\t Affected keys = " << new_affected_keys.size());
 /*  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
   {
     cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
@@ -705,11 +716,10 @@ void IncrementalBA::incrementalSmartLocalBA(
   init_error = graph_->error(prev_result_);
   init_error_avg = init_error / total_edges_;
   gtsam::Values result;
-  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, gtsam::FactorIndices(), boost::none, boost::none, boost::none, true);
-  printResult(detailed_result);
-  for(size_t i=0; i<10; ++i)
-    detailed_result = isam2_.update();
-  printResult(detailed_result);
+  gtsam::ISAM2UpdateParams update_params;
+  update_params.newAffectedKeys = new_affected_keys;
+  // update_params.force_relinearize = true;
+  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
   result = isam2_.calculateEstimate();
   prev_result_ = result;
   final_error = graph_->error(result);
@@ -771,7 +781,7 @@ void IncrementalBA::incrementalSmartLocalBA(
         continue;
       }
 
-      const SmartFactorPtr factor = smart_factors_[key];
+      const SmartFactorPtr factor = smart_factors_[key].second;
       boost::optional<gtsam::Point3> p = factor->point(result);
       if(p) {
         Vector3d point(p->x(), p->y(), p->z());

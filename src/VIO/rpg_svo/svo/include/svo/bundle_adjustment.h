@@ -119,7 +119,8 @@ public:
     bool verbose=false);
 
 private:
-  unordered_map<int, SmartFactor::shared_ptr> smart_factors_;
+  unordered_map<int, pair<int, SmartFactor::shared_ptr>> smart_factors_;
+  int curr_factor_idx_; //<! This holds the running index of the factor in the factor graph
   unordered_map<int, set<int>> edges_; //<! edges already in the graph
 
   gtsam::NonlinearFactorGraph *graph_;

@@ -534,6 +534,7 @@ IncrementalBA::IncrementalBA(
   vk::AbstractCamera* camera,
   Map& map) :
     curr_factor_idx_(-1),
+    graph_addition_freq_(3),
     n_kfs_recieved_(0),
     map_(map),
     total_removed_so_far_(0),
@@ -593,43 +594,47 @@ void IncrementalBA::incrementalSmartLocalBA(
     }
 
     graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
-    initial_estimate_.insert(Symbol::X(center_kf->id_), prior_pose);
     SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
+  }
 
+  // set the keyframes for later initialization
+  if(n_kfs_recieved_ % graph_addition_freq_ == 1 || n_kfs_recieved_ % graph_addition_freq_ == 2)
+  {
     if(first_kf_)
       second_kf_ = center_kf;
     else
       first_kf_ = center_kf;
+
     return;
   }
 
   // we only start optimizing once we have 3 keyframes
-  for(Features::iterator it_ft=center_kf->fts_.begin(); it_ft!=center_kf->fts_.end(); ++it_ft)
+  Features new_features;
+  new_features.insert(new_features.begin(), center_kf->fts_.begin(), center_kf->fts_.end());
+  new_features.insert(new_features.begin(), second_kf_->fts_.begin(), second_kf_->fts_.end());
+  new_features.insert(new_features.begin(), first_kf_->fts_.begin(), first_kf_->fts_.end());
+
+  // create initial estimate of the latest pose for optimization
+  initial_estimate_.insert(Symbol::X(center_kf->id_), BA::createPose(center_kf->T_f_w_.inverse()));
+  initial_estimate_.insert(Symbol::X(first_kf_->id_), BA::createPose(first_kf_->T_f_w_.inverse()));
+  initial_estimate_.insert(Symbol::X(second_kf_->id_), BA::createPose(second_kf_->T_f_w_.inverse()));
+
+  for(Features::iterator it_ft=new_features.begin(); it_ft!=new_features.end(); ++it_ft)
   {
     if((*it_ft)->point != nullptr)
       mps_.insert((*it_ft)->point);
   }
 
-  // add in points from first two keyframes
-  if(n_kfs_recieved_ == 3)
-  {
-    for(Features::iterator it_ft=first_kf_->fts_.begin(); it_ft!=first_kf_->fts_.end(); ++it_ft)
-    {
-      if((*it_ft)->point != nullptr)
-        mps_.insert((*it_ft)->point);      
-    }
-    for(Features::iterator it_ft=second_kf_->fts_.begin(); it_ft!=second_kf_->fts_.end(); ++it_ft)
-    {
-      if((*it_ft)->point != nullptr)
-        mps_.insert((*it_ft)->point);      
-    }
-  }
+  // reset so that we can use for next batch
+  first_kf_ = nullptr;
+  second_kf_ = nullptr;
 
   // create graph
   set<Point*> invalid_pts;
   size_t n_new_factors=0;
   size_t n_updated_factors=0;
-  size_t n_mps = mps_.size();
+  const size_t n_mps = mps_.size();
+  SVO_DEBUG_STREAM("[iSmart BA]: poses = " << n_kfs_recieved_ << "\t factors = " << smart_factors_.size()+2);
 
   // this is a fix while using smart factors
   gtsam::FastMap<gtsam::FactorIndex, gtsam::KeySet> new_affected_keys;
@@ -668,33 +673,57 @@ void IncrementalBA::incrementalSmartLocalBA(
       }
 
       // create a new smart factor
-      SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
       ++n_new_factors;
+      SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
+      SmartFactorHelperPtr factor_helper = boost::make_shared<SmartFactorHelper>(++curr_factor_idx_);
       for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
       {
         factor->add(gtsam::Point2((*it_obs)->px), Symbol::X((*it_obs)->frame->id_));
         addEdge((*it_obs)->frame->id_);
         ++total_edges_;
+
+        // update the helper
+        factor_helper->addObs((*it_obs)->frame->id_);
       }
 
       graph_->push_back(factor);
-      smart_factors_[pt_idx] = make_pair(++curr_factor_idx_, factor);
+      factor_helper->factor_ = factor;
+      smart_factors_.insert(make_pair(pt_idx, factor_helper));
     } else {
       // update the existing smart factor
-      const int factor_idx = smart_factors_.find(pt_idx)->second.first;
-      SmartFactorPtr factor = smart_factors_.find(pt_idx)->second.second;
-      gtsam::Point2 measurement((*it_pt)->obs_.front()->px);
-      factor->add(measurement, Symbol::X((*it_pt)->obs_.front()->frame->id_));
-      addEdge((*it_pt)->obs_.front()->frame->id_);
-      ++n_updated_factors;
-      ++total_edges_;
+      set<int> all_obs;
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        all_obs.insert((*it_obs)->frame->id_);
+      }
+      set<int> existing_obs = smart_factors_.find(pt_idx)->second->obs_ids_;
+      set<int> remaining_obs;
+      set_difference(
+        all_obs.begin(), all_obs.end(), existing_obs.begin(), existing_obs.end(), std::inserter(remaining_obs, remaining_obs.end()));
 
-      // this particular factor was affected
-      new_affected_keys[factor_idx].insert(Symbol::X((*it_pt)->obs_.front()->frame->id_));
+      SmartFactorHelperPtr factor_helper = smart_factors_.find(pt_idx)->second;
+      const int factor_idx = factor_helper->factor_idx_;
+      SmartFactorPtr factor = factor_helper->factor_;
+      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+      {
+        if(remaining_obs.find((*it_obs)->frame->id_) != remaining_obs.end())
+        {
+          gtsam::Point2 measurement((*it_obs)->px);
+          factor->add(measurement, Symbol::X((*it_obs)->frame->id_));
+          addEdge((*it_obs)->frame->id_);
+          ++n_updated_factors;
+          ++total_edges_;
+
+          // this particular factor was affected
+          new_affected_keys[factor_idx].insert(Symbol::X((*it_obs)->frame->id_));
+          // update the set of observations
+          factor_helper->addObs((*it_obs)->frame->id_);
+        }
+      }
     }
     ++it_pt;
   }
-  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid points = " << invalid_pts.size() << "/" << n_mps <<
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid = " << invalid_pts.size() << "/" << n_mps <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors <<
                    "\t Affected keys = " << new_affected_keys.size());
@@ -705,12 +734,6 @@ void IncrementalBA::incrementalSmartLocalBA(
 */ 
   mps_.clear();
 
-  // create initial estimate of the latest pose for optimization
-  const int kf_idx = center_kf->id_;
-  const SE3 T_w_f = center_kf->T_f_w_.inverse();
-  gtsam::Pose3 pose = BA::createPose(T_w_f);
-  initial_estimate_.insert(Symbol::X(kf_idx), pose);
-
   // optimize
   prev_result_.insert(initial_estimate_);
   init_error = graph_->error(prev_result_);
@@ -718,7 +741,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   gtsam::Values result;
   gtsam::ISAM2UpdateParams update_params;
   update_params.newAffectedKeys = new_affected_keys;
-  // update_params.force_relinearize = true;
+  update_params.force_relinearize = true;
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
   result = isam2_.calculateEstimate();
   prev_result_ = result;

@@ -95,6 +95,50 @@ public:
     const gtsam::Pose3& pose);
 };
 
+struct SmartFactorHelper {
+  int factor_idx_;
+  set<int> obs_ids_;
+  SmartFactorPtr factor_;
+
+  SmartFactorHelper(const int factor_idx)
+    : factor_idx_(factor_idx)
+  {}
+
+  SmartFactorHelper(
+    const int factor_idx,
+    const int obs_idx,
+    SmartFactorPtr factor) :
+      factor_idx_(factor_idx),
+      factor_(factor)
+    {
+      obs_ids_.insert(obs_idx);
+    }
+
+  SmartFactorHelper(const SmartFactorHelper& other)
+    : factor_idx_(other.factor_idx_),
+      factor_(other.factor_)
+  {
+    for(const auto& it: other.obs_ids_)
+      obs_ids_.insert(it);
+  }
+
+  inline void addObs(const int idx) {
+    assert(obs_ids_.find(idx) == obs_ids_.end());
+    obs_ids_.insert(idx);
+  }
+
+  SmartFactorHelper& operator = (const SmartFactorHelper& other)
+  {
+    factor_idx_ = other.factor_idx_;
+    for(const auto& it: other.obs_ids_)
+      obs_ids_.insert(it);
+    factor_ = other.factor_;
+    return *this;
+  }
+
+};
+typedef boost::shared_ptr<SmartFactorHelper> SmartFactorHelperPtr;
+
 class IncrementalBA
 {
 public:
@@ -119,9 +163,11 @@ public:
     bool verbose=false);
 
 private:
-  unordered_map<int, pair<int, SmartFactor::shared_ptr>> smart_factors_;
+  unordered_map<int, SmartFactorHelperPtr> smart_factors_;
   int curr_factor_idx_; //<! This holds the running index of the factor in the factor graph
   unordered_map<int, set<int>> edges_; //<! edges already in the graph
+  int graph_addition_freq_;
+
 
   gtsam::NonlinearFactorGraph *graph_;
   boost::shared_ptr<gtsam::Cal3DS2> K_;

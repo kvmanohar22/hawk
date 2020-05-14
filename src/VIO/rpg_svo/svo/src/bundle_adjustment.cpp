@@ -781,14 +781,15 @@ void IncrementalBA::incrementalSmartLocalBA(
         continue;
       }
 
-      const SmartFactorPtr factor = smart_factors_[key].second;
+      const SmartFactorPtr factor = smart_factors_[key]->factor_;
       boost::optional<gtsam::Point3> p = factor->point(result);
       if(p) {
         Vector3d point(p->x(), p->y(), p->z());
         (*it_ft)->point->pos_ = point;
         ++n_updated;
       } else {
-        map_.removePtFrameRef((*it_kf).get(), *it_ft);
+        map_.safeDeletePoint((*it_ft)->point);
+        // map_.removePtFrameRef((*it_kf).get(), *it_ft);
         ++n_diverged;
       }
     }

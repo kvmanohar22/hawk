@@ -556,6 +556,7 @@ IncrementalBA::IncrementalBA(
   smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
   smart_params_.verboseCheirality = true;
   smart_params_.throwCheirality = false;
+  // smart_params_.linearizationMode = gtsam::JACOBIAN_SVD;
 
   gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
   doglegparams.verbose = false;
@@ -564,7 +565,7 @@ IncrementalBA::IncrementalBA(
   isam2_params_.factorization = gtsam::ISAM2Params::QR;
   isam2_params_.enableDetailedResults = true;
   isam2_params_.evaluateNonlinearError = true;
-  // isam2_params_.relinearizeThreshold = 1e-7;
+  isam2_params_.relinearizeThreshold = 1e-2;
   // isam2_params_.relinearizeSkip = 1;
   // isam2_params_.optimizationParams = doglegparams;
 
@@ -731,7 +732,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   {
     cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
   }
-*/ 
+*/
   mps_.clear();
 
   // optimize
@@ -742,7 +743,9 @@ void IncrementalBA::incrementalSmartLocalBA(
   gtsam::ISAM2UpdateParams update_params;
   update_params.newAffectedKeys = new_affected_keys;
   update_params.force_relinearize = true;
+  update_params.forceFullSolve = true;
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
+  printResult(detailed_result);
   result = isam2_.calculateEstimate();
   prev_result_ = result;
   final_error = graph_->error(result);
@@ -812,7 +815,6 @@ void IncrementalBA::incrementalSmartLocalBA(
         ++n_updated;
       } else {
         map_.safeDeletePoint((*it_ft)->point);
-        // map_.removePtFrameRef((*it_kf).get(), *it_ft);
         ++n_diverged;
       }
     }
@@ -1112,9 +1114,20 @@ void IncrementalBA::printResult(const gtsam::ISAM2Result& result)
 {
   cout << "error before = " << *result.errorBefore << "\t"
        << "error after = " << *result.errorAfter << "\t"
-       << "n_relinearized = " << result.variablesRelinearized
-       << endl;
-       // << "n_relinearized = " << result.variablesRelinearized << " "
+       << "cliques = " << result.cliques << "\n"
+       << "relinearized = " << result.variablesRelinearized << "\t"
+       << "reeliminated = " << result.variablesReeliminated << "\t"
+       << "recalculated = " << result.factorsRecalculated << "\n"
+       << "marked = ";
+  for(const auto& it: result.markedKeys) {
+    cout << it << " ";
+  }
+  cout << "\n"
+       << "removed factors = ";
+  for(const auto& it: result.keysWithRemovedFactors) {
+    cout << it << " ";
+  }
+  cout << endl;
 }
 
 

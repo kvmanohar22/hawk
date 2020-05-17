@@ -551,6 +551,7 @@ IncrementalBA::IncrementalBA(
   later_pose_noise_ = gtsam::noiseModel::Diagonal::Sigmas(
     (gtsam::Vector(6) << gtsam::Vector3::Constant(0.5), gtsam::Vector3::Constant(0.1)).finished());
 
+  smart_params_.triangulation.dynamicOutlierRejectionThreshold = 1.0;
   smart_params_.triangulation.enableEPI = true;
   smart_params_.triangulation.rankTolerance = 1;
   smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
@@ -675,6 +676,7 @@ void IncrementalBA::incrementalSmartLocalBA(
 
       // create a new smart factor
       ++n_new_factors;
+      noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, (*it_pt)->obs_.front()->level));
       SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
       SmartFactorHelperPtr factor_helper = boost::make_shared<SmartFactorHelper>(++curr_factor_idx_);
       for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
@@ -787,6 +789,8 @@ void IncrementalBA::incrementalSmartLocalBA(
   update_params.force_relinearize = true;
   update_params.forceFullSolve = true;
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
+  for(size_t i=0; i<10; ++i)
+    isam2_.update();
   printResult(detailed_result);
   result = isam2_.calculateEstimate();
   prev_result_ = result;

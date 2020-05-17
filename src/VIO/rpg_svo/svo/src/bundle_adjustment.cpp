@@ -686,6 +686,7 @@ void IncrementalBA::incrementalSmartLocalBA(
 
       // create a new smart factor
       ++n_new_factors;
+      noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, (*it_pt)->obs_.front()->level));
       SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
       SmartFactorHelperPtr factor_helper = boost::make_shared<SmartFactorHelper>(++curr_factor_idx_);
       for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)

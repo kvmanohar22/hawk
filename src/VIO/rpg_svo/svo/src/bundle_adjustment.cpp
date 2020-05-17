@@ -748,6 +748,48 @@ void IncrementalBA::incrementalSmartLocalBA(
 */
   mps_.clear();
 
+  ofstream ofs("/tmp/smart_stats.csv", std::ios::app);
+  if(n_kfs_recieved_ == 3) {
+    // add header
+    ofs << "idx" << ","
+        << "<2 obs" << ","
+        << "2 obs" << ","
+        << "3 obs" << ","
+        << "4 obs" << ","
+        << ">4 obs" << "\n";
+  }
+  size_t n2l=0, n2=0, n3=0, n4=0, n4p=0;
+  for(unordered_map<int, SmartFactorHelperPtr>::iterator it=smart_factors_.begin(); it!=smart_factors_.end(); ++it)
+  {
+    switch(it->second->factor_->size()) {
+      case 0:
+        ++n2l;
+        break;
+      case 1:
+        ++n2l;
+        break;
+      case 2:
+        ++n2;
+        break;
+      case 3:
+        ++n3;
+        break;
+      case 4:
+        ++n4;
+        break;
+      default:
+        ++n4p;
+        break;
+    }
+  }
+  ofs << n_kfs_recieved_ << ","
+      << n2l << ","
+      << n2  << ","
+      << n3  << ","
+      << n4  << ","
+      << n4p << "\n";
+  ofs.close();
+
   // optimize
   prev_result_.insert(initial_estimate_);
   init_error = graph_->error(prev_result_);
@@ -820,7 +862,6 @@ void IncrementalBA::incrementalSmartLocalBA(
         // optimize and update
         const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, K_, measurements, initial_estimate);
         (*it_ft)->point->pos_ = refined_estimate;
-        (*it_ft)->point->newly_triangulated_ = true;
         ++n_newly_triangulated;
         continue;
       }

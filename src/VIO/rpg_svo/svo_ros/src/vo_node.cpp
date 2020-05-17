@@ -293,9 +293,6 @@ int main(int argc, char **argv)
     SVO_ERROR_STREAM("Camera rig type not understood");
   }
 
-  // subscribe to remote input
-  vo_node.sub_remote_key_ = nh.subscribe("/hawk/svo/remote_key", 5, &svo::VoNode::remoteKeyCb, &vo_node);
-
   ros::Subscriber imu_subscriber;
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {

@@ -556,7 +556,7 @@ IncrementalBA::IncrementalBA(
   smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
   smart_params_.verboseCheirality = true;
   smart_params_.throwCheirality = false;
-  // smart_params_.linearizationMode = gtsam::JACOBIAN_SVD;
+  smart_params_.linearizationMode = gtsam::JACOBIAN_SVD;
 
   gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
   doglegparams.verbose = false;
@@ -734,6 +734,48 @@ void IncrementalBA::incrementalSmartLocalBA(
   }
 */
   mps_.clear();
+
+  ofstream ofs("/tmp/smart_stats.csv", std::ios::app);
+  if(n_kfs_recieved_ == 3) {
+    // add header
+    ofs << "idx" << ","
+        << "<2 obs" << ","
+        << "2 obs" << ","
+        << "3 obs" << ","
+        << "4 obs" << ","
+        << ">4 obs" << "\n";
+  }
+  size_t n2l=0, n2=0, n3=0, n4=0, n4p=0;
+  for(unordered_map<int, SmartFactorHelperPtr>::iterator it=smart_factors_.begin(); it!=smart_factors_.end(); ++it)
+  {
+    switch(it->second->factor_->size()) {
+      case 0:
+        ++n2l;
+        break;
+      case 1:
+        ++n2l;
+        break;
+      case 2:
+        ++n2;
+        break;
+      case 3:
+        ++n3;
+        break;
+      case 4:
+        ++n4;
+        break;
+      default:
+        ++n4p;
+        break;
+    }
+  }
+  ofs << n_kfs_recieved_ << ","
+      << n2l << ","
+      << n2  << ","
+      << n3  << ","
+      << n4  << ","
+      << n4p << "\n";
+  ofs.close();
 
   // optimize
   prev_result_.insert(initial_estimate_);

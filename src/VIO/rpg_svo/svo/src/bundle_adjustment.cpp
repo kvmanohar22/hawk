@@ -801,7 +801,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   update_params.force_relinearize = true;
   update_params.forceFullSolve = true;
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
-  for(size_t i=0; i<10; ++i) {
+  for(size_t i=0; i<4; ++i) {
     std::cout << "----------" << std::endl;
     isam2_.update();
   }

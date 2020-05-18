@@ -536,7 +536,7 @@ IncrementalBA::IncrementalBA(
   vk::AbstractCamera* camera,
   Map& map) :
     curr_factor_idx_(-1),
-    graph_addition_freq_(3),
+    graph_addition_freq_(5),
     n_kfs_recieved_(0),
     map_(map),
     total_removed_so_far_(0),
@@ -587,6 +587,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   bool verbose)
 {
   ++n_kfs_recieved_;
+  frames_.push(center_kf);
 
   // we add prior for the first two keyframes
   if(n_kfs_recieved_ == 1 || n_kfs_recieved_ == 2)
@@ -599,33 +600,28 @@ void IncrementalBA::incrementalSmartLocalBA(
     }
 
     graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(Symbol::X(center_kf->id_), prior_pose, pose_noise_);
-    initial_estimate_.insert(Symbol::X(center_kf->id_), BA::createPose(center_kf->T_f_w_.inverse()));
     SVO_DEBUG_STREAM("Adding prior factor to pose id = " << center_kf->id_);
-
-    if(first_kf_)
-      second_kf_ = center_kf;
-    else
-      first_kf_ = center_kf;
-
     return;
   }
 
-  // we only start optimizing once we have 3 keyframes
-  Features new_features;
-  new_features.insert(new_features.begin(), center_kf->fts_.begin(), center_kf->fts_.end());
-  if(n_kfs_recieved_ == 3) {
-    new_features.insert(new_features.begin(), second_kf_->fts_.begin(), second_kf_->fts_.end());
-    new_features.insert(new_features.begin(), first_kf_->fts_.begin(), first_kf_->fts_.end());
-
-    // reset so that we can use for next batch
-    first_kf_ = nullptr;
-    second_kf_ = nullptr;
+  if(frames_.size() < graph_addition_freq_) {
+    return;
   }
-/*
-  // create initial estimate of the latest pose for optimization
-  initial_estimate_.insert(Symbol::X(first_kf_->id_), BA::createPose(first_kf_->T_f_w_.inverse()));
-  initial_estimate_.insert(Symbol::X(second_kf_->id_), BA::createPose(second_kf_->T_f_w_.inverse()));
-*/
+
+  // we only start optimizing once we have `graph_addition_freq_` keyframes
+  Features new_features;
+  while(!frames_.empty()) {
+    Frame* kf = frames_.front();
+
+    // add in new features
+    new_features.insert(new_features.begin(), kf->fts_.begin(), kf->fts_.end());
+
+    // add initial estimate for the pose
+    initial_estimate_.insert(Symbol::X(kf->id_), BA::createPose(kf->T_f_w_.inverse()));
+
+    frames_.pop();
+  }
+
   for(Features::iterator it_ft=new_features.begin(); it_ft!=new_features.end(); ++it_ft)
   {
     if((*it_ft)->point != nullptr)
@@ -633,7 +629,6 @@ void IncrementalBA::incrementalSmartLocalBA(
   }
 
   // initial estimate for the latest keyframe
-  initial_estimate_.insert(Symbol::X(center_kf->id_), BA::createPose(center_kf->T_f_w_.inverse()));
 
   // create graph
   set<Point*> invalid_pts;
@@ -750,7 +745,7 @@ void IncrementalBA::incrementalSmartLocalBA(
   mps_.clear();
 
   ofstream ofs("/tmp/smart_stats.csv", std::ios::app);
-  if(n_kfs_recieved_ == 3) {
+  if(n_kfs_recieved_ == graph_addition_freq_) {
     // add header
     ofs << "idx" << ","
         << "<2 obs" << ","

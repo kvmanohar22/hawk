@@ -163,11 +163,14 @@ public:
     bool verbose=false);
 
 private:
+  double isam2Triangulation(Point* point);
+
+private:
   unordered_map<int, SmartFactorHelperPtr> smart_factors_;
   int curr_factor_idx_; //<! This holds the running index of the factor in the factor graph
   unordered_map<int, set<int>> edges_; //<! edges already in the graph
-  int graph_addition_freq_;
-
+  size_t graph_addition_freq_;
+  std::queue<Frame*> frames_;
 
   gtsam::NonlinearFactorGraph *graph_;
   boost::shared_ptr<gtsam::Cal3DS2> K_;

@@ -1062,6 +1062,8 @@ void IncrementalBA::incrementalGenericLocalBA(
 
   // update the corresponding structure as well
   size_t n_newly_triangulated=0;
+  vector<double> error;
+  size_t n_invalid_triangulated=0;
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
@@ -1102,12 +1104,21 @@ void IncrementalBA::incrementalGenericLocalBA(
         gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(key));
         Vector3d point(pt.x(), pt.y(), pt.z());
         (*it_ft)->point->pos_ = point;
+        double e = isam2Triangulation((*it_ft)->point);
+        if(e > 0) {
+          error.push_back(e);
+        } else {
+          ++n_invalid_triangulated;
+        }
         ++n_updated;
       }
     }
   }
   SVO_DEBUG_STREAM("[iSmart BA]:\t Updated points = " << n_updated <<
-                   "\t newly triangulated = " << n_newly_triangulated);
+                   "\t newly triangulated = " << n_newly_triangulated <<
+                   "\t error mean = " << vk::getMedian(error) <<
+                   "\t error max = " << *std::max_element(error.begin(), error.end()) <<
+                   "\t invalid = " << n_invalid_triangulated);
 
   // outlier rejection
   const double reproj_thresh = Config::lobaThresh();
@@ -1181,15 +1192,44 @@ void IncrementalBA::printResult(const gtsam::ISAM2Result& result)
        << "reeliminated = " << result.variablesReeliminated << "\t"
        << "recalculated = " << result.factorsRecalculated << "\n"
        << "marked = ";
-  for(const auto& it: result.markedKeys) {
-    cout << boost::lexical_cast<std::string>(gtsam::DefaultKeyFormatter(gtsam::Symbol(it)))<< " ";
-  }
-  cout << "\n"
-       << "removed factors = ";
-  for(const auto& it: result.keysWithRemovedFactors) {
-    cout << it << " ";
-  }
+  // for(const auto& it: result.markedKeys) {
+  //   cout << boost::lexical_cast<std::string>(gtsam::DefaultKeyFormatter(gtsam::Symbol(it)))<< " ";
+  // }
+  // cout << "\n"
+  //      << "removed factors = ";
+  // for(const auto& it: result.keysWithRemovedFactors) {
+  //   cout << it << " ";
+  // }
   cout << endl;
+}
+
+double IncrementalBA::isam2Triangulation(Point* point)
+{
+  const Vector3d original_pos = point->pos_;
+
+  gtsam::TriangulationParameters params;
+  params.enableEPI = true;
+  params.rankTolerance = 1;
+  params.dynamicOutlierRejectionThreshold = 1.0;
+
+  gtsam::CameraSet<gtsam::PinholePose<gtsam::Cal3DS2>> cameras;
+  std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+  for(Features::iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
+  {
+    gtsam::Pose3 pose_w_c = BA::createPose((*it)->frame->T_f_w_.inverse());
+    gtsam::PinholePose<gtsam::Cal3DS2> camera(pose_w_c, K_);
+
+    cameras.push_back(camera);
+    measurements.push_back((*it)->px);
+  }
+  gtsam::TriangulationResult result = gtsam::triangulateSafe(cameras, measurements, params);
+  if(result.valid()) {
+    const Vector3d new_pt(result->x(), result->y(), result->z());
+    const double error = (original_pos-new_pt).norm();
+    return error;
+  }
+
+  return -1;
 }
 
 

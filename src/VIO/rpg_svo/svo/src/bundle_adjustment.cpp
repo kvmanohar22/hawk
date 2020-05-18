@@ -1048,9 +1048,8 @@ void IncrementalBA::incrementalGenericLocalBA(
 
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
   printResult(detailed_result);
-  // for(size_t i=0; i<10; ++i)
-  //   detailed_result = isam2_.update();
-  printResult(detailed_result);
+  for(size_t i=0; i<10; ++i)
+    detailed_result = isam2_.update();
   result = isam2_.calculateEstimate();
   prev_result_ = result;
   final_error = graph_->error(result);
@@ -1068,8 +1067,6 @@ void IncrementalBA::incrementalGenericLocalBA(
 
   // update the corresponding structure as well
   size_t n_newly_triangulated=0;
-  vector<double> error;
-  size_t n_invalid_triangulated=0;
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
@@ -1110,21 +1107,12 @@ void IncrementalBA::incrementalGenericLocalBA(
         gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(key));
         Vector3d point(pt.x(), pt.y(), pt.z());
         (*it_ft)->point->pos_ = point;
-        double e = isam2Triangulation((*it_ft)->point);
-        if(e > 0) {
-          error.push_back(e);
-        } else {
-          ++n_invalid_triangulated;
-        }
         ++n_updated;
       }
     }
   }
   SVO_DEBUG_STREAM("[iSmart BA]:\t Updated points = " << n_updated <<
-                   "\t newly triangulated = " << n_newly_triangulated <<
-                   "\t error mean = " << vk::getMedian(error) <<
-                   "\t error max = " << *std::max_element(error.begin(), error.end()) <<
-                   "\t invalid = " << n_invalid_triangulated);
+                   "\t newly triangulated = " << n_newly_triangulated);
 
   // outlier rejection
   const double reproj_thresh = Config::lobaThresh();
@@ -1140,32 +1128,91 @@ void IncrementalBA::incrementalGenericLocalBA(
       mps.insert((*it_ft)->point);
     }
   }
+
+  vector<double> error_vec;
+  size_t n_invalid_triangulated=0;
+  size_t n2=0, n3=0, n4=0, n4p=0;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const Vector3d xyz = (*it_pt)->pos_;
+    bool is_valid=true;
     for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
     {
       const Vector2d uv_true = (*it_obs)->px;
       const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
-      const double error = (uv_true-uv_repr).norm();
+      const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
 
       if(error > reproj_thresh)
       {
         n_removed_edges += (*it_pt)->obs_.size();
         ++n_removed_points;
-        map_.removePtFrameRef((*it_obs)->frame, *it_obs);
+        map_.safeDeletePoint(*it_pt);
+        is_valid=false;
         break;
       }
     }
+    if(is_valid)
+    {
+      // retriangulate the point (we are sure it is flagged valid from above)
+      const double e = isam2Triangulation(*it_pt);
+      if(e > 0) {
+        error_vec.push_back(e);
+      } else {
+        ++n_invalid_triangulated;
+
+        // generate some stats
+        switch((*it_pt)->obs_.size()) {
+          case 2:
+            ++n2;
+            break;
+          case 3:
+            ++n3;
+            break;
+          case 4:
+            ++n4;
+            break;
+          default:
+            ++n4p;
+            break;
+        }
+      }
+    }
+  }
+  ofstream ofs("/tmp/generic_stats.csv", std::ios::app);
+  if(n_kfs_recieved_ == 3) {
+    ofs << "kf id" << ","
+        << "total" << ","
+        << "removed" << ","
+        << "2 obs" << ","
+        << "3 obs" << ","
+        << "4 obs" << ","
+        << "4+ obs" << "\n";
   }
 
-  SVO_DEBUG_STREAM("[iSmart BA]:\t Removed points (curr) = " << n_removed_points <<
-                   "\t Removed points (cumu) = " << total_removed_so_far_ <<
-                   "\t Removed edges = " << n_removed_edges);
+  ofs << n_kfs_recieved_ << ","
+      << (int)mps.size() << ","
+      << n_removed_points << ","
+      << n2  << ","
+      << n3  << ","
+      << n4  << ","
+      << n4p << "\n";
+  ofs.close();
+
   // clean up
   graph_->resize(0);
   initial_estimate_.clear();
   total_removed_so_far_ += n_removed_points;
+
+  double smba_error_mean=vk::getMedian(error_vec);
+  double smba_error_max=*std::max_element(error_vec.begin(), error_vec.end());
+  size_t smba_invalid = n_invalid_triangulated;
+  SVO_DEBUG_STREAM("[iSmart BA]:\t Removed points (curr) = " << n_removed_points <<
+                   "\t Removed points (cumu) = " << total_removed_so_far_ <<
+                   "\t Removed edges = " << n_removed_edges <<
+                   "\t error mean = " << smba_error_mean <<
+                   "\t error max = " << smba_error_max <<
+                   "\t invalid = " << n_invalid_triangulated);
+  SVO_LOG3(smba_error_mean, smba_error_max, smba_invalid);
 }
 
 void IncrementalBA::addEdge(const int& kfid)
@@ -1215,7 +1262,7 @@ double IncrementalBA::isam2Triangulation(Point* point)
 
   gtsam::TriangulationParameters params;
   params.enableEPI = true;
-  params.rankTolerance = 1;
+  params.rankTolerance = 1e-12;
   params.dynamicOutlierRejectionThreshold = 1.0;
 
   gtsam::CameraSet<gtsam::PinholePose<gtsam::Cal3DS2>> cameras;

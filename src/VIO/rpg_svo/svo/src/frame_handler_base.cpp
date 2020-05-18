@@ -74,6 +74,11 @@ FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   g_permon->addLog("loba_err_fin_avg");
   g_permon->addLog("n_candidates");
   g_permon->addLog("dropout");
+  g_permon->addLog("smba_factors");
+  g_permon->addLog("smba_variables");
+  g_permon->addLog("smba_error_mean");
+  g_permon->addLog("smba_error_max");
+  g_permon->addLog("smba_invalid");
   g_permon->init(Config::traceName(), Config::traceDir());
 #endif
 

@@ -982,6 +982,7 @@ void IncrementalBA::incrementalGenericLocalBA(
         continue;
       }
 
+      noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, (*it_pt)->obs_.front()->level));
       for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
       {
         graph_->emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
@@ -1040,7 +1041,12 @@ void IncrementalBA::incrementalGenericLocalBA(
   init_error = graph_->error(prev_result_);
   init_error_avg = init_error / total_edges_;
   gtsam::Values result;
-  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_);
+
+  gtsam::ISAM2UpdateParams update_params;
+  update_params.force_relinearize = true;
+  update_params.forceFullSolve = true;
+
+  gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
   printResult(detailed_result);
   // for(size_t i=0; i<10; ++i)
   //   detailed_result = isam2_.update();

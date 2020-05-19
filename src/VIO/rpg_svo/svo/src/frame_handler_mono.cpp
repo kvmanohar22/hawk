@@ -324,7 +324,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
     // this is added just to add in prior states for optimization
     double loba_err_init, loba_err_init_avg;
     double loba_err_fin, loba_err_fin_avg;
-    iba_->incrementalSmartLocalBA(new_frame_.get(),
+    iba_->incrementalGenericLocalBA(new_frame_.get(),
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
                            true);    
@@ -361,7 +361,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
     // this is added just to add in prior states for optimization
     double loba_err_init, loba_err_init_avg;
     double loba_err_fin, loba_err_fin_avg;
-    iba_->incrementalSmartLocalBA(new_frame_.get(),
+    iba_->incrementalGenericLocalBA(new_frame_.get(),
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
                            true);    
@@ -412,7 +412,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     // this is added just to add in prior states for optimization
     double loba_err_init, loba_err_init_avg;
     double loba_err_fin, loba_err_fin_avg;
-    iba_->incrementalSmartLocalBA(new_frame_.get(),
+    iba_->incrementalGenericLocalBA(new_frame_.get(),
                            loba_err_init, loba_err_fin,
                            loba_err_init_avg, loba_err_fin_avg,
                            true);    
@@ -606,7 +606,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
       //                   true);
       //   init_ba_done_ = true;
       // }
-      iba_->incrementalSmartLocalBA(new_frame_.get(),
+      iba_->incrementalGenericLocalBA(new_frame_.get(),
                              loba_err_init, loba_err_fin,
                              loba_err_init_avg, loba_err_fin_avg,
                              true);

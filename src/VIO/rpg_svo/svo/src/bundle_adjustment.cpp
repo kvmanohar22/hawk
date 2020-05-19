@@ -766,12 +766,13 @@ void IncrementalBA::incrementalSmartLocalBA(
   update_params.force_relinearize = true;
   update_params.forceFullSolve = true;
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
-  for(size_t i=0; i<4; ++i) {
+  result = isam2_.calculateEstimate();
+  for(size_t i=0; i<10; ++i) {
     std::cout << "----------" << std::endl;
     isam2_.update();
+    result = isam2_.calculateEstimate();
   }
   printResult(detailed_result);
-  result = isam2_.calculateEstimate();
   prev_result_ = result;
   final_error = graph_->error(result);
   final_error_avg = final_error / total_edges_;
@@ -1041,10 +1042,12 @@ void IncrementalBA::incrementalGenericLocalBA(
   update_params.forceFullSolve = true;
 
   gtsam::ISAM2Result detailed_result = isam2_.update(*graph_, initial_estimate_, update_params);
-  printResult(detailed_result);
-  for(size_t i=0; i<10; ++i)
-    detailed_result = isam2_.update();
   result = isam2_.calculateEstimate();
+  printResult(detailed_result);
+  for(size_t i=0; i<10; ++i) {
+    detailed_result = isam2_.update();
+    result = isam2_.calculateEstimate();
+  }
   prev_result_ = result;
   final_error = graph_->error(result);
   final_error_avg = final_error / total_edges_;

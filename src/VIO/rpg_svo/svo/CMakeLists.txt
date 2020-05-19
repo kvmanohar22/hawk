@@ -2,7 +2,7 @@
 # user build settings
 
 SET(TRACE TRUE)
-SET(USE_EDGELETS FALSE) # Set TRUE if you want to use edgelet features
+SET(USE_EDGELETS TRUE) # Set TRUE if you want to use edgelet features
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests

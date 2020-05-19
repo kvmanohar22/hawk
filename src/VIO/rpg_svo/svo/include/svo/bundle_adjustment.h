@@ -167,6 +167,11 @@ private:
 
   bool detectOutlier(Point* point, double reprojection_threshold);
 
+  void createSmartFactors(set<Point*> points,
+    set<Point*>& invalid_pts,
+    const size_t n_obs,
+    size_t& n_new_factors);
+
 private:
   unordered_map<int, SmartFactorHelperPtr> smart_factors_;
   int curr_factor_idx_; //<! This holds the running index of the factor in the factor graph

@@ -640,6 +640,8 @@ void IncrementalBA::incrementalSmartLocalBA(
   gtsam::FastMap<gtsam::FactorIndex, gtsam::KeySet> new_affected_keys;
   size_t n2_obs=0, n3_obs=0;
 
+  size_t center_kf_n_obs=0;
+  set<Point*> new_factors;
   for(set<Point*>::iterator it_pt=mps_.begin(); it_pt!=mps_.end();)
   {
     // ensure the point is not deleted by any chance
@@ -665,37 +667,7 @@ void IncrementalBA::incrementalSmartLocalBA(
        * For the first two keyframes, there is enough disparity (50px) and no indeterminate linear system is likely to occur
        * But later on it could be possible and hence we expect points to be observed in atleast 3 frames
        */
-      min_n_obs_ = n_kfs_recieved_ > 3 ? 3 : 2;
-      if((*it_pt)->obs_.size() < min_n_obs_)
-      {
-        invalid_pts.insert(*it_pt);
-        it_pt = mps_.erase(it_pt);
-        continue;
-      }
-
-      if((*it_pt)->obs_.size() == 2)
-        ++n2_obs;
-      else
-        ++n3_obs;
-
-      // create a new smart factor
-      ++n_new_factors;
-      noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, (*it_pt)->obs_.front()->level));
-      SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
-      SmartFactorHelperPtr factor_helper = boost::make_shared<SmartFactorHelper>(++curr_factor_idx_);
-      for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
-      {
-        factor->add(gtsam::Point2((*it_obs)->px), Symbol::X((*it_obs)->frame->id_));
-        addEdge((*it_obs)->frame->id_);
-        ++total_edges_;
-
-        // update the helper
-        factor_helper->addObs((*it_obs)->frame->id_);
-      }
-
-      graph_->push_back(factor);
-      factor_helper->factor_ = factor;
-      smart_factors_.insert(make_pair(pt_idx, factor_helper));
+      new_factors.insert(*it_pt);
     } else {
       // update the existing smart factor
       set<int> all_obs;
@@ -721,6 +693,9 @@ void IncrementalBA::incrementalSmartLocalBA(
           ++n_updated_factors;
           ++total_edges_;
 
+          if((*it_obs)->frame->id_ == center_kf->id_)
+            ++center_kf_n_obs;
+
           // this particular factor was affected
           new_affected_keys[factor_idx].insert(Symbol::X((*it_obs)->frame->id_));
           // update the set of observations
@@ -730,17 +705,13 @@ void IncrementalBA::incrementalSmartLocalBA(
     }
     ++it_pt;
   }
+  createSmartFactors(new_factors, invalid_pts, center_kf_n_obs, n_new_factors);
+
   SVO_DEBUG_STREAM("[iSmart BA]:\t Invalid = " << invalid_pts.size() << "/" << n_mps <<
                    "\t New factors = " << n_new_factors <<
                    "\t Updated factors = " << n_updated_factors <<
-                   "\t 2 obs = " << n2_obs << "/" << n2_obs+n3_obs <<
-                   "\t >2 obs = " << n3_obs <<"/" << n2_obs+n3_obs <<
                    "\t Affected keys = " << new_affected_keys.size());
-/*  for(map<int,int>::iterator it=kf_landmarks_edges_.begin(); it!=kf_landmarks_edges_.end();++it)
-  {
-    cout << "id = " << it->first << "\t #landmarks = " << it->second << endl;
-  }
-*/
+
   mps_.clear();
 
   ofstream ofs("/tmp/smart_stats.csv", std::ios::app);
@@ -1342,6 +1313,45 @@ bool IncrementalBA::detectOutlier(Point* point, double reprojection_threshold)
     }
   }
   return false;
+}
+
+void IncrementalBA::createSmartFactors(
+  set<Point*> points,
+  set<Point*>& invalid_pts,
+  const size_t nobs,
+  size_t& n_new_factors)
+{
+  size_t min_n_obs = 2;
+  if(nobs > 2)
+    min_n_obs = 5;
+
+  for(set<Point*>::iterator it_pt=points.begin(); it_pt!=points.end(); ++it_pt)
+  {
+    if((*it_pt)->obs_.size() < min_n_obs)
+    {
+      invalid_pts.insert(*it_pt);
+      continue;
+    }
+
+    // create a new smart factor
+    ++n_new_factors;
+    noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, (*it_pt)->obs_.front()->level));
+    SmartFactorPtr factor(new SmartFactor(noise_, K_, smart_params_));
+    SmartFactorHelperPtr factor_helper = boost::make_shared<SmartFactorHelper>(++curr_factor_idx_);
+    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
+    {
+      factor->add(gtsam::Point2((*it_obs)->px), Symbol::X((*it_obs)->frame->id_));
+      addEdge((*it_obs)->frame->id_);
+      ++total_edges_;
+
+      // update the helper
+      factor_helper->addObs((*it_obs)->frame->id_);
+    }
+
+    graph_->push_back(factor);
+    factor_helper->factor_ = factor;
+    smart_factors_.insert(make_pair((*it_pt)->id_, factor_helper));
+  }
 }
 
 

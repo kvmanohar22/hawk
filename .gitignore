@@ -19,4 +19,5 @@ src/catkin_simple
 bags/**
 src/CMakeLists.txt
 evaluations/**
+analysis/smart_factors/**
 

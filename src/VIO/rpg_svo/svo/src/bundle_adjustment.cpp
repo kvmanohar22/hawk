@@ -536,7 +536,7 @@ IncrementalBA::IncrementalBA(
   vk::AbstractCamera* camera,
   Map& map) :
     curr_factor_idx_(-1),
-    graph_addition_freq_(5),
+    graph_addition_freq_(1),
     n_kfs_recieved_(0),
     map_(map),
     total_removed_so_far_(0),
@@ -554,8 +554,8 @@ IncrementalBA::IncrementalBA(
     (gtsam::Vector(6) << gtsam::Vector3::Constant(0.5), gtsam::Vector3::Constant(0.1)).finished());
 
   smart_params_.triangulation.enableEPI = true;
-  smart_params_.triangulation.rankTolerance = 1;
-  smart_params_.triangulation.dynamicOutlierRejectionThreshold = 1.0;
+  smart_params_.triangulation.rankTolerance = 1e-12;
+  smart_params_.triangulation.dynamicOutlierRejectionThreshold = 20.0;
   smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
   smart_params_.verboseCheirality = true;
   smart_params_.throwCheirality = false;
@@ -564,7 +564,6 @@ IncrementalBA::IncrementalBA(
   gtsam::ISAM2DoglegParams doglegparams = gtsam::ISAM2DoglegParams();
   doglegparams.verbose = false;
   doglegparams.wildfireThreshold = 0.001;
-
 
   isam2_params_.factorization = gtsam::ISAM2Params::QR;
   isam2_params_.enableDetailedResults = false;
@@ -881,6 +880,29 @@ void IncrementalBA::incrementalSmartLocalBA(
     }
   }
 
+  // outlier rejection
+  set<Point*> mps;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+      mps.insert((*it_ft)->point);
+    }
+  }
+
+  size_t n_outliers=0;
+  const double reproj_thresh = Config::lobaThresh();
+  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
+  {
+    if(detectOutlier(*it_pt, reproj_thresh))
+    {
+      map_.safeDeletePoint(*it_pt);
+      ++n_outliers;
+    }
+  }
+
   // clean up
   graph_->resize(0);
   initial_estimate_.clear();
@@ -889,7 +911,8 @@ void IncrementalBA::incrementalSmartLocalBA(
   SVO_DEBUG_STREAM("[iSmart BA]:\t Removed (curr) = " << n_diverged <<
                    "\t Removed (cumu) = " << total_removed_so_far_ <<
                    "\t Updated points = " << n_updated <<
-                   "\t newly triangulated = " << n_newly_triangulated);
+                   "\t newly triangulated = " << n_newly_triangulated <<
+                   "\t outliers = " << n_outliers << "/" << mps.size());
 }
 
 void IncrementalBA::incrementalGenericLocalBA(
@@ -1132,6 +1155,7 @@ void IncrementalBA::incrementalGenericLocalBA(
   vector<double> error_vec;
   size_t n_invalid_triangulated=0;
   size_t n2=0, n3=0, n4=0, n4p=0;
+  size_t n_outliers=0, n_degenerate=0, n_unknown=0;
   for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
   {
     const Vector3d xyz = (*it_pt)->pos_;
@@ -1154,7 +1178,8 @@ void IncrementalBA::incrementalGenericLocalBA(
     if(is_valid)
     {
       // retriangulate the point (we are sure it is flagged valid from above)
-      const double e = isam2Triangulation(*it_pt);
+      int reason; double e;
+      boost::tie(reason, e) = isam2Triangulation(*it_pt);
       if(e > 0) {
         error_vec.push_back(e);
       } else {
@@ -1175,6 +1200,12 @@ void IncrementalBA::incrementalGenericLocalBA(
             ++n4p;
             break;
         }
+        if(reason == 1)
+          ++n_outliers;
+        else if(reason == 2)
+          ++n_degenerate;
+        else
+          ++n_unknown;
       }
     }
   }
@@ -1212,6 +1243,9 @@ void IncrementalBA::incrementalGenericLocalBA(
                    "\t error mean = " << smba_error_mean <<
                    "\t error max = " << smba_error_max <<
                    "\t invalid = " << n_invalid_triangulated);
+  SVO_DEBUG_STREAM("[iSmart BA]:\t degenerate = " << n_degenerate <<
+                   "\t outliers = " << n_outliers <<
+                   "\t unknown = " << n_unknown);
   SVO_LOG3(smba_error_mean, smba_error_max, smba_invalid);
 }
 
@@ -1256,14 +1290,14 @@ void IncrementalBA::printResult(const gtsam::ISAM2Result& result)
   cout << endl;
 }
 
-double IncrementalBA::isam2Triangulation(Point* point)
+boost::tuple<int,double> IncrementalBA::isam2Triangulation(Point* point)
 {
   const Vector3d original_pos = point->pos_;
 
   gtsam::TriangulationParameters params;
   params.enableEPI = true;
   params.rankTolerance = 1e-12;
-  params.dynamicOutlierRejectionThreshold = 1.0;
+  params.dynamicOutlierRejectionThreshold = -1.0;
 
   gtsam::CameraSet<gtsam::PinholePose<gtsam::Cal3DS2>> cameras;
   std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
@@ -1279,10 +1313,35 @@ double IncrementalBA::isam2Triangulation(Point* point)
   if(result.valid()) {
     const Vector3d new_pt(result->x(), result->y(), result->z());
     const double error = (original_pos-new_pt).norm();
-    return error;
+    return boost::tuple<int,double>(0 ,error);
   }
+  int reason=-1;
+  if(result.outlier())
+    reason=1;
+  else if(result.degenerate())
+    reason=2;
+  else
+    reason=3;
 
-  return -1;
+  return boost::tuple<int,double>(reason, -1);
+}
+
+bool IncrementalBA::detectOutlier(Point* point, double reprojection_threshold)
+{
+  const int scale= (1 << point->obs_.front()->level);
+  const Vector3d xyz = point->pos_;
+  for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
+  {
+    const Vector2d uv_true = (*it_obs)->px;
+    const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
+    const double error = (uv_true-uv_repr).norm() / scale;
+
+    if(error > reprojection_threshold)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 

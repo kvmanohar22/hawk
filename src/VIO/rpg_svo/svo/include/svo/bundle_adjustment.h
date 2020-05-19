@@ -163,7 +163,9 @@ public:
     bool verbose=false);
 
 private:
-  double isam2Triangulation(Point* point);
+  boost::tuple<int, double> isam2Triangulation(Point* point);
+
+  bool detectOutlier(Point* point, double reprojection_threshold);
 
 private:
   unordered_map<int, SmartFactorHelperPtr> smart_factors_;

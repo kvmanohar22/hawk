@@ -61,7 +61,8 @@ Config::Config() :
     isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
     isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1)),
     isam2_dt(vk::getParam<double>("/hawk/svo/dt_", 0.005)),
-    save_trajectory(vk::getParam<bool>("/hawk/svo/save_trajectory", false))
+    save_trajectory(vk::getParam<bool>("/hawk/svo/save_trajectory", false)),
+    vision_factor_type(vk::getParam<int>("/hawk/svo/vision_factor_type", 0))
 #else
     trace_name("svo"),
     trace_dir("/tmp"),

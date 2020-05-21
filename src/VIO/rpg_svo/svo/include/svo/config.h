@@ -144,6 +144,9 @@ public:
   /// The type of IMU factor to use
   static bool& saveTrajectory() { return getInstance().save_trajectory; }
 
+  /// Type of vision factor to use (0: generic 1: smart)
+  static int& visionFactorType() { return getInstance().vision_factor_type; }
+
 private:
   Config();
   Config(Config const&);
@@ -187,6 +190,7 @@ private:
   int isam2_imu_factor_type;
   double isam2_dt;
   bool save_trajectory;
+  int vision_factor_type;
 };
 
 } // namespace svo

@@ -45,6 +45,7 @@ class VisualInertialEstimator
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  typedef boost::unique_lock<boost::mutex> lock_t;
   typedef boost::function<void (gtsam::imuBias::ConstantBias)> callback_t;
   typedef gtsam::noiseModel::Diagonal Noise;
   typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
@@ -72,11 +73,7 @@ public:
   void OptimizerLoop();
 
   /// initialize prior states (identity) for the first state
-  void initializePrior();
-
-  /// initialize values for new variables in the optimization
-  /// Namely, (X, V, B) of the latest keyframe's pose
-  void initializeNewVariables();
+  void initializePrior(const FramePtr& frame);
 
   /// Flag to see if optimization is to be run
   bool shouldRunOptimization();
@@ -99,21 +96,37 @@ public:
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
-private:
-  /// Creates a new smart factor
-  SmartFactorPtr createNewSmartFactor(const Point* point);
-
-  /// Update an existing smart factor
-  void updateSmartFactor(SmartFactorPtr& factor, FramePtr& frame, Point* point);
-
-  /// creates a camera with the specified pose
-  gtsam::PinholePose<gtsam::Cal3DS2> createCamera(const SE3& T_w_f);
-
   /// Adds imu factor to graph
   void addImuFactorToGraph();
 
+  /// After updating with latest values, do outlier rejection
+  void rejectOutliers();
+
   /// Adds visual factor to graph
-  void addVisionFactorToGraph();
+  virtual void addVisionFactorsToGraph() =0;
+
+  /// updates structure after optimization
+  virtual void updateStructure(const gtsam::Values& result) =0;
+
+  /// initialize values for new variables in the optimization
+  /// Namely, (X, V, B) of the latest keyframe's pose
+  void initializeNewVariables();
+
+  /// Initializes structure
+  virtual void initializeStructure() =0;
+
+  /// Retriangulates a point (returns true if point was triangulated)
+  bool reTriangulate(Point* point);
+
+  inline void setMotionEstimator(FrameHandlerMono* motion_estimator) { motion_estimator_ = motion_estimator; }
+  inline void setDepthFilter(DepthFilter* depth_filter) { depth_filter_ = depth_filter; }
+  inline void setImuHelper(ImuHelper* imu_helper) { imu_helper_ = imu_helper; }
+
+  inline ImuHelper* getImuHelper() { return imu_helper_; }
+
+private:
+  /// creates a camera with the specified pose
+  gtsam::PinholePose<gtsam::Cal3DS2> createCamera(const SE3& T_w_f);
 
   /// Stops other threads for pose and structure updation
   void stopOtherThreads();
@@ -121,21 +134,21 @@ private:
   /// Releases other threads after pose and structure is updated
   void resumeOtherThreads();
 
-  /// Given a keyframe, this updates map points visible in this keyframe
-  void updateMapPoints(const FramePtr& frame);
+  /// gathers keyframes (thread safe). Fills kf_queue_
+  void gatherKeyframes();
 
-  /// Retriangulates a point (returns true if point was triangulated)
-  bool reTriangulate(Point* point);
-
-public:
+protected:
   EstimatorStage               stage_;                 //!< Current stage of the system
   boost::thread*               thread_;
   std::queue<FramePtr>         keyframes_;             //!< Keyframes to be optimized
+  std::list<FramePtr>          kf_list_;               //!< This is a local copy
+  boost::mutex                 kf_queue_mut_;          //!< To access keyframes_
+  boost::condition_variable    kf_queue_cond_;         //!< Check if new kf arrived
+  bool                         new_kf_arrived_;        //!< If new kf arrived
   bool                         quit_;                  //!< Stop optimizing and quit
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
-  gtsam::SmartProjectionParams smart_params_;          //!< Parameters for smart projection factors
   PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   const double                 dt_;                    //!< IMU sampling rate
@@ -156,7 +169,6 @@ public:
   vk::AbstractCamera*          camera_;                //!< Abstract camera 
   Cal3DS2Ptr                   isam2_K_;               //!< calibration for use in isam2
 
-  unordered_map<size_t, SmartFactorPtr> smart_factors_;//!< landmarks
   gtsam::Pose3                 body_P_camera_;         //!< pose of the camera in body frame (T_b_c) (body = imu)
 
   FrameHandlerMono*            motion_estimator_;      //!< Reference to motion estimation thread
@@ -166,8 +178,83 @@ public:
   ImuContainerPtr              imu_container_;         //!< Container for storing imu messages
   double                       prev_imu_ts_;           //!< used for calculating dt for imu integration
   double                       t0_;                    //!< timestamp of the previous keyframe
-  set<Point*>                  mps_;                   //!< Map points that will be used to create smart factor
+
+  size_t                       min_observations_;      //!< Minimum number of observations to create a landmark
+  int                          opt_call_count_;        //!< Number of times optimization is called
 }; // class VisualInertialEstimator
+
+
+/// Smart projection factors
+class SmartInertialEstimator final : public VisualInertialEstimator
+{
+public:
+  SmartInertialEstimator(
+    vk::AbstractCamera* camera,
+    VisualInertialEstimator::callback_t update_bias_cb,
+    Map& map);
+
+  virtual ~SmartInertialEstimator() {}
+
+  /// Creates or updates smart factors
+  virtual void addVisionFactorsToGraph() override;
+
+  /// updates structure after optimization
+  virtual void updateStructure(const gtsam::Values& result) override;
+
+  virtual void initializeStructure() override;
+
+private:
+  /// Creates a new smart factor
+  SmartFactorPtr createNewSmartFactor(const Point* point);
+
+  /// Update an existing smart factor
+  void updateSmartFactor(SmartFactorPtr& factor, FramePtr& frame, Point* point);
+
+protected:
+  gtsam::SmartProjectionParams          smart_params_;  //!< Parameters for smart projection factors
+  unordered_map<size_t, SmartFactorPtr> smart_factors_; //!< landmarks
+}; /// SmartInertialEstimator
+
+
+/// Generic projection factors
+class GenericInertialEstimator final : public VisualInertialEstimator
+{
+public:
+  GenericInertialEstimator(
+    vk::AbstractCamera* camera,
+    VisualInertialEstimator::callback_t update_bias_cb,
+    Map& map) :
+      VisualInertialEstimator(camera, update_bias_cb, map)
+    {} 
+
+  virtual ~GenericInertialEstimator() {}
+
+  /// Creates or updates generic factors
+  virtual void addVisionFactorsToGraph() override;
+
+  /// updates structure after optimization
+  virtual void updateStructure(const gtsam::Values& result) override;
+
+  virtual void initializeStructure() override;
+
+private:
+  /// Creates a new landmark in the graph
+  bool createNewLandmark(Point* point);
+
+  /// Augments the (alread) existing landmark
+  void augmentLandmark(const Point* point);
+
+  /// Adds an edge
+  void addEdge(const int& pt_idx,
+               const int& frame_idx,
+               const Vector2d& px,
+               const int& scale);
+
+protected:
+  unordered_map<int, set<int>> edges_; //<! edges already in the graph
+  set<Point*>                  mps_;   //<! latest landmarks initialized
+
+}; /// GenericInertialEstimator
 
 
 namespace inertial_utils {

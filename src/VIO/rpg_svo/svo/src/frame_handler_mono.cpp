@@ -126,15 +126,20 @@ void FrameHandlerMono::initialize()
   depth_filter_->startThread();
 
   // Start visual inertial estimator
-  if (Config::runInertialEstimator())
+  if(Config::runInertialEstimator())
   {
     VisualInertialEstimator::callback_t update_bias_cb = boost::bind(
       &FrameHandlerMono::newImuBias, this, _1);
     SVO_INFO_STREAM("Starting Inertial Estimator");
-    inertial_estimator_ = new svo::VisualInertialEstimator(cam_, update_bias_cb, std::ref(map_));
+    if(Config::visionFactorType() == 0)
+    {
+      inertial_estimator_ = new svo::GenericInertialEstimator(cam_, update_bias_cb, std::ref(map_));
+    } else {
+      inertial_estimator_ = new svo::SmartInertialEstimator(cam_, update_bias_cb, std::ref(map_));
+    }
 
-    inertial_estimator_->motion_estimator_ = this;
-    inertial_estimator_->depth_filter_ = depth_filter_;
+    inertial_estimator_->setMotionEstimator(this);
+    inertial_estimator_->setDepthFilter(depth_filter_);
     inertial_estimator_->startThread();
   }
 

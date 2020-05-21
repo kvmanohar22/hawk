@@ -181,6 +181,7 @@ protected:
 
   size_t                       min_observations_;      //!< Minimum number of observations to create a landmark
   int                          opt_call_count_;        //!< Number of times optimization is called
+  bool                         verbose_;               //!< Extensive verbose
 }; // class VisualInertialEstimator
 
 

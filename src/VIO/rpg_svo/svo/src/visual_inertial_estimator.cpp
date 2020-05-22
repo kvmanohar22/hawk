@@ -157,7 +157,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   // add vision factors to graph
   addVisionFactorsToGraph();
 
-  SVO_DEBUG_STREAM("[Estimator]: graph size = " << graph_->size());
+  SVO_DEBUG_STREAM("[Estimator]:\t graph size = " << graph_->size());
 }
 
 void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
@@ -226,7 +226,7 @@ void VisualInertialEstimator::initializeNewVariables()
 
   // initialize structure (only in case of Generic projection factors)
   initializeStructure();
-  SVO_DEBUG_STREAM("[Estimator]: Initialized values for optimization");
+  SVO_DEBUG_STREAM("Estimator:\t Initialized");
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
@@ -241,7 +241,6 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
   // run optimization
   prev_result_.insert(initial_values_);
-  SVO_DEBUG_STREAM("[Estimator]: Initial error = " << graph_->error(prev_result_));
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
 
@@ -254,11 +253,12 @@ EstimatorResult VisualInertialEstimator::runOptimization()
     isam2_.update();
     result = isam2_.calculateEstimate();
   }
-  SVO_DEBUG_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
   // update the optimized variables
+  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_) <<
+                   "\t ErrFin. = " << graph_->error(result) <<
+                   "\t Time = " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
   prev_result_ = result;
-  SVO_DEBUG_STREAM("[Estimator]: Final error = " << graph_->error(result));
   updateState(result);
 
   // clean up the integration from the above optimization
@@ -346,9 +346,9 @@ void VisualInertialEstimator::rejectOutliers()
       }
     }
   }
-  SVO_DEBUG_STREAM("[Estimator]: " <<
-                   "Removed points = " << n_removed_points <<
-                   "\t Removed edges  = " << n_removed_edges);
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t Rem. points = " << n_removed_points <<
+                   "\t Rem. edges  = " << n_removed_edges);
 }
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
@@ -388,8 +388,8 @@ void VisualInertialEstimator::cleanUp()
 {
   graph_->resize(0);
   initial_values_.clear();
-  SVO_DEBUG_STREAM("[Estimator]: Cleared the graph and initial values");
-  SVO_DEBUG_STREAM("[Estimator]: ------------------------");
+  SVO_DEBUG_STREAM("Estimator:\t All cleared");
+  SVO_DEBUG_STREAM("Estimator: ------------------------");
 }
 
 void VisualInertialEstimator::OptimizerLoop()
@@ -446,9 +446,10 @@ void GenericInertialEstimator::addVisionFactorsToGraph()
     }
     ++it;
   }
-  SVO_DEBUG_STREAM("[Estimator]: New landmarks = " << new_landmarks <<
+  SVO_DEBUG_STREAM("Estimator:"
+                   "\t New points = " << new_landmarks <<
                    "\t New edges = " << new_edges << 
-                   "\t Augmented edges = " << old_edges);
+                   "\t Old edges = " << old_edges);
 
   // TODO: Move this to a better place?
   // After first optimization, we restrict to 3 observations
@@ -490,8 +491,9 @@ void GenericInertialEstimator::updateStructure(const gtsam::Values& result)
       }
     }
   }
-  SVO_DEBUG_STREAM("[Estimator]: Newly triangulated = " << n_newly_triangulated
-                   << "\t updated = " << n_updated);
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t triang. = " << n_newly_triangulated <<
+                   "\t updated = " << n_updated);
 }
 
 void GenericInertialEstimator::initializeStructure()

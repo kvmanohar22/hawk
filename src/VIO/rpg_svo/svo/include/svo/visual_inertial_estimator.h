@@ -73,7 +73,7 @@ public:
   void OptimizerLoop();
 
   /// initialize prior states (identity) for the first state
-  void initializePrior(const FramePtr& frame);
+  void initializePrior(const FramePtr& frame, int idx=0);
 
   /// Flag to see if optimization is to be run
   bool shouldRunOptimization();
@@ -181,7 +181,6 @@ protected:
 
   size_t                       min_observations_;      //!< Minimum number of observations to create a landmark
   int                          opt_call_count_;        //!< Number of times optimization is called
-  bool                         verbose_;               //!< Extensive verbose
 }; // class VisualInertialEstimator
 
 
@@ -240,14 +239,15 @@ public:
 
 private:
   /// Creates a new landmark in the graph
-  bool createNewLandmark(Point* point);
+  int createNewLandmark(const Point* point);
 
   /// Augments the (alread) existing landmark
-  void augmentLandmark(const Point* point);
+  int augmentLandmark(const Point* point);
 
   /// Adds an edge
   void addEdge(const int& pt_idx,
                const int& frame_idx,
+               const int& correction_idx,
                const Vector2d& px,
                const int& scale);
 

@@ -28,6 +28,7 @@ VisualInertialEstimator::VisualInertialEstimator(
       n_integrated_measures_(0),
       camera_(camera),
       map_(map),
+      min_observations_(2),
       opt_call_count_(0)
 {
   n_iters_ = Config::isam2NumIters();
@@ -136,7 +137,9 @@ void VisualInertialEstimator::gatherKeyframes()
     lock_t lock(kf_queue_mut_);
     while(!keyframes_.empty())
     {
-      kf_list_.push_back(keyframes_.front());
+      FramePtr kf = keyframes_.front();
+      kf->correction_id_ = ++correction_count_;
+      kf_list_.push_back(kf);
       keyframes_.pop();
     }
   }
@@ -145,7 +148,7 @@ void VisualInertialEstimator::gatherKeyframes()
 
 void VisualInertialEstimator::addFactorsToGraph()
 {
-  // first collect all keyframes
+  // first collect keyframes from the queue filled by motion estimator thread
   gatherKeyframes();
 
   // add imu factors to graph
@@ -181,8 +184,7 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  keyframe->correction_id_ = ++correction_count_;
-  SVO_DEBUG_STREAM("[Estimator]: New KF arrived id="<< keyframe->correction_id_);
+  SVO_DEBUG_STREAM("[Estimator]: New KF arrived");
 
   {
     lock_t lock(kf_queue_mut_);
@@ -192,27 +194,25 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   }
 
   if(stage_ == EstimatorStage::PAUSED) {
-    initializePrior(keyframes_.front());
+    initializePrior(keyframe);
     t0_ = keyframe->timestamp_;
     stage_ = EstimatorStage::FIRST_KEYFRAME;
 
-    // For initial optimization 2 observations are sufficient
-    min_observations_ = 2;
   } else if(stage_ == EstimatorStage::FIRST_KEYFRAME) {
-    initializePrior(keyframe);
+    initializePrior(keyframe, 1);
     stage_ = EstimatorStage::SECOND_KEYFRAME;
   } else if(stage_ == EstimatorStage::SECOND_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME) {
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
   }
 }
 
-void VisualInertialEstimator::initializePrior(const FramePtr& frame)
+void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
 {
   gtsam::Pose3 kf_pose = inertial_utils::createGtsamPose(frame->T_f_w_);
 
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
-    Symbol::X(frame->correction_id_), kf_pose, imu_helper_->prior_pose_noise_model_);
-  SVO_DEBUG_STREAM("[Estimator]: Adding prior state for kf = " << frame->correction_id_);
+    Symbol::X(idx), kf_pose, imu_helper_->prior_pose_noise_model_);
+  SVO_DEBUG_STREAM("[Estimator]: Adding prior state for kf = " << idx);
 }
 
 void VisualInertialEstimator::initializeNewVariables()
@@ -314,11 +314,14 @@ void VisualInertialEstimator::rejectOutliers()
   size_t n_removed_points = 0;
   set<Point*> mps;
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  // FIXME: For large number of points, this doesn't look efficient enough
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
       if((*it_ft)->point == nullptr)
+        continue;
+      if((*it_ft)->point->type_ == Point::TYPE_DELETED)
         continue;
       mps.insert((*it_ft)->point);
     }
@@ -342,9 +345,9 @@ void VisualInertialEstimator::rejectOutliers()
       }
     }
   }
-  SVO_DEBUG_STREAM("[Estimator]:" <<
-                   "\tremoved points = " << n_removed_points <<
-                   "\tremoved edges  = " << n_removed_edges);
+  SVO_DEBUG_STREAM("[Estimator]: " <<
+                   "Removed points = " << n_removed_points <<
+                   "\t Removed edges  = " << n_removed_edges);
 }
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
@@ -356,25 +359,20 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
-    auto key = Symbol::X((*it_kf)->correction_id_);
-    if(result.exists(key))
-    {
-      const auto pose  = result.at<gtsam::Pose3>(key);
-      (*it_kf)->T_f_w_ = inertial_utils::createSvoPose(pose);
-      ++(*it_kf)->n_inertial_updates_;
-    }
+    // ignore those frames which haven't been added to graph
+    if((*it_kf)->correction_id_ < 0)
+      continue;
+
+    const auto pose  = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->correction_id_));
+    (*it_kf)->T_f_w_ = inertial_utils::createSvoPose(pose);
+    ++(*it_kf)->n_inertial_updates_;
   }
 
   // update structure
-  size_t n_valid = 0;
-  size_t n_newly_triangulated = 0;
   updateStructure(result);
 
   // outlier rejection
   rejectOutliers();
-
-  // spit out some stats
-  SVO_DEBUG_STREAM("[Estimator]: Optimized poses and landmarks updated");
 
   // resume other threads
   resumeOtherThreads();
@@ -387,10 +385,10 @@ bool VisualInertialEstimator::shouldRunOptimization()
 
 void VisualInertialEstimator::cleanUp()
 {
-  SVO_DEBUG_STREAM("[Estimator]: Cleared the graph and initial values");
-  SVO_DEBUG_STREAM("[Estimator]: ------------------------");
   graph_->resize(0);
   initial_values_.clear();
+  SVO_DEBUG_STREAM("[Estimator]: Cleared the graph and initial values");
+  SVO_DEBUG_STREAM("[Estimator]: ------------------------");
 }
 
 void VisualInertialEstimator::OptimizerLoop()
@@ -402,6 +400,7 @@ void VisualInertialEstimator::OptimizerLoop()
       lock_t lock(kf_queue_mut_);
       while(keyframes_.empty() && new_kf_arrived_ == false)
         kf_queue_cond_.wait(lock); 
+      new_kf_arrived_ = false;
     }
      
     if(shouldRunOptimization())
@@ -426,21 +425,29 @@ void GenericInertialEstimator::addVisionFactorsToGraph()
     }
   }
 
+  size_t new_landmarks=0, new_edges=0, old_edges=0;
   for(set<Point*>::iterator it=mps_.begin(); it!=mps_.end();)
   {
-    const int pt_idx = (*it)->id_;
-    if(edges_.find(pt_idx) == edges_.end())
+    if(edges_.find((*it)->id_) == edges_.end())
     {
-      if(!createNewLandmark(*it))
+      int n_edges = createNewLandmark(*it);
+      if(n_edges > 0)
       {
+        ++new_landmarks;
+        new_edges += n_edges;
+      } else {
         it = mps_.erase(it);
         continue;
       }
     } else {
-      augmentLandmark(*it);
+      const size_t edges = augmentLandmark(*it);
+      old_edges += edges;
     }
     ++it;
   }
+  SVO_DEBUG_STREAM("[Estimator]: New landmarks = " << new_landmarks <<
+                   "\t New edges = " << new_edges << 
+                   "\t Augmented edges = " << old_edges);
 
   // TODO: Move this to a better place?
   // After first optimization, we restrict to 3 observations
@@ -457,6 +464,9 @@ void GenericInertialEstimator::updateStructure(const gtsam::Values& result)
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
       if((*it_ft)->point == nullptr)
+        continue;
+
+      if((*it_ft)->point->type_ == Point::TYPE_DELETED)
         continue;
 
       // update the point only once
@@ -479,8 +489,7 @@ void GenericInertialEstimator::updateStructure(const gtsam::Values& result)
       }
     }
   }
-  SVO_DEBUG_STREAM("[Estimator]: \tNewly triangulated = "
-                   << n_newly_triangulated
+  SVO_DEBUG_STREAM("[Estimator]: Newly triangulated = " << n_newly_triangulated
                    << "\t updated = " << n_updated);
 }
 
@@ -496,21 +505,28 @@ void GenericInertialEstimator::initializeStructure()
   }
 }
 
-bool GenericInertialEstimator::createNewLandmark(Point* point)
+int GenericInertialEstimator::createNewLandmark(const Point* point)
 {
   // we need to take special care about number of observations
   if(point->obs_.size() < min_observations_)
-    return false;
+    return -1;
 
   const int pt_idx = point->id_;
+  size_t invalid = 0;
   for(Features::const_iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
   {
-    addEdge(pt_idx, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
+    // FIXME: We are discarding valuable information. Could be handled better?
+    if((*it)->frame->correction_id_ < 0)
+    {
+      ++invalid;
+      continue;
+    }
+    addEdge(pt_idx, (*it)->frame->id_, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
   }
-  return true;
+  return point->obs_.size()-invalid;
 }
 
-void GenericInertialEstimator::augmentLandmark(const Point* point)
+int GenericInertialEstimator::augmentLandmark(const Point* point)
 {
   const int pt_idx = point->id_;
   set<int> all_observations;
@@ -526,18 +542,30 @@ void GenericInertialEstimator::augmentLandmark(const Point* point)
     edges_[pt_idx].begin(), edges_[pt_idx].end(),
     std::inserter(new_observations, new_observations.end()));
 
+  if(new_observations.size() == 0)
+    return 0;
+
   /// add new edges
+  size_t invalid=0;
   for(Features::const_iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
   {
+    // FIXME: We are discarding valuable information. Could be handled better?
+    if((*it)->frame->correction_id_ < 0)
+    {
+      ++invalid;
+      continue;
+    }
     if(new_observations.find((*it)->frame->id_) == new_observations.end())
       continue;
-    addEdge(pt_idx, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
+    addEdge(pt_idx, (*it)->frame->id_, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
   }
+  return new_observations.size()-invalid;
 }
 
 void GenericInertialEstimator::addEdge(
   const int& pt_idx,
   const int& frame_idx,
+  const int& correction_idx,
   const Vector2d& px,
   const int& scale)
 {
@@ -545,7 +573,7 @@ void GenericInertialEstimator::addEdge(
   auto noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, scale));
   graph_->emplace_shared<gtsam::GenericProjectionFactor<
     gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
-      px, noise, Symbol::X(frame_idx), Symbol::L(pt_idx), isam2_K_);
+      px, noise, Symbol::X(correction_idx), Symbol::L(pt_idx), isam2_K_);
   edges_[pt_idx].insert(frame_idx);
 }
 
@@ -607,7 +635,6 @@ namespace inertial_utils
     SE3 T_f_w             = SE3(R_w_f, t_w_f).inverse();
     return T_f_w;
   }
-
 }
 
 } // namespace svo

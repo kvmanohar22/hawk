@@ -254,7 +254,6 @@ private:
 protected:
   unordered_map<int, set<int>> edges_; //<! edges already in the graph
   set<Point*>                  mps_;   //<! latest landmarks initialized
-
 }; /// GenericInertialEstimator
 
 

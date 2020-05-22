@@ -312,9 +312,8 @@ void VisualInertialEstimator::rejectOutliers()
   const double reprojection_threshold = Config::lobaThresh();
   size_t n_removed_edges = 0;
   size_t n_removed_points = 0;
-  set<Point*> mps;
   list<FramePtr>* all_kfs = map_.getAllKeyframes();
-  // FIXME: For large number of points, this doesn't look efficient enough
+
   for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
     for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
@@ -323,25 +322,27 @@ void VisualInertialEstimator::rejectOutliers()
         continue;
       if((*it_ft)->point->type_ == Point::TYPE_DELETED)
         continue;
-      mps.insert((*it_ft)->point);
-    }
-  }
-  for(set<Point*>::iterator it_pt=mps.begin(); it_pt!=mps.end(); ++it_pt)
-  {
-    const Vector3d xyz = (*it_pt)->pos_;
-    for(Features::iterator it_obs=(*it_pt)->obs_.begin(); it_obs!=(*it_pt)->obs_.end(); ++it_obs)
-    {
-      /// TODO: Make this computation more efficient
-      const Vector2d uv_true = (*it_obs)->px;
-      const Vector2d uv_repr = (*it_obs)->frame->w2c(xyz);
-      const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
+      Point* point = (*it_ft)->point;
 
-      if(error > reprojection_threshold)
+      // if we already checked this point for outlier test
+      if(point->last_outlier_check_id_ == opt_call_count_)
+        continue;
+      point->last_outlier_check_id_ = opt_call_count_;
+
+      for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
       {
-        n_removed_edges += (*it_pt)->obs_.size();
-        ++n_removed_points;
-        map_.safeDeletePoint(*it_pt);
-        break;
+        /// TODO: Make this computation more efficient
+        const Vector2d uv_true = (*it_obs)->px;
+        const Vector2d uv_repr = (*it_obs)->frame->w2c(point->pos_);
+        const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
+
+        if(error > reprojection_threshold)
+        {
+          n_removed_edges += point->obs_.size();
+          ++n_removed_points;
+          map_.safeDeletePoint(point);
+          break;
+        }
       }
     }
   }

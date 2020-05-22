@@ -56,8 +56,8 @@ public:
   int                         last_structure_optim_;    //!< Timestamp of last point optimization
   int                         n_inertial_updates_;      //!< Number of times the point was optimized in inertial estimator
   int                         last_updated_cid_;        //!< Used in the inertial estimator not to project a point twice
-  int                         ba_projection_id_;        //!< Used in local ba
-  bool                        is_initialized_;                //!< Used in inertial estimator
+  int                         last_outlier_check_id_;   //!< Used in inertial estimator to check for outliers
+  bool                        is_initialized_;          //!< Used in inertial estimator
 
   Point(const Vector3d& pos);
   Point(const Vector3d& pos, Feature* ftr);

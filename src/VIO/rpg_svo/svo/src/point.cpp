@@ -37,7 +37,7 @@ Point::Point(const Vector3d& pos) :
   last_structure_optim_(0),
   n_inertial_updates_(0),
   last_updated_cid_(-1),
-  ba_projection_id_(-1),
+  last_outlier_check_id_(-1),
   is_initialized_(false)
 {}
 
@@ -54,7 +54,7 @@ Point::Point(const Vector3d& pos, Feature* ftr) :
   last_structure_optim_(0),
   n_inertial_updates_(0),
   last_updated_cid_(-1),
-  ba_projection_id_(-1),
+  last_outlier_check_id_(-1),
   is_initialized_(false)
 {
   obs_.push_front(ftr);

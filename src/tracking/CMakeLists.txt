@@ -5,6 +5,8 @@ add_subdirectory(bbox)
 # cv_bridge patch for opencv4, credit: https://github.com/fizyr-forks/vision_opencv.git (opencv4 branch)
 add_subdirectory(cv_bridge)
 
+add_subdirectory(tracking_msg)
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 

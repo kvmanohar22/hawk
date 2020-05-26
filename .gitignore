@@ -19,3 +19,6 @@ bags/**
 src/CMakeLists.txt
 evaluations/**
 src/tracking/video_frames/**
+src/tracking/models/**
+src/tracking/.vscode/
+src/tracking/test/build/

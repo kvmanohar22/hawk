@@ -46,8 +46,6 @@ public:
   svo::Visualizer visualizer_;
   bool publish_markers_;                 //!< publish only the minimal amount of info (choice for embedded devices)
   bool publish_dense_input_;
-  boost::shared_ptr<vk::UserInputThread> user_input_thread_;
-  ros::Subscriber sub_remote_key_;
   std::string remote_input_;
   vk::AbstractCamera* cam_;
   vk::AbstractCamera* cam1_;
@@ -68,25 +66,18 @@ public:
       const sensor_msgs::ImageConstPtr& l_msg,
       const sensor_msgs::ImageConstPtr& r_msg);
 
-  void processUserActions();
-  void remoteKeyCb(const std_msgs::StringConstPtr& key_input);
   bool initializeGravity();
 };
 
 VoNode::VoNode() :
-  vo_(NULL),
+  vo_(nullptr),
   publish_markers_(vk::getParam<bool>("/hawk/svo/publish_markers", true)),
   publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", true)),
-  remote_input_(""),
-  cam_(NULL),
+  cam_(nullptr),
   quit_(false),
   rate_(300),
   inertial_init_done_(false)
 {
-  // Start user input thread in parallel thread that listens to console keys
-  if(vk::getParam<bool>("/hawk/svo/accept_console_user_input", true))
-    user_input_thread_ = boost::make_shared<vk::UserInputThread>();
-
   // Create Camera
   if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
     throw std::runtime_error("Camera model not correctly specified.");
@@ -113,15 +104,12 @@ VoNode::VoNode() :
   else
     vo_ = new svo::FrameHandlerMono(cam_, cam1_);
   vo_->start();
-  cout.precision(std::numeric_limits<double>::max_digits10);
 }
 
 VoNode::~VoNode()
 {
   delete vo_;
   delete cam_;
-  if(user_input_thread_ != NULL)
-    user_input_thread_->stop();
 }
 
 bool VoNode::initializeGravity()
@@ -182,7 +170,6 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
 
-  processUserActions();
   vo_->addImage(img, msg->header.stamp);
 
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
@@ -219,8 +206,6 @@ void VoNode::imgStereoCb(
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception right message: %s", e.what());
   }
-
-  processUserActions();
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
 
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
@@ -233,41 +218,6 @@ void VoNode::imgStereoCb(
 
   if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
     usleep(100000);
-}
-
-void VoNode::processUserActions()
-{
-  char input = remote_input_.c_str()[0];
-  remote_input_ = "";
-
-  if(user_input_thread_ != NULL)
-  {
-    char console_input = user_input_thread_->getInput();
-    if(console_input != 0)
-      input = console_input;
-  }
-
-  switch(input)
-  {
-    case 'q':
-      quit_ = true;
-      printf("SVO user input: QUIT\n");
-      break;
-    case 'r':
-      vo_->reset();
-      printf("SVO user input: RESET\n");
-      break;
-    case 's':
-      vo_->start();
-      printf("SVO user input: START\n");
-      break;
-    default: ;
-  }
-}
-
-void VoNode::remoteKeyCb(const std_msgs::StringConstPtr& key_input)
-{
-  remote_input_ = key_input->data;
 }
 
 } // namespace svo

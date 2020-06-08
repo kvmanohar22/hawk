@@ -58,15 +58,7 @@ FrameHandlerMono::FrameHandlerMono(
   stop_requested_(false),
   is_stopped_(false)
 {
-  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
-    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
-  else
-    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
-
   initialize();
-
-  // load extrinsic calibration parameters
-  loadCalibration();
 }
 
 FrameHandlerMono::FrameHandlerMono(
@@ -89,15 +81,7 @@ FrameHandlerMono::FrameHandlerMono(
   stop_requested_(false),
   is_stopped_(false)
 {
-  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
-    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
-  else
-    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
-
   initialize();
-
-  // load extrinsic calibration parameters
-  loadCalibration();
 }
 
 void FrameHandlerMono::loadCalibration()
@@ -114,6 +98,14 @@ void FrameHandlerMono::loadCalibration()
 
 void FrameHandlerMono::initialize()
 {
+  // load extrinsic calibration parameters
+  loadCalibration();
+
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
+  else
+    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
+
   init_ba_done_ = false;
   feature_detection::DetectorPtr feature_detector(
       new feature_detection::FastDetector(
@@ -166,7 +158,8 @@ void FrameHandlerMono::initialize()
       SVO_INFO_STREAM("Local BA using generic projection factors");
     else if(Config::lobaType() == 1)
       SVO_INFO_STREAM("Local BA using smart projection factors");
-    else {
+    else
+    {
       SVO_INFO_STREAM("Incremental Local BA using smart projection factors");
       iba_ = new ba::IncrementalBA(cam_, map_);
     }
@@ -311,7 +304,13 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  // process the first image
+  if(!prior_pose_set_) {
+    SVO_ERROR_STREAM("Prior pose not set!");
+    return RESULT_FAILURE;
+  }
+  new_frame_->T_f_w_ = prior_pose_.inverse();
+
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -371,7 +370,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
                            loba_err_init_avg, loba_err_fin_avg,
                            true);    
   }
-
   return RESULT_IS_KEYFRAME;
 }
 

@@ -1,60 +1,33 @@
 <launch>
+    <arg name="camera_calibration_file" default=""/>
+    <arg name="imu_calibration_file" default=""/>
 
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
-    <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
-    <arg name="save_trajectory" default="false"/>
 
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
 
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find svo_ros)/cfg/rosconsole.conf"/>
-
-    <!-- monocular image topic -->
-    <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
-
-    <!-- stereo image topics -->
-    <arg name="left_image_topic"  default="/hawk/stereo/left/image_raw"/>
-    <arg name="right_image_topic" default="/hawk/stereo/right/image_raw"/>
-
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- camera rig type -->
         <param name="rig" value="$(arg rig)" type="str" />
 
-        <!-- Camera topic to subscribe to [monocular case]-->
-        <param name="cam_topic" value="$(arg image_topic)" type="str" />
-
-        <!-- Left camera topic to subscribe to [stereo case]-->
-        <param name="left_image_topic" value="$(arg left_image_topic)" type="str" />
-
-        <!-- Right camera topic to subscribe to [stereo case]-->
-        <param name="right_image_topic" value="$(arg right_image_topic)" type="str" />
-
-        <!-- Camera topic to subscribe to -->
-        <param name="imu_topic" value="$(arg imu_topic)" type="str" />
-
-        <!-- Whether to run with imu -->
+        <!-- Which parts of the system to run -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />
+        <param name="run_inertial_estimator" value="$(arg run_inertial_estimator)" type="bool" />
 
-        <param name="remote_key" value="false" type="bool" />
+        <!-- Camera calibration file (either stereo or monocular) -->
+        <rosparam file="$(arg camera_calibration_file)"/>
 
-        <!-- Whether to save the trajectory estimates -->
-        <param name="save_trajectory" value="$(arg save_trajectory)" type="bool" />
-
-        <!-- Camera calibration file -->
-        <rosparam file="$(arg calibration)"/>
+        <!-- Load imu calibration params -->
+        <rosparam file="$(arg imu_calibration_file)"/>
 
         <!-- Default parameter settings: choose between vo_fast and vo_accurate -->
         <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
 
         <!-- Load imu preintegration params -->
         <rosparam file="$(find svo_ros)/param/hawk/isam2_params.yaml" />
-
-        <!-- Load imu calibration params -->
-        <rosparam file="$(find svo_ros)/param/hawk/imu.yaml" />
-
-        <param name="max_measurements" value="50" />
 
         <!-- Initial camera orientation, make it point forward -->
         <param name="init_rx" value="3.14" />

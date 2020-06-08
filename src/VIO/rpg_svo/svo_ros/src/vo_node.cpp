@@ -279,10 +279,10 @@ int main(int argc, char **argv)
   svo::VoNode vo_node;
 
   // subscribe to message topics
-  std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu_topic", "imu/data"));
-  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam_topic", "camera/image_raw"));
-  std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/left_image_topic", "camera/image_raw"));
-  std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/right_image_topic", "camera/image_raw"));
+  std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu0/rostopic", "imu/data"));
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic", "camera/image_raw"));
+  std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic", "camera0/image_raw"));
+  std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/cam1/rostopic", "camera1/image_raw"));
 
   message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 50);
   message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 50);

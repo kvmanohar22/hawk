@@ -96,8 +96,13 @@ public:
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
-  /// Adds imu factor to graph
-  void addImuFactorToGraph();
+  /// Adds a single imu factor to graph
+  void addSingleImuFactorToGraph(
+    const double& t0, const double& t1,
+    const int&  idx0, const int&  idx1);
+
+  /// Adds multiple imu factors to graph
+  int addImuFactorsToGraph();
 
   /// After updating with latest values, do outlier rejection
   void rejectOutliers();

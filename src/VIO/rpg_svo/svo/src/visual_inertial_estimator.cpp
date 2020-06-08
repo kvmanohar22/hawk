@@ -89,30 +89,58 @@ void VisualInertialEstimator::integrateMultipleMeasurements(list<ImuDataPtr>& st
   stream.clear();
 }
 
-void VisualInertialEstimator::addImuFactorToGraph()
+void VisualInertialEstimator::addSingleImuFactorToGraph(
+  const double& t0, const double& t1,
+  const int&  idx0, const int& idx1)
 {
   // first integrate the messages
-  const double t0 = t0_;
-  const double t1 = keyframes_.front()->timestamp_;
   list<ImuDataPtr> imu_stream = imu_container_->read(t0, t1);
   integrateMultipleMeasurements(imu_stream);
-  t0_ = t1; // save this timestamp for next iteration
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
-  cout.precision(std::numeric_limits<double>::max_digits10);
+  // cout.precision(std::numeric_limits<double>::max_digits10);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
 
   gtsam::CombinedImuFactor imu_factor(
-      Symbol::X(correction_count_-1), Symbol::V(correction_count_-1),
-      Symbol::X(correction_count_  ), Symbol::V(correction_count_  ),
-      Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
+      Symbol::X(idx0), Symbol::V(idx0),
+      Symbol::X(idx1), Symbol::V(idx1),
+      Symbol::B(idx0), Symbol::B(idx1),
       preint_imu_combined);
   graph_->add(imu_factor);
 
   n_integrated_measures_ = 0;
+}
+
+int VisualInertialEstimator::addImuFactorsToGraph()
+{
+  if(kf_list_.size() == 1)
+  {
+    const FramePtr frame = kf_list_.front();
+    const size_t idx1 = frame->correction_id_;
+    const double t1 = frame->timestamp_;
+    addSingleImuFactorToGraph(t0_, t1, idx1-1, idx1);
+
+    // save this timestamp for next iteration
+    t0_ = t1;
+    return 1;
+  }
+
+  size_t idx0 = kf_list_.front()->correction_id_;
+  list<FramePtr>::iterator kf_second_it = std::next(kf_list_.begin());
+  for(list<FramePtr>::iterator it=kf_second_it; it!=kf_list_.end(); ++it)
+  {
+    const double t1   = (*it)->timestamp_;
+    const size_t idx1 = (*it)->correction_id_;
+    addSingleImuFactorToGraph(t0_, t1, idx0, idx1);
+
+    // save this timestamp for next iteration
+    t0_  = t1;
+    idx0 = idx1;
+  }
+  return kf_list_.size()-1;
 }
 
 gtsam::PinholePose<gtsam::Cal3DS2> VisualInertialEstimator::createCamera(const SE3& T_w_f)
@@ -145,10 +173,11 @@ void VisualInertialEstimator::addFactorsToGraph()
 {
   // first collect keyframes from the queue filled by motion estimator thread
   gatherKeyframes();
-
+/*
   // add imu factors to graph
-  // addImuFactorToGraph();
-
+  const size_t n_imu_factors = addImuFactorsToGraph();
+  SVO_DEBUG_STREAM("Estimator:\t Number of imu factors = " << n_imu_factors);
+*/
   // add vision factors to graph
   addVisionFactorsToGraph();
 

@@ -363,8 +363,7 @@ void VisualInertialEstimator::rejectOutliers()
         {
           n_removed_edges += point->obs_.size();
           ++n_removed_points;
-          map_.safeDeletePoint(point);
-          break;
+          map_.removePtFrameRef((*it_obs)->frame, *it_obs);
         }
       }
     }
@@ -426,7 +425,7 @@ void VisualInertialEstimator::OptimizerLoop()
         kf_queue_cond_.wait(lock); 
       new_kf_arrived_ = false;
     }
-     
+
     if(shouldRunOptimization())
     {
       runOptimization();

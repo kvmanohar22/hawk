@@ -82,7 +82,7 @@ list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
     return data;
   }
 
-  if(std::abs(t1 - imu_stream_.back()->ts_) > 5.0 * Config::dt())
+  if(std::abs(t1 - imu_stream_.back()->ts_) > 15.0 * Config::dt())
   {
     SVO_WARN_STREAM("Requesting messages that are in the future!");
   }

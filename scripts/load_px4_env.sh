@@ -1,5 +1,7 @@
 #!/bin/bash
 
+HAWK_PX4_FIRMWARE=/home/cicero/catkin_ws/px4/src/Firmware
+
 px4_dir=${HAWK_PX4_FIRMWARE}
 
 source ${px4_dir}/Tools/setup_gazebo.bash ${px4_dir} ${px4_dir}/build/px4_sitl_default

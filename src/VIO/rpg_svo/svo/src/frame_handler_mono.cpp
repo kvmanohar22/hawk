@@ -457,7 +457,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
     // reset and start the integration
     integrator_->resetIntegration();
-    SVO_DEBUG_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
+    SVO_DEBUG_STREAM("Img Align:\t Integrated = " << n_integrated_measurements_);
     n_integrated_measurements_ = 0;
 
     // check if we need to update integrator with new bias
@@ -485,8 +485,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     img_align.setPriors(delta_R_, delta_t_);
   }
   size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
-  // size_t img_align_n_tracked = img_align.run(map_.getClosestKeyframe(new_frame_), new_frame_);
-  // size_t img_align_n_tracked = img_align.run(map_.lastKeyframe(), new_frame_);
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);

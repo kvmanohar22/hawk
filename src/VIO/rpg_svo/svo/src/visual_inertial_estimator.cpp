@@ -99,7 +99,6 @@ void VisualInertialEstimator::addSingleImuFactorToGraph(
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
-  // cout.precision(std::numeric_limits<double>::max_digits10);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);

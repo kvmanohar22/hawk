@@ -112,7 +112,7 @@ void SparseImgAlign::precomputeReferencePatches()
     const float v_ref = (*it)->px[1]*scale;
     const int u_ref_i = floorf(u_ref);
     const int v_ref_i = floorf(v_ref);
-    if((*it)->point == NULL || u_ref_i-border < 0 || v_ref_i-border < 0 || u_ref_i+border >= ref_img.cols || v_ref_i+border >= ref_img.rows)
+    if((*it)->point == nullptr || u_ref_i-border < 0 || v_ref_i-border < 0 || u_ref_i+border >= ref_img.cols || v_ref_i+border >= ref_img.rows)
       continue;
     *visiblity_it = true;
 

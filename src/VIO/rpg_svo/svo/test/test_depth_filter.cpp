@@ -67,7 +67,7 @@ class DepthFilterTest {
 DepthFilterTest::DepthFilterTest() :
     n_converged_seeds_(0),
     cam_(new vk::PinholeCamera(752, 480, 315.5, 315.5, 376.0, 240.0)),
-    depth_filter_(NULL)
+    depth_filter_(nullptr)
 {
   errors_.reserve(1000);
 }

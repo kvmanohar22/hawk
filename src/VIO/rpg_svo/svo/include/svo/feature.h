@@ -45,7 +45,7 @@ struct Feature
     px(_px),
     f(frame->cam_->cam2world(px)),
     level(_level),
-    point(NULL),
+    point(nullptr),
     grad(1.0,0.0)
   {}
 
@@ -55,7 +55,7 @@ struct Feature
     px(_px),
     f(_f),
     level(_level),
-    point(NULL),
+    point(nullptr),
     grad(1.0,0.0)
   {}
 
@@ -76,7 +76,7 @@ struct Feature
     px(_px),
     f(frame->cam_->cam2world(px)),
     level(_level),
-    point(NULL),
+    point(nullptr),
     grad(_grad)
   {}
 

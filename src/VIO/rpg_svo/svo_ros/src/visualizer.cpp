@@ -84,14 +84,14 @@ void Visualizer::publishMinimal(
       msg_info.keyframes.push_back((*it)->id_);
     msg_info.stage = static_cast<int>(slam.stage());
     msg_info.tracking_quality = static_cast<int>(slam.trackingQuality());
-    if(frame != NULL)
+    if(frame != nullptr)
       msg_info.num_matches = slam.lastNumObservations();
     else
       msg_info.num_matches = 0;
     pub_info_.publish(msg_info);
   }
 
-  if(frame == NULL)
+  if(frame == nullptr)
   {
     if(pub_images_.getNumSubscribers() > 0 && slam.stage() == FrameHandlerBase::STAGE_PAUSED)
     {
@@ -204,7 +204,7 @@ void Visualizer::visualizeMarkers(
     const set<FramePtr>& core_kfs,
     const Map& map)
 {
-  if(frame == NULL)
+  if(frame == nullptr)
     return;
 
   vk::output_helper::publishTfTransform(
@@ -257,7 +257,7 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
   size_t c=0;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point == NULL) {
+    if((*it)->point == nullptr) {
       ++c;
       continue;
     }
@@ -276,7 +276,7 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
 void Visualizer::exportToDense(const FramePtr& frame)
 {
   // publish air_ground_msgs
-  if(frame != NULL && dense_pub_nth_ > 0
+  if(frame != nullptr && dense_pub_nth_ > 0
       && trace_id_%dense_pub_nth_ == 0 && pub_dense_.getNumSubscribers() > 0)
   {
     svo_msgs::DenseInput msg;
@@ -295,7 +295,7 @@ void Visualizer::exportToDense(const FramePtr& frame)
     double max_z = std::numeric_limits<double>::min();
     for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
     {
-      if((*it)->point==NULL)
+      if((*it)->point==nullptr)
         continue;
       Vector3d pos = frame->T_f_w_*(*it)->point->pos_;
       min_z = fmin(pos[2], min_z);

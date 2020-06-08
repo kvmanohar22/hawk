@@ -47,7 +47,7 @@ void optimizeGaussNewton(
   std::vector<float> errors; errors.reserve(frame->fts_.size());
   for(auto it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point == NULL)
+    if((*it)->point == nullptr)
       continue;
 
     Vector2d e;
@@ -82,7 +82,7 @@ void optimizeGaussNewton(
     // compute residual
     for(auto it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
     {
-      if((*it)->point == NULL)
+      if((*it)->point == nullptr)
         continue;
       Matrix26d J;
       Vector3d xyz_w((*it)->point->pos_);
@@ -154,7 +154,7 @@ void optimizeGaussNewton(
   size_t n_deleted_refs = 0;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end();)
   {
-    if((*it)->point == NULL) {
+    if((*it)->point == nullptr) {
       ++it;
       continue;
     }
@@ -171,7 +171,7 @@ void optimizeGaussNewton(
     if(e.norm() > reproj_thresh_scaled)
     {
       // we don't need to delete a reference in the point since it was not created yet
-      (*it)->point = NULL;
+      (*it)->point = nullptr;
       ++n_deleted_refs;
       it = frame->fts_.erase(it);
       continue;

@@ -74,7 +74,7 @@ Feature* Point::findFrameRef(Frame* frame)
   for(auto it=obs_.begin(), ite=obs_.end(); it!=ite; ++it)
     if((*it)->frame == frame)
       return *it;
-  return NULL;    // no keyframe found
+  return nullptr;    // no keyframe found
 }
 
 bool Point::deleteFrameRef(Frame* frame)
@@ -94,7 +94,7 @@ void Point::initNormal()
 {
   assert(!obs_.empty());
   const Feature* ftr = obs_.back();
-  assert(ftr->frame != NULL);
+  assert(ftr->frame != nullptr);
   normal_ = ftr->frame->T_f_w_.rotation_matrix().transpose()*(-ftr->f);
   normal_information_ = DiagonalMatrix<double,3,3>(pow(20/(pos_-ftr->frame->pos()).norm(),2), 1.0, 1.0);
   normal_set_ = true;

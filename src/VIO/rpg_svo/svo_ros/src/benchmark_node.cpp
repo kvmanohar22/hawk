@@ -63,7 +63,7 @@ public:
 };
 
 BenchmarkNode::BenchmarkNode(ros::NodeHandle& nh) :
-    vo_(NULL),
+    vo_(nullptr),
     frame_count_(0),
     img_noise_sigma_(vk::getParam<double>("svo/dataset_noise_sigma", 0.0))
 {
@@ -120,7 +120,7 @@ void BenchmarkNode::traceDepthError(const FramePtr& frame, const cv::Mat& depthm
 {
   trace_depth_error_.precision(6);
   std::for_each(frame->fts_.begin(), frame->fts_.end(), [&](Feature* ftr){
-    if(ftr->point != NULL)
+    if(ftr->point != nullptr)
     {
       double depth_estimated = (ftr->point->pos_-frame->pos()).norm();
       double depth_true = depthmap.at<float>((int) ftr->px[1], (int) ftr->px[0]);

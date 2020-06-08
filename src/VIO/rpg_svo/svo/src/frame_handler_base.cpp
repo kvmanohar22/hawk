@@ -31,7 +31,7 @@ namespace svo
 
 // definition of global and static variables which were declared in the header
 #ifdef SVO_TRACE
-vk::PerformanceMonitor* g_permon = NULL;
+vk::PerformanceMonitor* g_permon = nullptr;
 #endif
 
 FrameHandlerBase::FrameHandlerBase(InitType init_type) :
@@ -189,7 +189,7 @@ void FrameHandlerBase::optimizeStructure(
   deque<Point*> pts;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point != NULL)
+    if((*it)->point != nullptr)
       pts.push_back((*it)->point);
   }
   max_n_pts = min(max_n_pts, pts.size());

@@ -47,7 +47,7 @@ FrameHandlerMono::FrameHandlerMono(
   cam1_(nullptr),
   reprojector_(cam_, map_),
   klt_homography_init_(init_type),
-  depth_filter_(NULL),
+  depth_filter_(nullptr),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
   imu_helper_(nullptr),
@@ -70,7 +70,7 @@ FrameHandlerMono::FrameHandlerMono(
   cam1_(cam1),
   reprojector_(cam_, map_),
   klt_homography_init_(init_type),
-  depth_filter_(NULL),
+  depth_filter_(nullptr),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
   imu_helper_(nullptr),
@@ -546,7 +546,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // new keyframe selected
   for(Features::iterator it=new_frame_->fts_.begin(); it!=new_frame_->fts_.end(); ++it)
-    if((*it)->point != NULL)
+    if((*it)->point != nullptr)
       (*it)->point->addFrameRef(*it);
   map_.point_candidates_.addCandidatePointToFrame(new_frame_);
 

@@ -101,11 +101,6 @@ void VisualInertialEstimator::addImuFactorToGraph()
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
   cout.precision(std::numeric_limits<double>::max_digits10);
-  cout << "[Estimator]: container size = " << imu_container_->size() \
-                   << " old ts = " << imu_container_->oldestTimestamp() \
-                   << " new ts = " << imu_container_->newestTimestamp() \
-                   << " t0 = " << t0 \
-                   << " t1 = " << t1;
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated_);
@@ -143,7 +138,7 @@ void VisualInertialEstimator::gatherKeyframes()
       keyframes_.pop();
     }
   }
-  SVO_DEBUG_STREAM("[Estimator]: Gathered " << kf_list_.size() << " keyframes");
+  SVO_DEBUG_STREAM("Estimator:\t n_kfs = " << kf_list_.size());
 }
 
 void VisualInertialEstimator::addFactorsToGraph()
@@ -157,7 +152,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   // add vision factors to graph
   addVisionFactorsToGraph();
 
-  SVO_DEBUG_STREAM("[Estimator]:\t graph size = " << graph_->size());
+  SVO_DEBUG_STREAM("Estimator:\t graph size = " << graph_->size());
 }
 
 void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
@@ -184,7 +179,7 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  SVO_DEBUG_STREAM("[Estimator]: New KF arrived");
+  SVO_DEBUG_STREAM("Estimator:\t New KF arrived");
 
   {
     lock_t lock(kf_queue_mut_);
@@ -232,7 +227,7 @@ void VisualInertialEstimator::initializeNewVariables()
 EstimatorResult VisualInertialEstimator::runOptimization()
 {
   ++opt_call_count_;
-  
+
   // Add factors to graph
   addFactorsToGraph();
 

@@ -124,24 +124,6 @@ VoNode::~VoNode()
     user_input_thread_->stop();
 }
 
-void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
-{
-  if(!inertial_init_done_)
-  {
-    inertial_init_->feedImu(msg);
-  }
-
-  if(svo::Config::runInertialEstimator())
-  {
-    vo_->inertial_estimator_->feedImu(msg);
-  }
-
-  if(svo::Config::useMotionPriors())
-  {
-    vo_->feedImu(msg);
-  }
-}
-
 bool VoNode::initializeGravity()
 {
   inertial_init_done_ = inertial_init_->initialize();
@@ -164,6 +146,25 @@ bool VoNode::initializeGravity()
   }
   return false;
 }
+
+void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+{
+  if(!inertial_init_done_)
+  {
+    inertial_init_->feedImu(msg);
+  }
+
+  if(svo::Config::runInertialEstimator())
+  {
+    vo_->inertial_estimator_->feedImu(msg);
+  }
+
+  if(svo::Config::useMotionPriors())
+  {
+    vo_->feedImu(msg);
+  }
+}
+
 
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -293,10 +294,8 @@ int main(int argc, char **argv)
   image_transport::Subscriber it_sub;
   std::string rig_type(vk::getParam<std::string>("/hawk/svo/rig"));
   if(rig_type == "monocular") {
-    SVO_INFO_STREAM("Starting system with monocular camera rig");
     it_sub = it.subscribe(cam_topic, 800, &svo::VoNode::imgCb, &vo_node);
   } else if(rig_type == "stereo") {
-    SVO_INFO_STREAM("Starting system with stereo camera rig");
     sync.registerCallback(boost::bind(&svo::VoNode::imgStereoCb, &vo_node, _1, _2));
   } else {
     SVO_ERROR_STREAM("Camera rig type not understood");

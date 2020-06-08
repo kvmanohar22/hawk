@@ -8,6 +8,7 @@ InertialInitialization::InertialInitialization(
   double threshold,
   Vector3d gravity) :
     window_len_(window_len),
+    window_len_msgs_(static_cast<int>(1.0/Config::dt())),
     threshold_(threshold),
     gravity_(gravity)
 {}
@@ -51,7 +52,7 @@ bool InertialInitialization::initialize()
     if(prev_msg_time < latest_msg_time-window_len_ && prev_msg_time > latest_msg_time-2*window_len_)
       imu_msgs_old.push_back((*itr));
   }
-  if(imu_msgs_new.empty() || imu_msgs_old.empty() || imu_msgs_old.size() < 200)
+  if(imu_msgs_new.empty() || imu_msgs_old.empty() || imu_msgs_old.size() < window_len_msgs_)
   {
     SVO_WARN_STREAM_THROTTLE(0.4, "Empty window messages: size = " << imu_msgs_.size());
     return false;

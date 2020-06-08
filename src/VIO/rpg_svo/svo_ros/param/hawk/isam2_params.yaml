@@ -7,9 +7,6 @@ isam2_n_iters: 0
 # 1: CombinedIMUFactor (bias is estimated as well)
 isam2_imu_factor_type: 1
 
-# Rate of IMU sampling (220 Hz)
-dt_: 0.004545454545454545
-
 # Type of vision factor to use
 # 0: Generic projection factor
 # 1: Smart projection factor

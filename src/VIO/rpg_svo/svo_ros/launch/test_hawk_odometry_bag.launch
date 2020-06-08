@@ -8,8 +8,9 @@
     <arg name="imu_calibration_file" default=""/>
     <arg name="rig" default="monocular"/>
 
-    <arg name="run_inertial_estimator" default="true"/>
-    <arg name="use_motion_priors" default="true"/>
+    <!-- which parts of the pipeline to run -->
+    <arg name="run_inertial_estimator" default="false"/>
+    <arg name="use_motion_priors" default="false"/>
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch">

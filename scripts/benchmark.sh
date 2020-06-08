@@ -5,12 +5,12 @@ DATA='airground' # choose among (airground mav_circle)
 BAG_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
 CAMERA_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
 IMU_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
-START=8
+START=0
 RIG=monocular
 
 # Which parts of the system are to be started
-INERTIAL_ESTIMATOR=false
-MOTION_PRIORS=false
+INERTIAL_ESTIMATOR=true
+MOTION_PRIORS=true
 
 if [ $# -eq 1 ]; then
   DATA=${1}
@@ -25,7 +25,7 @@ case ${DATA} in
 'mav_circle')
   BAG_PATH=${BAG_PATH}/mav_circle/data.bag
   CAMERA_CALIBRATION_PATH=${CAMERA_CALIBRATION_PATH}/airground_s3/camera_calibration.yaml
-  IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/airground_s3/imu_calibration.yaml
+  IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/mav_circle/imu_calibration.yaml
   ;;
 'hawk')
   BAG_PATH=${HAWK_ROOT}/bags/inertial_down.bag

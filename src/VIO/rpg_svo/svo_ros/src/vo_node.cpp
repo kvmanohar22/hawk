@@ -70,6 +70,7 @@ public:
 
   void processUserActions();
   void remoteKeyCb(const std_msgs::StringConstPtr& key_input);
+  bool initializeGravity();
 };
 
 VoNode::VoNode() :
@@ -141,8 +142,38 @@ void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
   }
 }
 
+bool VoNode::initializeGravity()
+{
+  inertial_init_done_ = inertial_init_->initialize();
+  if(inertial_init_done_)
+  {
+    // pose of IMU (at t=0) in Global frame of reference
+    SE3 T_w_i0 = SE3(inertial_init_->R_init_, Vector3d::Zero());
+
+    // pose of camera in the same global frame of reference
+    SE3 T_w_f0 = T_w_i0 * FrameHandlerMono::T_b_c0_;
+
+    vo_->prior_pose_ = T_w_f0;
+    vo_->prior_pose_set_ = true;
+    if(Config::runInertialEstimator())
+    {
+      vo_->inertial_estimator_->getImuHelper()->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+        (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+    }
+    return true;
+  }
+  return false;
+}
+
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
+  // Initialize gravity vector first
+  if(!inertial_init_done_)
+  {
+    if(!initializeGravity())
+      return;
+  }
+
   cv::Mat img;
   try {
     img = cv_bridge::toCvShare(msg, "mono8")->image;
@@ -169,32 +200,10 @@ void VoNode::imgStereoCb(
     const sensor_msgs::ImageConstPtr& l_msg,
     const sensor_msgs::ImageConstPtr& r_msg)
 {
-  // make sure we have first initialized the gravity vector
+  // Initialize gravity vector first
   if(!inertial_init_done_)
   {
-    inertial_init_done_ = inertial_init_->initialize();
-    if(inertial_init_done_)
-    {
-      // pose of IMU (at t=0) in Global frame of reference
-      SE3 T_w_i0 = SE3(inertial_init_->R_init_, Vector3d::Zero());
-
-      // pose of camera in the same global frame of reference
-      SE3 T_w_f0 = T_w_i0 * FrameHandlerMono::T_b_c0_;
-
-      cout.precision(std::numeric_limits<double>::max_digits10);
-      cout << "t0 (imu) = " << inertial_init_->t0_ << "\t"
-           << "t0 (img) = " << l_msg->header.stamp.toSec()
-           << endl;
-
-      vo_->prior_pose_ = T_w_f0;
-      vo_->prior_pose_set_ = true;
-      if(Config::runInertialEstimator())
-      {
-        vo_->inertial_estimator_->getImuHelper()->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-          (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
-      }
-    }
-    else
+    if(!initializeGravity())
       return;
   }
 
@@ -212,7 +221,7 @@ void VoNode::imgStereoCb(
 
   processUserActions();
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
-  
+
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
@@ -296,9 +305,7 @@ int main(int argc, char **argv)
   ros::Subscriber imu_subscriber;
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {
-    vo_node.inertial_init_done_ = true;
-    vo_node.vo_->prior_pose_set_ = true;
-    // imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
+    imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
   } else {
     vo_node.inertial_init_done_ = true;
     vo_node.vo_->prior_pose_set_ = true;

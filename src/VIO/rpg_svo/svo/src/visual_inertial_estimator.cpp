@@ -352,19 +352,35 @@ void VisualInertialEstimator::rejectOutliers()
         continue;
       point->last_outlier_check_id_ = opt_call_count_;
 
-      for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
+      bool point_status_removed=false;
+      for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end();)
       {
+        const size_t n_refs = point->nRefs();
         const Vector2d uv_true = (*it_obs)->px;
         const Vector2d uv_repr = (*it_obs)->frame->w2c(point->pos_);
         const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
 
         if(error > reprojection_threshold)
         {
-          n_removed_edges += point->obs_.size();
-          ++n_removed_points;
-          // map_.removePtFrameRef((*it_obs)->frame, *it_obs);
+          ++n_removed_edges;
+          point_status_removed = true;
+
+          // IMPORTANT: we remove the current iterator from observations 
+          //            so don't advance iterator when removing an edge
+          const bool status = map_.removePtFrameRef((*it_obs)->frame, *it_obs);
+
+          // all the observations have been removed
+          if(status && n_refs <= 2)
+            break;
+
+          if(!status)
+            ++it_obs;
         }
+        else
+          ++it_obs;
       }
+      if(point_status_removed)
+        ++n_removed_points;
     }
   }
   SVO_DEBUG_STREAM("Estimator:" <<

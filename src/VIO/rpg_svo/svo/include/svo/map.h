@@ -91,7 +91,7 @@ public:
   bool safeDeleteFrame(FramePtr frame);
 
   /// Remove the references between a point and a frame.
-  void removePtFrameRef(Frame* frame, Feature* ftr);
+  bool removePtFrameRef(Frame* frame, Feature* ftr);
 
   /// Add a new keyframe to the map.
   void addKeyframe(FramePtr new_keyframe);

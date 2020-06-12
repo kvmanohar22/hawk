@@ -63,20 +63,21 @@ bool Map::safeDeleteFrame(FramePtr frame)
   return false;
 }
 
-void Map::removePtFrameRef(Frame* frame, Feature* ftr)
+bool Map::removePtFrameRef(Frame* frame, Feature* ftr)
 {
   if(ftr->point == nullptr)
-    return; // mappoint may have been deleted in a previous ref. removal
+    return false; // mappoint may have been deleted in a previous ref. removal
   Point* pt = ftr->point;
   ftr->point = nullptr;
   if(pt->obs_.size() <= 2)
   {
     // If the references list of mappoint has only size=2, delete mappoint
     safeDeletePoint(pt);
-    return;
+    return true;
   }
-  pt->deleteFrameRef(frame);  // Remove reference from map_point
-  frame->removeKeyPoint(ftr); // Check if mp was keyMp in keyframe
+  bool status = pt->deleteFrameRef(frame);  // Remove reference from map_point
+  frame->removeKeyPoint(ftr);               // Check if mp was keyMp in keyframe
+  return status;
 }
 
 void Map::safeDeletePoint(Point* pt)

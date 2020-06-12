@@ -354,7 +354,6 @@ void VisualInertialEstimator::rejectOutliers()
 
       for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
       {
-        /// TODO: Make this computation more efficient
         const Vector2d uv_true = (*it_obs)->px;
         const Vector2d uv_repr = (*it_obs)->frame->w2c(point->pos_);
         const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
@@ -363,7 +362,7 @@ void VisualInertialEstimator::rejectOutliers()
         {
           n_removed_edges += point->obs_.size();
           ++n_removed_points;
-          map_.removePtFrameRef((*it_obs)->frame, *it_obs);
+          // map_.removePtFrameRef((*it_obs)->frame, *it_obs);
         }
       }
     }

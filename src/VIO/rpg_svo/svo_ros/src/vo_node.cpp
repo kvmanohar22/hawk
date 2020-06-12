@@ -156,23 +156,22 @@ void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
-  // Initialize gravity vector first
-  if(!inertial_init_done_)
-  {
-    if(!initializeGravity())
-      return;
-  }
-
   cv::Mat img;
   try {
     img = cv_bridge::toCvShare(msg, "mono8")->image;
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
-
-  vo_->addImage(img, msg->header.stamp);
-
   visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, msg->header.stamp.toSec());
+
+  // Initialize gravity vector first
+  if(!inertial_init_done_)
+  {
+    if(!initializeGravity())
+      return;
+  }
+  // estimate motion
+  vo_->addImage(img, msg->header.stamp);
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
@@ -188,13 +187,6 @@ void VoNode::imgStereoCb(
     const sensor_msgs::ImageConstPtr& l_msg,
     const sensor_msgs::ImageConstPtr& r_msg)
 {
-  // Initialize gravity vector first
-  if(!inertial_init_done_)
-  {
-    if(!initializeGravity())
-      return;
-  }
-
   cv::Mat l_img, r_img;
   try {
     l_img = cv_bridge::toCvShare(l_msg, "mono8")->image;
@@ -206,9 +198,16 @@ void VoNode::imgStereoCb(
   } catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception right message: %s", e.what());
   }
-  vo_->addImage(l_img, r_img, l_msg->header.stamp);
-
   visualizer_.publishMinimal(l_img, vo_->lastFrame(), *vo_, l_msg->header.stamp.toSec());
+
+  // Initialize gravity vector first
+  if(!inertial_init_done_)
+  {
+    if(!initializeGravity())
+      return;
+  }
+  // estimate motion
+  vo_->addImage(l_img, r_img, l_msg->header.stamp);
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());

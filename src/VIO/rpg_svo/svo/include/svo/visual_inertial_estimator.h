@@ -108,7 +108,7 @@ public:
   void rejectOutliers();
 
   /// Adds visual factor to graph
-  virtual void addVisionFactorsToGraph() =0;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) =0;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) =0;
@@ -116,6 +116,8 @@ public:
   /// initialize values for new variables in the optimization
   /// Namely, (X, V, B) of the latest keyframe's pose
   void initializeNewVariables();
+
+  void initializeNewPose(const FramePtr& frame);
 
   /// Initializes structure
   virtual void initializeStructure() =0;
@@ -201,7 +203,7 @@ public:
   virtual ~SmartInertialEstimator() {}
 
   /// Creates or updates smart factors
-  virtual void addVisionFactorsToGraph() override;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) override;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) override;
@@ -235,7 +237,7 @@ public:
   virtual ~GenericInertialEstimator() {}
 
   /// Creates or updates generic factors
-  virtual void addVisionFactorsToGraph() override;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) override;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) override;

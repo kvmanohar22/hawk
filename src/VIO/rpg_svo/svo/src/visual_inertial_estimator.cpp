@@ -261,9 +261,7 @@ void VisualInertialEstimator::initializeNewVariables()
   // Initialize new poses
   for(list<FramePtr>::iterator it=kf_list_.begin(); it!=kf_list_.end(); ++it)
   {
-    const SE3 T_b_w = FrameHandlerMono::T_b_c0_ * (*it)->T_f_w_;
-    gtsam::Pose3 init_pose = inertial_utils::createGtsamPose(T_b_w);
-    initial_values_.insert(Symbol::X((*it)->correction_id_), init_pose);
+    initializeNewPose(*it);
   }
 
   // initialize structure (only in case of Generic projection factors)
@@ -276,6 +274,13 @@ void VisualInertialEstimator::initializeNewVariables()
   initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
 
   SVO_DEBUG_STREAM("Estimator:\t Initialized");
+}
+
+void VisualInertialEstimator::initializeNewPose(const FramePtr& frame)
+{
+  const SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
+  gtsam::Pose3 init_pose = inertial_utils::createGtsamPose(T_b_w);
+  initial_values_.insert(Symbol::X(frame->correction_id_), init_pose);
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
@@ -479,10 +484,10 @@ void VisualInertialEstimator::OptimizerLoop()
 }
 
 //********************************************************************
-void GenericInertialEstimator::addVisionFactorsToGraph()
+void GenericInertialEstimator::addVisionFactorsToGraph(const list<FramePtr>& kfs)
 {
   mps_.clear();
-  for(list<FramePtr>::iterator it_kf=kf_list_.begin(); it_kf!=kf_list_.end(); ++it_kf)
+  for(list<FramePtr>::const_iterator it_kf=kfs.begin(); it_kf!=kfs.end(); ++it_kf)
   {
     for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
     {
@@ -660,7 +665,7 @@ SmartInertialEstimator::SmartInertialEstimator(
   smart_params_.throwCheirality = false;
 }
 
-void SmartInertialEstimator::addVisionFactorsToGraph()
+void SmartInertialEstimator::addVisionFactorsToGraph(const list<FramePtr>& kfs)
 {
 
 }

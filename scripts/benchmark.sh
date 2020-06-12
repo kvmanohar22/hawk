@@ -21,6 +21,9 @@ case ${DATA} in
   BAG_PATH=${BAG_PATH}/airground_s3/data.bag
   CAMERA_CALIBRATION_PATH=${CAMERA_CALIBRATION_PATH}/airground_s3/camera_calibration.yaml
   IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/airground_s3/imu_calibration.yaml
+
+  # This data has imu at 100Hz, this is too slow
+  MOTION_PRIORS=false
   ;;
 'mav_circle')
   BAG_PATH=${BAG_PATH}/mav_circle/data.bag

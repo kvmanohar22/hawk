@@ -9,7 +9,7 @@
     <arg name="rig" default="monocular"/>
 
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find svo_ros)/cfg/rosconsole.conf"/>
-    <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
+    <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk" launch-prefix="gdb -ex run">
         <!-- camera rig type -->
         <param name="rig" value="$(arg rig)" type="str" />
 

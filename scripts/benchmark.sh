@@ -5,7 +5,7 @@ DATA='airground' # choose among (airground mav_circle)
 BAG_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
 CAMERA_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
 IMU_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
-START=0
+START=12
 RIG=monocular
 
 # Which parts of the system are to be started
@@ -34,6 +34,7 @@ case ${DATA} in
   BAG_PATH=${HAWK_ROOT}/bags/inertial_down.bag
   CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/camchain.yaml
   IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/imu.yaml
+  RIG=stereo
   ;;
 *)
   echo 'WRONG DATA'${DATA}

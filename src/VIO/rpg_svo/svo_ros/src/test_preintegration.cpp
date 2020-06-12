@@ -30,7 +30,7 @@ public:
   gtsam::NavState              curr_state_;            //!< current state used for Imu state prediction
   gtsam::Pose3                 curr_pose_;             //!< optimized pose
   gtsam::Vector3               curr_velocity_;         //!< Velocity vector
-  VisualInertialEstimator::PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
+  VisualInertialEstimator::PreintegrationPtr imu_preintegrated_; //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph

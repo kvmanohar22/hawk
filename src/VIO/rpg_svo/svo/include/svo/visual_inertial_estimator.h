@@ -48,12 +48,12 @@ public:
   typedef boost::unique_lock<boost::mutex> lock_t;
   typedef boost::function<void (gtsam::imuBias::ConstantBias)> callback_t;
   typedef gtsam::noiseModel::Diagonal Noise;
-  typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
+  typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationPtr;
   typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
   typedef SmartFactor::shared_ptr SmartFactorPtr;
   typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
   typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
-
+  typedef list<pair<FramePtr, PreintegrationPtr>> PreintegrationPtrList;
   VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb, Map& map);
   virtual ~VisualInertialEstimator();
 
@@ -88,18 +88,18 @@ public:
   void cleanUp();
 
   /// Integrate a single measurement
-  void integrateSingleMeasurement(const ImuDataPtr& msg);
+  void integrateSingleMeasurement(PreintegrationPtr imu_preintegrated, const ImuDataPtr& msg);
 
   /// Integrate multiple measurements
-  void integrateMultipleMeasurements(list<ImuDataPtr>& stream);
+  void integrateMultipleMeasurements(PreintegrationPtr imu_preintegrated, list<ImuDataPtr>& stream);
 
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
   /// Adds a single imu factor to graph
-  void addSingleImuFactorToGraph(
-    const double& t0, const double& t1,
-    const int&  idx0, const int&  idx1);
+  PreintegrationPtr addSingleImuFactorToGraph(
+    const double& t0, const int&  idx0,
+    const double& t1, const int&  idx1);
 
   /// Adds multiple imu factors to graph
   int addImuFactorsToGraph();
@@ -153,7 +153,7 @@ protected:
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
-  PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
+  PreintegrationPtrList        imu_preintegrated_lst_; //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   const double                 dt_;                    //!< IMU sampling rate
   callback_t                   update_bias_cb_;        //!< Callback to update the imu biases

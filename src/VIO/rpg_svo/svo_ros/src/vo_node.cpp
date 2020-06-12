@@ -153,7 +153,6 @@ void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
   }
 }
 
-
 void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
 {
   cv::Mat img;

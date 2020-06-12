@@ -132,9 +132,6 @@ public:
   inline ImuHelper* getImuHelper() { return imu_helper_; }
 
 private:
-  /// creates a camera with the specified pose
-  gtsam::PinholePose<gtsam::Cal3DS2> createCamera(const SE3& T_w_f);
-
   /// Stops other threads for pose and structure updation
   void stopOtherThreads();
 

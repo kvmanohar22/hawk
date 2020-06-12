@@ -148,16 +148,6 @@ int VisualInertialEstimator::addImuFactorsToGraph()
   return kf_list_.size()-1;
 }
 
-gtsam::PinholePose<gtsam::Cal3DS2> VisualInertialEstimator::createCamera(const SE3& T_w_f)
-{
-  const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
-  const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
-  const gtsam::Pose3 pose_w_f(R_w_f, t_w_f);
-  gtsam::PinholePose<gtsam::Cal3DS2> camera(pose_w_f, isam2_K_);
-
-  return camera;
-}
-
 void VisualInertialEstimator::gatherKeyframes()
 {
   // NOTE: Currently taking into account only one keyframe (oldest)
@@ -170,7 +160,6 @@ void VisualInertialEstimator::gatherKeyframes()
       kf->correction_id_ = ++correction_count_;
       kf_list_.push_back(kf);
       keyframes_.pop();
-      break;
     }
   }
   SVO_DEBUG_STREAM("Estimator:\t n_kfs = " << kf_list_.size());

@@ -62,6 +62,7 @@ bool InertialInitialization::initialize()
   Vector3d new_avg; new_avg.setZero();
   for(auto itr=imu_msgs_new.begin(); itr!=imu_msgs_new.end();++itr)
     new_avg += ros2eigen((*itr)->linear_acceleration);
+  new_avg /= static_cast<int>(imu_msgs_new.size());
   double new_var=0;
   for(auto itr=imu_msgs_new.begin(); itr!=imu_msgs_new.end();++itr)
   {
@@ -74,6 +75,7 @@ bool InertialInitialization::initialize()
     SVO_WARN_STREAM("No sudden change in acceleration noticed. current var = " << new_var << " threshold = " << threshold_);
     return false;
   }
+  SVO_DEBUG_STREAM("Inertial Init:\t sigma2 = " << new_var << "\t threshold = " << threshold_);
 
   Vector3d acc_sum; acc_sum.setZero();
   Vector3d omg_sum; omg_sum.setZero();

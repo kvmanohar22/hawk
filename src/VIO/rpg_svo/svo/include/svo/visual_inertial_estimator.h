@@ -150,6 +150,7 @@ protected:
   boost::condition_variable    kf_queue_cond_;         //!< Check if new kf arrived
   bool                         new_kf_arrived_;        //!< If new kf arrived
   bool                         quit_;                  //!< Stop optimizing and quit
+  bool                         use_imu_;               //!< Whether to use inertial terms
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization

@@ -20,6 +20,7 @@ VisualInertialEstimator::VisualInertialEstimator(
       stage_(EstimatorStage::PAUSED),
       thread_(nullptr),
       quit_(false),
+      use_imu_(false),
       dt_(Config::dt()),
       update_bias_cb_(update_bias_cb),
       correction_count_(-1),
@@ -163,8 +164,11 @@ void VisualInertialEstimator::addFactorsToGraph()
   gatherKeyframes();
 
   // add imu factors to graph
-  const size_t n_imu_factors = addImuFactorsToGraph();
-  SVO_DEBUG_STREAM("Estimator:\t Number of imu factors = " << n_imu_factors);
+  if(use_imu_)
+  {
+    const size_t n_imu_factors = addImuFactorsToGraph();
+    SVO_DEBUG_STREAM("Estimator:\t Number of imu factors = " << n_imu_factors);
+  }
 
   // add vision factors to graph
   addVisionFactorsToGraph(kf_list_);
@@ -225,18 +229,25 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
 {
   SVO_ASSERT_MSG(idx == 0, "Trying to add prior on pose other than the first pose!");
-  gtsam::Pose3 kf_pose = inertial_utils::createGtsamPose(frame->T_f_w_);
+
+  // we are estimating pose of body (imu) and not camera!
+  SE3 T_w_b = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
+  gtsam::Pose3 w_T_b = inertial_utils::createGtsamPose(T_w_b);
 
   // FIXME: How to initialize for the second pose?
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
-    Symbol::X(idx), kf_pose, imu_helper_->prior_pose_noise_model_);
+    Symbol::X(idx), w_T_b, imu_helper_->prior_pose_noise_model_);
+
+  if(!use_imu_)
+    return;
+
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
         Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
         Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
 
   // initialize the current states (will be used to predict imu states)
-  curr_pose_ = kf_pose;
+  curr_pose_ = w_T_b;
   curr_velocity_.setZero();
   curr_state_ = gtsam::NavState(curr_pose_, curr_velocity_);
 
@@ -257,6 +268,9 @@ void VisualInertialEstimator::initializeNewVariables()
 
   // initialize structure (only in case of Generic projection factors)
   initializeStructure();
+
+  if(!use_imu_)
+    return;
 
   // Initialize velocities and biases
   for(PreintegrationPtrList::iterator it=imu_preintegrated_lst_.begin();
@@ -430,14 +444,17 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   // outlier rejection
   rejectOutliers();
 
-  // update the optimized state (the latest optimized pose)
-  curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
-  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
-  imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
+  if(use_imu_)
+  {
+    // update the optimized state (the latest optimized pose)
+    curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
+    curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
+    curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+    imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
 
-  // update the biases for sparse image alignment that use motion priors
-  update_bias_cb_(imu_helper_->curr_imu_bias_);
+    // update the biases for sparse image alignment that use motion priors
+    update_bias_cb_(imu_helper_->curr_imu_bias_);
+  }
 
   // resume other threads
   resumeOtherThreads();

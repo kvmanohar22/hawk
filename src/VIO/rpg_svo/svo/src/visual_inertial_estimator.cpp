@@ -483,7 +483,8 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
 bool VisualInertialEstimator::shouldRunOptimization()
 {
-  return (stage_ == EstimatorStage::DEFAULT_KEYFRAME);
+  return (stage_ == EstimatorStage::SECOND_KEYFRAME ||
+          stage_ == EstimatorStage::DEFAULT_KEYFRAME);
 }
 
 void VisualInertialEstimator::cleanUp()

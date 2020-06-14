@@ -151,7 +151,6 @@ int VisualInertialEstimator::addImuFactorsToGraph()
 
 void VisualInertialEstimator::gatherKeyframes()
 {
-  // NOTE: Currently taking into account only one keyframe (oldest)
   kf_list_.clear();
   {
     lock_t lock(kf_queue_mut_);
@@ -242,6 +241,15 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
   SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
   gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
 
+  if(idx == 0)
+  {
+    imu_helper_->prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.00001)).finished());
+  }
+  else {
+    imu_helper_->prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.01)).finished());
+  }
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
     Symbol::X(idx), T_w_b, imu_helper_->prior_pose_noise_model_);
 

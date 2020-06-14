@@ -217,7 +217,7 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
   }
   else if(stage_ == EstimatorStage::FIRST_KEYFRAME)
   {
-    // initializePrior(keyframe, 1);
+    initializePrior(keyframe, 1);
     stage_ = EstimatorStage::SECOND_KEYFRAME;
   } 
   else if(stage_ == EstimatorStage::SECOND_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME)
@@ -228,15 +228,15 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 
 void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
 {
-  SVO_ASSERT_MSG(idx == 0, "Trying to add prior on pose other than the first pose!");
+  // SVO_ASSERT_MSG(idx == 0, "Trying to add prior on pose other than the first pose!");
 
   // we are estimating pose of body (imu) and not camera!
-  SE3 T_w_b = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
-  gtsam::Pose3 w_T_b = inertial_utils::createGtsamPose(T_w_b);
+  SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
+  gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
 
   // FIXME: How to initialize for the second pose?
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
-    Symbol::X(idx), w_T_b, imu_helper_->prior_pose_noise_model_);
+    Symbol::X(idx), T_w_b, imu_helper_->prior_pose_noise_model_);
 
   if(!use_imu_)
     return;
@@ -247,7 +247,7 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
         Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
 
   // initialize the current states (will be used to predict imu states)
-  curr_pose_ = w_T_b;
+  curr_pose_ = T_w_b;
   curr_velocity_.setZero();
   curr_state_ = gtsam::NavState(curr_pose_, curr_velocity_);
 
@@ -292,8 +292,8 @@ void VisualInertialEstimator::initializeNewVariables()
 void VisualInertialEstimator::initializeNewPose(const FramePtr& frame)
 {
   const SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
-  gtsam::Pose3 init_pose = inertial_utils::createGtsamPose(T_b_w);
-  initial_values_.insert(Symbol::X(frame->correction_id_), init_pose);
+  gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
+  initial_values_.insert(Symbol::X(frame->correction_id_), T_w_b);
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
@@ -462,8 +462,9 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 
 bool VisualInertialEstimator::shouldRunOptimization()
 {
-  return (stage_ == EstimatorStage::SECOND_KEYFRAME ||
-          stage_ == EstimatorStage::DEFAULT_KEYFRAME);
+  return (stage_ == EstimatorStage::DEFAULT_KEYFRAME);
+  // return (stage_ == EstimatorStage::SECOND_KEYFRAME ||
+  //         stage_ == EstimatorStage::DEFAULT_KEYFRAME);
 }
 
 void VisualInertialEstimator::cleanUp()

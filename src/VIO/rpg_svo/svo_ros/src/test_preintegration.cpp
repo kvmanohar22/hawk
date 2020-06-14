@@ -65,8 +65,8 @@ void ImuPreintegrationTest::setPriors()
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
-  imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-      (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+  // imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+  //     (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
   initial_values_.clear();
   initial_values_.insert(Symbol::X(0), curr_pose_);
   initial_values_.insert(Symbol::V(0), curr_velocity_);

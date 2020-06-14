@@ -118,6 +118,7 @@ bool VoNode::initializeGravity()
   if(inertial_init_done_)
   {
     // pose of IMU (at t=0) in Global frame of reference
+    // Global frame of reference is the one in which gravity is along z-axis
     SE3 T_w_i0 = SE3(inertial_init_->R_init_, Vector3d::Zero());
 
     // pose of camera in the same global frame of reference

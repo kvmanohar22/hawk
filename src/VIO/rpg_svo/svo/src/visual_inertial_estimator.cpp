@@ -106,7 +106,7 @@ VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImu
   PreintegrationPtr imu_preintegrated = generateImuFactor(t0, t1);
 
   // Now add imu factor to graph
-  SVO_DEBUG_STREAM("Estimator:\t Integrated = " << n_integrated_measures_);
+  SVO_DEBUG_STREAM("Estimator:\t Integrated b/w " << idx0 << " & " << idx1 << " = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
        *imu_preintegrated);
@@ -260,6 +260,8 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
     const gtsam::NavState predicted_state = integrated->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
     curr_velocity_ = predicted_state.v();
+    SVO_DEBUG_STREAM("Estimator:\t v = " << curr_velocity_.transpose());
+    integrated->print("Integrated:\n");
   }
 
   // add priors to graph

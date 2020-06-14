@@ -100,6 +100,8 @@ bool InertialInitialization::initialize()
   R_init_.block(0,2,3,1) = z_axis;
   R_init_.transposeInPlace();
 
+  // R_init_: transforms a vector in body frame to world frame
+
   // Set our biases equal to our noise (subtract our gravity from accelerometer bias)
   bias_g_ = omg_avg;
   bias_a_ = acc_avg + R_init_.transpose() * gravity_;

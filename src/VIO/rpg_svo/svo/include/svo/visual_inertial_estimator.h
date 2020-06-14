@@ -96,6 +96,10 @@ public:
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
+  /// Generates an imu factor
+  PreintegrationPtr generateImuFactor(
+    const double& t0, const double& t1);
+
   /// Adds a single imu factor to graph
   PreintegrationPtr addSingleImuFactorToGraph(
     const double& t0, const int&  idx0,

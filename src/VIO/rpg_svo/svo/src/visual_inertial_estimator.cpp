@@ -20,7 +20,7 @@ VisualInertialEstimator::VisualInertialEstimator(
       stage_(EstimatorStage::PAUSED),
       thread_(nullptr),
       quit_(false),
-      use_imu_(false),
+      use_imu_(true),
       dt_(Config::dt()),
       update_bias_cb_(update_bias_cb),
       correction_count_(-1),
@@ -87,15 +87,23 @@ void VisualInertialEstimator::integrateMultipleMeasurements(
   stream.clear();
 }
 
-VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImuFactorToGraph(
-  const double& t0, const int& idx0,
-  const double& t1, const int& idx1)
+VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::generateImuFactor(
+  const double& t0, const double& t1)
 {
   // first integrate the messages
   PreintegrationPtr imu_preintegrated = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   list<ImuDataPtr> imu_stream = imu_container_->read(t0, t1);
   integrateMultipleMeasurements(imu_preintegrated, imu_stream);
+  return imu_preintegrated;
+}
+
+VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImuFactorToGraph(
+  const double& t0, const int& idx0,
+  const double& t1, const int& idx1)
+{
+  // first integrate the messages
+  PreintegrationPtr imu_preintegrated = generateImuFactor(t0, t1);
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("Estimator:\t Integrated = " << n_integrated_measures_);
@@ -228,32 +236,45 @@ void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 
 void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
 {
-  // SVO_ASSERT_MSG(idx == 0, "Trying to add prior on pose other than the first pose!");
+  SVO_ASSERT_MSG(idx == 0 || idx == 1, "Trying to add prior on pose other than the first/second pose!");
 
   // we are estimating pose of body (imu) and not camera!
   SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
   gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
 
-  // FIXME: How to initialize for the second pose?
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
     Symbol::X(idx), T_w_b, imu_helper_->prior_pose_noise_model_);
 
   if(!use_imu_)
     return;
 
+  if(idx == 0)
+  {
+    curr_pose_ = T_w_b;
+    curr_velocity_.setZero();
+    curr_state_ = gtsam::NavState(curr_pose_, curr_velocity_);
+  }
+  else
+  {
+    PreintegrationPtr integrated = generateImuFactor(t0_, frame->timestamp_);
+    const gtsam::NavState predicted_state = integrated->predict(
+      curr_state_, imu_helper_->curr_imu_bias_);
+    curr_velocity_ = predicted_state.v();
+  }
+
+  // add priors to graph
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
         Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
   graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
         Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
 
-  // initialize the current states (will be used to predict imu states)
-  curr_pose_ = T_w_b;
-  curr_velocity_.setZero();
-  curr_state_ = gtsam::NavState(curr_pose_, curr_velocity_);
-
-  // also initialize values (This is true only for the first pose)
-  initial_values_.insert(Symbol::V(idx), curr_velocity_);
-  initial_values_.insert(Symbol::B(idx), imu_helper_->curr_imu_bias_);
+  // insert initial values
+  if(idx == 0)
+  {
+    // This is only done for the first frame since there is no associated imu factor for this
+    initial_values_.insert(Symbol::V(idx), curr_velocity_);
+    initial_values_.insert(Symbol::B(idx), imu_helper_->curr_imu_bias_);
+  }
 
   SVO_DEBUG_STREAM("[Estimator]: Adding prior state for kf = " << idx);
 }
@@ -463,8 +484,6 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
 bool VisualInertialEstimator::shouldRunOptimization()
 {
   return (stage_ == EstimatorStage::DEFAULT_KEYFRAME);
-  // return (stage_ == EstimatorStage::SECOND_KEYFRAME ||
-  //         stage_ == EstimatorStage::DEFAULT_KEYFRAME);
 }
 
 void VisualInertialEstimator::cleanUp()

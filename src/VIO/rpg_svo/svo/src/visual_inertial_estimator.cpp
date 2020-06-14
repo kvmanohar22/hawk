@@ -178,7 +178,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   }
 
   // add vision factors to graph
-  addVisionFactorsToGraph(kf_list_);
+  // addVisionFactorsToGraph(kf_list_);
 
   SVO_DEBUG_STREAM("Estimator:\t graph size = " << graph_->size());
 }
@@ -268,15 +268,30 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
     const gtsam::NavState predicted_state = integrated->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
     curr_velocity_ = predicted_state.v();
-    SVO_DEBUG_STREAM("Estimator:\t v = " << curr_velocity_.transpose());
-    integrated->print("Integrated:\n");
+    // integrated->print("Integrated:\n");
+
+    const auto state_0 = curr_state_;
+    const auto state_1 = gtsam::NavState(T_w_b, curr_velocity_);
+    const auto e = integrated->computeError(state_0, state_1, imu_helper_->curr_imu_bias_,boost::none,boost::none,boost::none);
+    Vector3d errorR; errorR << e[0], e[1], e[2];
+    Vector3d errorP; errorP << e[3], e[4], e[5];
+    Vector3d errorV; errorV << e[6], e[7], e[8];
+    SVO_DEBUG_STREAM("Estimator:\t v0 = " << state_0.v().transpose());
+    SVO_DEBUG_STREAM("Estimator:\t v1 = " << state_1.v().transpose());
+    SVO_DEBUG_STREAM("Estimator:\t" << 
+                     "er = " << errorR.transpose() << "\t" <<
+                     "ep = " << errorP.transpose() << "\t" <<
+                     "ev = " << errorV.transpose() << "\t");
+    gtsam::Vector r(15);
+    r << e, Vector6d::Zero();
+    SVO_DEBUG_STREAM("Estimator:\t e = " << r.transpose() * dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*integrated).preintMeasCov().inverse() * r);
   }
 
   // add priors to graph
-  graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
-        Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
-  graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
-        Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
+  // graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+  //       Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
+  // graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+  //       Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
 
   // insert initial values
   if(idx == 0)
@@ -298,7 +313,7 @@ void VisualInertialEstimator::initializeNewVariables()
   }
 
   // initialize structure (only in case of Generic projection factors)
-  initializeStructure();
+  // initializeStructure();
 
   if(!use_imu_)
     return;
@@ -342,7 +357,9 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
 
-  // TODO: Signature of update should be changed if using smart factors
+  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_));
+
+/*  // TODO: Signature of update should be changed if using smart factors
   gtsam::Values result;
   isam2_.update(*graph_, initial_values_);
   result = isam2_.calculateEstimate();
@@ -353,15 +370,16 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   }
 
   // update the optimized variables
-  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_) <<
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t ErrInit = " << graph_->error(prev_result_) <<
                    "\t ErrFin. = " << graph_->error(result) <<
                    "\t Time = " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
   prev_result_ = result;
   updateState(result);
 
-  // clean up the integration from the above optimization
+  // // clean up the integration from the above optimization
   cleanUp();
-
+*/
   return opt_result;
 }
 
@@ -470,7 +488,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   }
 
   // update structure
-  updateStructure(result);
+  // updateStructure(result);
 
   // outlier rejection
   rejectOutliers();

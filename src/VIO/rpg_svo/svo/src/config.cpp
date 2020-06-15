@@ -16,7 +16,6 @@
 
 #ifdef SVO_USE_ROS
 #include <vikit/params_helper.h>
-#include <vikit/camera_loader.h>
 #endif
 #include <svo/config.h>
 
@@ -44,6 +43,8 @@ Config::Config() :
     loba_thresh(vk::getParam<double>("/hawk/svo/loba_thresh", 2.0)),
     loba_robust_huber_width(vk::getParam<double>("/hawk/svo/loba_robust_huber_width", 1.0)),
     loba_num_iter(vk::getParam<int>("/hawk/svo/loba_num_iter", 0)),
+    loba_type(vk::getParam<int>("/hawk/svo/loba_type", 0)),
+    loba_opt_type(vk::getParam<int>("/hawk/svo/loba_opt_type", 0)),
     kfselect_mindist(vk::getParam<double>("/hawk/svo/kfselect_mindist", 0.12)),
     triang_min_corner_score(vk::getParam<double>("/hawk/svo/triang_min_corner_score", 20.0)),
     triang_half_patch_size(vk::getParam<int>("/hawk/svo/triang_half_patch_size", 4)),
@@ -56,10 +57,12 @@ Config::Config() :
 
     // isam2 specific parameters
     run_inertial_estimator(vk::getParam<bool>("/hawk/svo/run_inertial_estimator", false)),
-    use_motion_priors(vk::getParam<bool>("/hawk/svo/use_motion_priors", true)),
+    use_motion_priors(vk::getParam<bool>("/hawk/svo/use_motion_priors", false)),
     isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
     isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1)),
-    isam2_dt(vk::getParam<double>("/hawk/svo/dt_", 0.005))
+    isam2_dt(1.0/vk::getParam<double>("/hawk/svo/imu0/update_rate", 0.005)),
+    save_trajectory(vk::getParam<bool>("/hawk/svo/save_trajectory", false)),
+    vision_factor_type(vk::getParam<int>("/hawk/svo/vision_factor_type", 0))
 #else
     trace_name("svo"),
     trace_dir("/tmp"),
@@ -81,6 +84,7 @@ Config::Config() :
     loba_thresh(2.0),
     loba_robust_huber_width(1.0),
     loba_num_iter(0),
+    loba_type(0),
     kfselect_mindist(0.12),
     triang_min_corner_score(20.0),
     triang_half_patch_size(4),
@@ -91,10 +95,7 @@ Config::Config() :
     quality_min_fts(50),
     quality_max_drop_fts(40)
 #endif
-{
-    T_c_b_ = vk::camera_loader::loadBodyToCam();
-    T_b_c_ = vk::camera_loader::loadBodyToCamInv();
-}
+{}
 
 Config& Config::getInstance()
 {

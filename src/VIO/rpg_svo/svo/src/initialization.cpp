@@ -22,9 +22,22 @@
 #include <svo/feature_detection.h>
 #include <vikit/math_utils.h>
 #include <vikit/homography.h>
+#include <vikit/pinhole_camera.h>
 
 namespace svo {
 namespace initialization {
+
+KltHomographyInit::KltHomographyInit(FrameHandlerBase::InitType init_type, bool verbose)
+  : init_type_(init_type),
+    baseline_set_(false),
+    verbose_(verbose)
+{}
+
+void KltHomographyInit::setBaseline(const Sophus::SE3& T_cl_cr)
+{
+  T_cl_cr_ = T_cl_cr;
+  baseline_set_ = true;
+}
 
 InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 {
@@ -42,7 +55,8 @@ InitResult KltHomographyInit::addFirstFrame(FramePtr frame_ref)
 
 InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 {
-  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_);
+  bool is_monocular = init_type_ == FrameHandlerBase::InitType::MONOCULAR;
+  trackKlt(frame_ref_, frame_cur, px_ref_, px_cur_, f_ref_, f_cur_, disparities_, is_monocular);
   SVO_INFO_STREAM("Init: KLT tracked "<< disparities_.size() <<" features");
 
   if(disparities_.size() < Config::initMinTracked())
@@ -50,13 +64,29 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 
   double disparity = vk::getMedian(disparities_);
   SVO_INFO_STREAM("Init: KLT "<<disparity<<"px average disparity.");
-  if(disparity < Config::initMinDisparity())
-    return NO_KEYFRAME;
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR) {
+    if(disparity < Config::initMinDisparity())
+      return NO_KEYFRAME;
+  }
 
-  computeHomography(
-      f_ref_, f_cur_,
-      frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-      inliers_, xyz_in_cur_, T_cur_from_ref_);
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR) {
+    computeHomography(
+        f_ref_, f_cur_,
+        frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+        inliers_, xyz_in_cur_, T_cur_from_ref_);
+  } else {
+    if(!baseline_set_) {
+      SVO_ERROR_STREAM("Baseline is not set. Cannot compute initial map");
+      return FAILURE;
+    }
+    computeInitialMap(
+        f_ref_, f_cur_,
+        frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
+        inliers_, xyz_in_cur_, T_cl_cr_);
+
+    // remove outliers
+    removeOutliersEpipolar(f_ref_, f_cur_, inliers_);
+  }
   SVO_INFO_STREAM("Init: Homography RANSAC "<<inliers_.size()<<" inliers.");
 
   if(inliers_.size() < Config::initMinInliers())
@@ -65,36 +95,85 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     return FAILURE;
   }
 
-  // Rescale the map such that the mean scene depth is equal to the specified scale
-  vector<double> depth_vec;
-  for(size_t i=0; i<xyz_in_cur_.size(); ++i)
-    depth_vec.push_back((xyz_in_cur_[i]).z());
-  double scene_depth_median = vk::getMedian(depth_vec);
-  double scale = Config::mapScale()/scene_depth_median;
   frame_cur->T_f_w_ = T_cur_from_ref_ * frame_ref_->T_f_w_;
-  frame_cur->T_f_w_.translation() =
-      -frame_cur->T_f_w_.rotation_matrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
+  double scale;
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+  {
+    // Rescale the map such that the mean scene depth is equal to the specified scale
+    vector<double> depth_vec;
+    for(size_t i=0; i<xyz_in_cur_.size(); ++i)
+      depth_vec.push_back((xyz_in_cur_[i]).z());
+    double scene_depth_median = vk::getMedian(depth_vec);
+    scale = Config::mapScale()/scene_depth_median;
+    frame_cur->T_f_w_.translation() =
+        -frame_cur->T_f_w_.rotation_matrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
+  }
+  else
+    scale = 1.0;
+
+  if(verbose_) {
+    // plot the klt tracks
+    cv::Mat limg = frame_ref_->img();
+    cv::Mat rimg = frame_cur->imgRight();
+    cv::cvtColor(limg, limg, cv::COLOR_GRAY2BGR);
+    for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
+    {
+      cv::circle(limg, px_ref_[*it], 2 , cv::Scalar(255,0,0),cv::FILLED);
+      cv::line(limg, px_ref_[*it], px_cur_[*it], cv::Scalar(0,255,0),1);
+    }
+    cv::imshow("klt tracks", limg);
+    cv::waitKey(0);
+  }
 
   // For each inlier create 3D point and add feature in both frames
-  SE3 T_world_cur = frame_cur->T_f_w_.inverse();
+  SE3 T_world_cur;
+  if(is_monocular)
+    T_world_cur = frame_cur->T_f_w_.inverse();
+  else
+    T_world_cur = frame_ref_->T_f_w_.inverse() * T_cl_cr_;
+
+  double error=0;
+  int count=0;
+  int zneg=0;
+  vector<double> depth_vec;
+  depth_vec.reserve(inliers_.size());
   for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
+    if(xyz_in_cur_[*it].z() < 0)
+      ++zneg;
     if(frame_ref_->cam_->isInFrame(px_cur.cast<int>(), 10) && frame_ref_->cam_->isInFrame(px_ref.cast<int>(), 10) && xyz_in_cur_[*it].z() > 0)
     {
-      Vector3d pos = T_world_cur * (xyz_in_cur_[*it]*scale);
+      Vector3d pos_cur = xyz_in_cur_[*it]*scale;
+      Vector3d pos = T_world_cur * pos_cur;  
       Point* new_point = new Point(pos);
+      depth_vec.push_back(pos.z());
 
-      Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
-      frame_cur->addFeature(ftr_cur);
-      new_point->addFrameRef(ftr_cur);
+      if(is_monocular) { // we only add the current features in this case
+        Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
+        frame_cur->addFeature(ftr_cur);
+        new_point->addFrameRef(ftr_cur);
+      }
 
       Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
       frame_ref_->addFeature(ftr_ref);
       new_point->addFrameRef(ftr_ref);
+
+      const Vector2d uv = frame_ref_->cam_->world2cam(pos);
+      error += (uv-px_ref).norm();
+      ++count;
     }
   }
+  if(verbose_) {
+    std::cout << "total error = " << error << "\t" 
+              << "avg = " << error/count << "\t"
+              << "zneg = " << zneg << "\t"
+              << "fts  = " << frame_ref_->fts_.size() << "\t"
+              << "median z  = " << vk::getMedian(depth_vec) << "\t"
+              << "3D points = " << count << std::endl;
+  }
+
   return SUCCESS;
 }
 
@@ -102,6 +181,51 @@ void KltHomographyInit::reset()
 {
   px_cur_.clear();
   frame_ref_.reset();
+}
+
+void KltHomographyInit::removeOutliersEpipolar(
+    vector<Vector3d>& f_ref,
+    vector<Vector3d>& f_cur,
+    vector<int>& inliers)
+{
+  const Matrix3d R = T_cl_cr_.rotation_matrix();
+  const Vector3d t = -R.transpose() * T_cl_cr_.translation();
+  // skew symmetric form of t in (R, t)
+  Matrix3d tx;
+  tx(0, 0) =  0;
+  tx(0, 1) = -t(2);
+  tx(0, 2) =  t(1);
+  tx(1, 0) =  t(2);
+  tx(1, 1) =  0;
+  tx(1, 2) = -t(0);
+  tx(2, 0) = -t(1);
+  tx(2, 1) =  t(0);
+  tx(2, 2) =  0;
+  const Matrix3d E = R * tx;
+  const int N = inliers.size();
+  vector<double> e_vec;
+  e_vec.reserve(N);
+  const Matrix3d Kl = dynamic_cast<vk::PinholeCamera*>(frame_ref_->cam_)->K();
+  const Matrix3d Kr = dynamic_cast<vk::PinholeCamera*>(frame_ref_->camR_)->K();
+  const Matrix3d KlInv_E_KrInv = Kl.inverse().transpose() * E * Kr.inverse();
+  for(vector<int>::iterator it=inliers.begin(); it!=inliers.end();) {
+    Vector3d uv_r = Kl * f_ref[*it];
+    Vector3d uv_c = Kr * f_cur[*it];
+    Vector3d uvh_r; uvh_r << vk::project2d(uv_r), 1.0;
+    Vector3d uvh_c; uvh_c << vk::project2d(uv_c), 1.0;
+
+    const Vector3d KlInv_E_KrInv_uv = KlInv_E_KrInv * uvh_c;
+    double e = uvh_r.transpose() * KlInv_E_KrInv_uv;
+    e = e / KlInv_E_KrInv_uv.norm();
+    e = std::abs(e);
+    if(e > 0.2)
+      it = inliers.erase(it);
+    else
+      ++it;
+    e_vec.push_back(e);
+  }
+  SVO_DEBUG_STREAM("Removed " << N-inliers.size() << " from epipolar constraints");
+  SVO_DEBUG_STREAM("Average epipolar error = " << vk::getMedian(e_vec));
 }
 
 void detectFeatures(
@@ -131,16 +255,20 @@ void trackKlt(
     vector<cv::Point2f>& px_cur,
     vector<Vector3d>& f_ref,
     vector<Vector3d>& f_cur,
-    vector<double>& disparities)
+    vector<double>& disparities,
+    bool is_monocular)
 {
-  const double klt_win_size = 30.0;
+  const double klt_win_size = 50.0;
   const int klt_max_iter = 30;
   const double klt_eps = 0.001;
   vector<uchar> status;
   vector<float> error;
   vector<float> min_eig_vec;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, klt_max_iter, klt_eps);
-  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], frame_cur->img_pyr_[0],
+  cv::Mat img_cur = frame_cur->img_pyr_[0];
+  if(!is_monocular)
+    img_cur = frame_cur->img_pyr_right_[0];
+  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], img_cur,
                            px_ref, px_cur,
                            status, error,
                            cv::Size2i(klt_win_size, klt_win_size),
@@ -160,7 +288,11 @@ void trackKlt(
       f_ref_it = f_ref.erase(f_ref_it);
       continue;
     }
-    f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
+    if(is_monocular)
+      f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
+    else
+      f_cur.push_back(frame_cur->c2f_stereo(px_cur_it->x, px_cur_it->y));
+
     disparities.push_back(Vector2d(px_ref_it->x - px_cur_it->x, px_ref_it->y - px_cur_it->y).norm());
     ++px_ref_it;
     ++px_cur_it;
@@ -192,6 +324,25 @@ void computeHomography(
                      reprojection_threshold, focal_length,
                      xyz_in_cur, inliers, outliers);
   T_cur_from_ref = Homography.T_c2_from_c1;
+}
+
+void computeInitialMap(
+    const vector<Vector3d>& f_ref, // cl
+    const vector<Vector3d>& f_cur, // cr
+    double focal_length,
+    double reprojection_threshold,
+    vector<int>& inliers,
+    vector<Vector3d>& xyz_in_cur,
+    const SE3& T_cl_cr)
+{
+  const SE3 T = T_cl_cr.inverse();
+  const Matrix3d R = T.rotation_matrix();
+  const Vector3d t = T.translation();
+  vector<int> outliers;
+  vk::computeInliers(f_cur, f_ref,
+                     R, t,
+                     reprojection_threshold, focal_length,
+                     xyz_in_cur, inliers, outliers);
 }
 
 

@@ -50,10 +50,12 @@ DepthFilter::DepthFilter(feature_detection::DetectorPtr feature_detector, callba
     feature_detector_(feature_detector),
     seed_converged_cb_(seed_converged_cb),
     seeds_updating_halt_(false),
-    thread_(NULL),
+    thread_(nullptr),
     new_keyframe_set_(false),
     new_keyframe_min_depth_(0.0),
-    new_keyframe_mean_depth_(0.0)
+    new_keyframe_mean_depth_(0.0),
+    stop_requested_(false),
+    is_stopped_(false)
 {}
 
 DepthFilter::~DepthFilter()
@@ -70,19 +72,19 @@ void DepthFilter::startThread()
 void DepthFilter::stopThread()
 {
   SVO_INFO_STREAM("DepthFilter stop thread invoked.");
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     SVO_INFO_STREAM("DepthFilter interrupt and join thread... ");
     seeds_updating_halt_ = true;
     thread_->interrupt();
     thread_->join();
-    thread_ = NULL;
+    thread_ = nullptr;
   }
 }
 
 void DepthFilter::addFrame(FramePtr frame)
 {
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     {
       lock_t lock(frame_queue_mut_);
@@ -101,7 +103,7 @@ void DepthFilter::addKeyframe(FramePtr frame, double depth_mean, double depth_mi
 {
   new_keyframe_min_depth_ = depth_min;
   new_keyframe_mean_depth_ = depth_mean;
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     new_keyframe_ = frame;
     new_keyframe_set_ = true;
@@ -118,6 +120,15 @@ void DepthFilter::initializeSeeds(FramePtr frame)
   feature_detector_->setExistingFeatures(frame->fts_);
   feature_detector_->detect(frame.get(), frame->img_pyr_,
                             Config::triangMinCornerScore(), new_features);
+
+#ifdef SVO_USE_EDGELETS  
+  ///incorporating edgelet features
+  feature_detection::CannyEdgeDetector canny_edge_detector(frame->img().cols, frame->img().rows, feature_detector_->cell_size_, feature_detector_->n_pyr_levels_);
+  canny_edge_detector.setExistingFeatures(frame->fts_);
+  canny_edge_detector.setExistingFeatures(new_features);
+  canny_edge_detector.detect(frame.get(), frame->img_pyr_,
+                            10,20, new_features);
+#endif
 
   // initialize a seed for every new feature
   seeds_updating_halt_ = true;
@@ -167,6 +178,15 @@ void DepthFilter::reset()
     SVO_INFO_STREAM("DepthFilter: RESET.");
 }
 
+void DepthFilter::handleInterrupt()
+{
+  if(!stopRequested())
+    return;
+  setStop();
+  while(!isReleased())
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+}
+
 void DepthFilter::updateSeedsLoop()
 {
   while(!boost::this_thread::interruption_requested())
@@ -174,8 +194,15 @@ void DepthFilter::updateSeedsLoop()
     FramePtr frame;
     {
       lock_t lock(frame_queue_mut_);
-      while(frame_queue_.empty() && new_keyframe_set_ == false)
+      while(frame_queue_.empty() && new_keyframe_set_ == false && !stopRequested())
         frame_queue_cond_.wait(lock);
+
+      // could be possible
+      handleInterrupt();
+
+      if(frame_queue_.empty() && new_keyframe_set_ == false)
+        continue;
+
       if(new_keyframe_set_)
       {
         new_keyframe_set_ = false;
@@ -190,6 +217,7 @@ void DepthFilter::updateSeedsLoop()
       }
     }
     updateSeeds(frame);
+
     if(frame->isKeyframe())
       initializeSeeds(frame);
   }
@@ -209,6 +237,12 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
   while( it!=seeds_.end())
   {
+    // thread safe check to see if a stop interuption is requested
+    if(stopRequested())
+    {
+      handleInterrupt();
+    }
+
     // set this value true when seeds updating should be interrupted
     if(seeds_updating_halt_)
       return;
@@ -261,7 +295,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
     // if the seed has converged, we initialize a new candidate point and remove the seed
     if(sqrt(it->sigma2) < it->z_range/options_.seed_convergence_sigma2_thresh)
     {
-      assert(it->ftr->point == NULL); // TODO this should not happen anymore
+      assert(it->ftr->point == nullptr); // TODO this should not happen anymore
       Vector3d xyz_world(it->ftr->frame->T_f_w_.inverse() * (it->ftr->f * (1.0/it->mu)));
       Point* point = new Point(xyz_world, it->ftr);
       it->ftr->point = point;
@@ -348,6 +382,47 @@ double DepthFilter::computeTau(
   double gamma_plus = PI-alpha-beta_plus; // triangle angles sum to PI
   double z_plus = t_norm*sin(beta_plus)/sin(gamma_plus); // law of sines
   return (z_plus - z); // tau
+}
+
+void DepthFilter::requestStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Stop request recieved");
+  stop_requested_ = true;
+  frame_queue_cond_.notify_one();
+}
+
+bool DepthFilter::stopRequested()
+{
+  lock_t lock(request_mut_);
+  return stop_requested_;
+}
+
+void DepthFilter::setStop()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Stopped");
+  is_stopped_ = true;
+}
+
+bool DepthFilter::isStopped()
+{
+  lock_t lock(request_mut_);
+  return is_stopped_;
+}
+
+bool DepthFilter::isReleased()
+{
+  lock_t lock(request_mut_);
+  return !stop_requested_;
+}
+
+void DepthFilter::release()
+{
+  lock_t lock(request_mut_);
+  SVO_DEBUG_STREAM("[DepthFilter]: Released");
+  stop_requested_ = false;
+  is_stopped_ = false;
 }
 
 } // namespace svo

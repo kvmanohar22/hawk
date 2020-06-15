@@ -29,15 +29,16 @@ Point::Point(const Vector3d& pos) :
   pos_(pos),
   normal_set_(false),
   n_obs_(0),
-  v_pt_(NULL),
   last_published_ts_(0),
   last_projected_kf_id_(-1),
   type_(TYPE_UNKNOWN),
   n_failed_reproj_(0),
   n_succeeded_reproj_(0),
   last_structure_optim_(0),
-  scaled_pos_(pos),
-  n_scaled_updates_(0)
+  n_inertial_updates_(0),
+  last_updated_cid_(-1),
+  last_outlier_check_id_(-1),
+  is_initialized_(false)
 {}
 
 Point::Point(const Vector3d& pos, Feature* ftr) :
@@ -45,15 +46,16 @@ Point::Point(const Vector3d& pos, Feature* ftr) :
   pos_(pos),
   normal_set_(false),
   n_obs_(1),
-  v_pt_(NULL),
   last_published_ts_(0),
   last_projected_kf_id_(-1),
   type_(TYPE_UNKNOWN),
   n_failed_reproj_(0),
   n_succeeded_reproj_(0),
   last_structure_optim_(0),
-  scaled_pos_(pos),
-  n_scaled_updates_(0)
+  n_inertial_updates_(0),
+  last_updated_cid_(-1),
+  last_outlier_check_id_(-1),
+  is_initialized_(false)
 {
   obs_.push_front(ftr);
 }
@@ -72,7 +74,7 @@ Feature* Point::findFrameRef(Frame* frame)
   for(auto it=obs_.begin(), ite=obs_.end(); it!=ite; ++it)
     if((*it)->frame == frame)
       return *it;
-  return NULL;    // no keyframe found
+  return nullptr;    // no keyframe found
 }
 
 bool Point::deleteFrameRef(Frame* frame)
@@ -92,7 +94,7 @@ void Point::initNormal()
 {
   assert(!obs_.empty());
   const Feature* ftr = obs_.back();
-  assert(ftr->frame != NULL);
+  assert(ftr->frame != nullptr);
   normal_ = ftr->frame->T_f_w_.rotation_matrix().transpose()*(-ftr->f);
   normal_information_ = DiagonalMatrix<double,3,3>(pow(20/(pos_-ftr->frame->pos()).norm(),2), 1.0, 1.0);
   normal_set_ = true;
@@ -136,13 +138,24 @@ void Point::optimize(const size_t n_iter)
     // compute residuals
     for(auto it=obs_.begin(); it!=obs_.end(); ++it)
     {
-      Matrix23d J;
       const Vector3d p_in_f((*it)->frame->T_f_w_ * pos_);
-      Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), J);
-      const Vector2d e(vk::project2d((*it)->f) - vk::project2d(p_in_f));
-      new_chi2 += e.squaredNorm();
-      A.noalias() += J.transpose() * J;
-      b.noalias() -= J.transpose() * e;
+      if((*it)->type == Feature::CORNER)
+      {
+        Matrix23d J;
+        Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), J);
+        const Vector2d e(vk::project2d((*it)->f) - vk::project2d(p_in_f));
+        new_chi2 += e.squaredNorm();
+        A.noalias() += J.transpose() * J;
+        b.noalias() -= J.transpose() * e;
+      } else {
+        Matrix23d Jhat;
+        Point::jacobian_xyz2uv(p_in_f, (*it)->frame->T_f_w_.rotation_matrix(), Jhat);
+        const double e = (*it)->grad.transpose() * (vk::project2d((*it)->f) - vk::project2d(p_in_f));
+        new_chi2 += e;
+        Matrix13d J = (*it)->grad.transpose() * Jhat;
+        A.noalias() += J.transpose() * J;
+        b.noalias() -= J.transpose() * e;
+      }
     }
 
     // solve linear system
@@ -175,7 +188,6 @@ void Point::optimize(const size_t n_iter)
     if(vk::norm_max(dp) <= EPS)
       break;
   }
-  scaled_pos_ = pos_;
 #ifdef POINT_OPTIMIZER_DEBUG
   cout << endl;
 #endif

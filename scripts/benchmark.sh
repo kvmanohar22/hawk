@@ -1,0 +1,52 @@
+#! /bin/bash
+
+DATA_AVAILABLE=('airground' 'mav_circle' 'hawk')
+DATA='airground' # choose among (airground mav_circle)
+BAG_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
+CAMERA_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
+IMU_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
+START=12
+RIG=monocular
+
+# Which parts of the system are to be started
+INERTIAL_ESTIMATOR=true
+MOTION_PRIORS=true
+
+if [ $# -eq 1 ]; then
+  DATA=${1}
+fi
+
+case ${DATA} in
+'airground')
+  BAG_PATH=${BAG_PATH}/airground_s3/data.bag
+  CAMERA_CALIBRATION_PATH=${CAMERA_CALIBRATION_PATH}/airground_s3/camera_calibration.yaml
+  IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/airground_s3/imu_calibration.yaml
+
+  # This data has imu at 100Hz, this is too slow
+  MOTION_PRIORS=false
+  ;;
+'mav_circle')
+  BAG_PATH=${BAG_PATH}/mav_circle/data.bag
+  CAMERA_CALIBRATION_PATH=${CAMERA_CALIBRATION_PATH}/airground_s3/camera_calibration.yaml
+  IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/mav_circle/imu_calibration.yaml
+  ;;
+'hawk')
+  BAG_PATH=${HAWK_ROOT}/bags/inertial_down.bag
+  CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/camchain.yaml
+  IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/imu.yaml
+  RIG=stereo
+  ;;
+*)
+  echo 'WRONG DATA'${DATA}
+  ;;
+esac
+
+roslaunch svo_ros \
+  test_hawk_odometry_bag.launch \
+  bag_path:=${BAG_PATH} \
+  start:=${START} \
+  camera_calibration_file:=${CAMERA_CALIBRATION_PATH} \
+  imu_calibration_file:=${IMU_CALIBRATION_PATH} \
+  rig:=${RIG} \
+  run_inertial_estimator:=${INERTIAL_ESTIMATOR} \
+  use_motion_priors:=${MOTION_PRIORS}

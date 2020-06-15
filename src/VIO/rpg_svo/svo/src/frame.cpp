@@ -20,6 +20,7 @@
 #include <svo/point.h>
 #include <svo/config.h>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include <vikit/math_utils.h>
 #include <vikit/vision.h>
 #include <vikit/performance_monitor.h>
@@ -36,25 +37,29 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     cam_(cam),
     key_pts_(5),
     is_keyframe_(false),
-    v_kf_(NULL),
     n_new_filters_init_(0),
-    n_filters_converged_(0)
+    n_filters_converged_(0),
+    n_inertial_updates_(0)
 {
-  initFrame(img);
+  initFrame(img, img_pyr_);
 }
 
-Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, ros::Time ts) :
+Frame::Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double ts) :
     id_(frame_counter_++),
     correction_id_(-1),
-    ros_ts_(ts),
+    timestamp_(ts),
     cam_(cam),
+    camR_(cam1),
     key_pts_(5),
     is_keyframe_(false),
-    v_kf_(NULL),
     n_new_filters_init_(0),
-    n_filters_converged_(0)
+    n_filters_converged_(0),
+    n_inertial_updates_(0)
 {
-  initFrame(img);
+  boost::thread thread_l(&Frame::initFrame, this, imgl, std::ref(img_pyr_));
+  boost::thread thread_r(&Frame::initFrame, this, imgr, std::ref(img_pyr_right_));
+  thread_l.join();
+  thread_r.join();
 }
 
 Frame::~Frame()
@@ -62,17 +67,17 @@ Frame::~Frame()
   std::for_each(fts_.begin(), fts_.end(), [&](Feature* i){delete i;});
 }
 
-void Frame::initFrame(const cv::Mat& img)
+void Frame::initFrame(const cv::Mat& img, ImgPyr& img_pyr)
 {
   // check image
   if(img.empty() || img.type() != CV_8UC1 || img.cols != cam_->width() || img.rows != cam_->height())
     throw std::runtime_error("Frame: provided image has not the same size as the camera model or image is not grayscale");
 
-  // Set keypoints to NULL
-  std::for_each(key_pts_.begin(), key_pts_.end(), [&](Feature* ftr){ ftr=NULL; });
+  // Set keypoints to nullptr
+  std::for_each(key_pts_.begin(), key_pts_.end(), [&](Feature* ftr){ ftr=nullptr; });
 
   // Build Image Pyramid
-  frame_utils::createImgPyramid(img, max(Config::nPyrLevels(), Config::kltMaxLevel()+1), img_pyr_);
+  frame_utils::createImgPyramid(img, max(Config::nPyrLevels(), Config::kltMaxLevel()+1), img_pyr);
 }
 
 void Frame::setKeyframe()
@@ -89,11 +94,11 @@ void Frame::addFeature(Feature* ftr)
 void Frame::setKeyPoints()
 {
   for(size_t i = 0; i < 5; ++i)
-    if(key_pts_[i] != NULL)
-      if(key_pts_[i]->point == NULL)
-        key_pts_[i] = NULL;
+    if(key_pts_[i] != nullptr)
+      if(key_pts_[i]->point == nullptr)
+        key_pts_[i] = nullptr;
 
-  std::for_each(fts_.begin(), fts_.end(), [&](Feature* ftr){ if(ftr->point != NULL) checkKeyPoints(ftr); });
+  std::for_each(fts_.begin(), fts_.end(), [&](Feature* ftr){ if(ftr->point != nullptr) checkKeyPoints(ftr); });
 }
 
 void Frame::checkKeyPoints(Feature* ftr)
@@ -102,7 +107,7 @@ void Frame::checkKeyPoints(Feature* ftr)
   const int cv = cam_->height()/2;
 
   // center pixel
-  if(key_pts_[0] == NULL)
+  if(key_pts_[0] == nullptr)
     key_pts_[0] = ftr;
   else if(std::max(std::fabs(ftr->px[0]-cu), std::fabs(ftr->px[1]-cv))
         < std::max(std::fabs(key_pts_[0]->px[0]-cu), std::fabs(key_pts_[0]->px[1]-cv)))
@@ -110,7 +115,7 @@ void Frame::checkKeyPoints(Feature* ftr)
 
   if(ftr->px[0] >= cu && ftr->px[1] >= cv)
   {
-    if(key_pts_[1] == NULL)
+    if(key_pts_[1] == nullptr)
       key_pts_[1] = ftr;
     else if((ftr->px[0]-cu) * (ftr->px[1]-cv)
           > (key_pts_[1]->px[0]-cu) * (key_pts_[1]->px[1]-cv))
@@ -118,7 +123,7 @@ void Frame::checkKeyPoints(Feature* ftr)
   }
   if(ftr->px[0] >= cu && ftr->px[1] < cv)
   {
-    if(key_pts_[2] == NULL)
+    if(key_pts_[2] == nullptr)
       key_pts_[2] = ftr;
     else if((ftr->px[0]-cu) * (ftr->px[1]-cv)
           > (key_pts_[2]->px[0]-cu) * (key_pts_[2]->px[1]-cv))
@@ -126,7 +131,7 @@ void Frame::checkKeyPoints(Feature* ftr)
   }
   if(ftr->px[0] < cv && ftr->px[1] < cv)
   {
-    if(key_pts_[3] == NULL)
+    if(key_pts_[3] == nullptr)
       key_pts_[3] = ftr;
     else if((ftr->px[0]-cu) * (ftr->px[1]-cv)
           > (key_pts_[3]->px[0]-cu) * (key_pts_[3]->px[1]-cv))
@@ -134,7 +139,7 @@ void Frame::checkKeyPoints(Feature* ftr)
   }
   if(ftr->px[0] < cv && ftr->px[1] >= cv)
   {
-    if(key_pts_[4] == NULL)
+    if(key_pts_[4] == nullptr)
       key_pts_[4] = ftr;
     else if((ftr->px[0]-cu) * (ftr->px[1]-cv)
           > (key_pts_[4]->px[0]-cu) * (key_pts_[4]->px[1]-cv))
@@ -147,7 +152,7 @@ void Frame::removeKeyPoint(Feature* ftr)
   bool found = false;
   std::for_each(key_pts_.begin(), key_pts_.end(), [&](Feature*& i){
     if(i == ftr) {
-      i = NULL;
+      i = nullptr;
       found = true;
     }
   });
@@ -188,7 +193,7 @@ bool getSceneDepth(const Frame& frame, double& depth_mean, double& depth_min)
   depth_min = std::numeric_limits<double>::max();
   for(auto it=frame.fts_.begin(), ite=frame.fts_.end(); it!=ite; ++it)
   {
-    if((*it)->point != NULL)
+    if((*it)->point != nullptr)
     {
       const double z = frame.w2f((*it)->point->pos_).z();
       depth_vec.push_back(z);

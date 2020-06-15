@@ -92,7 +92,7 @@ void Reprojector::reprojectMap(
         it_ftr!=ite_ftr; ++it_ftr)
     {
       // check if the feature has a mappoint assigned
-      if((*it_ftr)->point == NULL)
+      if((*it_ftr)->point == nullptr)
         continue;
 
       // make sure we project a point only once

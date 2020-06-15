@@ -31,22 +31,24 @@ namespace svo
 
 // definition of global and static variables which were declared in the header
 #ifdef SVO_TRACE
-vk::PerformanceMonitor* g_permon = NULL;
+vk::PerformanceMonitor* g_permon = nullptr;
 #endif
 
-FrameHandlerBase::FrameHandlerBase() :
+FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   stage_(STAGE_PAUSED),
   set_reset_(false),
   set_start_(false),
   acc_frame_timings_(10),
   acc_num_obs_(10),
   num_obs_last_(0),
-  tracking_quality_(TRACKING_INSUFFICIENT)
+  tracking_quality_(TRACKING_INSUFFICIENT),
+  init_type_(init_type)
 {
 #ifdef SVO_TRACE
   // Initialize Performance Monitor
   g_permon = new vk::PerformanceMonitor();
   g_permon->addTimer("pyramid_creation");
+  g_permon->addTimer("imu_integration");
   g_permon->addTimer("sparse_img_align");
   g_permon->addTimer("reproject");
   g_permon->addTimer("reproject_kfs");
@@ -56,7 +58,6 @@ FrameHandlerBase::FrameHandlerBase() :
   g_permon->addTimer("point_optimizer");
   g_permon->addTimer("local_ba");
   g_permon->addTimer("tot_time");
-  g_permon->addTimer("imu_prior_wait");
   g_permon->addLog("timestamp");
   g_permon->addLog("img_align_n_tracked");
   g_permon->addLog("repr_n_mps");
@@ -69,6 +70,8 @@ FrameHandlerBase::FrameHandlerBase() :
   g_permon->addLog("loba_n_erredges_fin");
   g_permon->addLog("loba_err_init");
   g_permon->addLog("loba_err_fin");
+  g_permon->addLog("loba_err_init_avg");
+  g_permon->addLog("loba_err_fin_avg");
   g_permon->addLog("n_candidates");
   g_permon->addLog("dropout");
   g_permon->init(Config::traceName(), Config::traceDir());
@@ -112,6 +115,7 @@ int FrameHandlerBase::finishFrameProcessingCommon(
     const size_t num_observations)
 {
   SVO_DEBUG_STREAM("Frame: "<<update_id<<"\t fps-avg = "<< 1.0/acc_frame_timings_.getMean()<<"\t nObs = "<<acc_num_obs_.getMean());
+  SVO_DEBUG_STREAM("------------------------------------------");
   SVO_LOG(dropout);
 
   // save processing time to calculate fps
@@ -185,7 +189,7 @@ void FrameHandlerBase::optimizeStructure(
   deque<Point*> pts;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point != NULL)
+    if((*it)->point != nullptr)
       pts.push_back((*it)->point);
   }
   max_n_pts = min(max_n_pts, pts.size());

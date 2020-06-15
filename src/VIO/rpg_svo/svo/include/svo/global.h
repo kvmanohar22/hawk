@@ -30,7 +30,7 @@
 #include <vikit/performance_monitor.h>
 #include <boost/shared_ptr.hpp>
 #include <Eigen/StdVector>
-
+#include <sensor_msgs/Imu.h>
 
 #ifndef RPG_SVO_VIKIT_IS_VECTOR_SPECIALIZED //Guard for rpg_vikit
 #define RPG_SVO_VIKIT_IS_VECTOR_SPECIALIZED
@@ -41,6 +41,9 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector2d)
 
 #ifdef SVO_USE_ROS
   #include <ros/console.h>
+  #include <ros/assert.h>
+  #define SVO_ASSERT(x) ROS_ASSERT(x)
+  #define SVO_ASSERT_MSG(x, y) ROS_ASSERT_MSG(x, y)
   #define SVO_DEBUG_STREAM(x) ROS_DEBUG_STREAM(x)
   #define SVO_INFO_STREAM(x) ROS_INFO_STREAM(x)
   #define SVO_WARN_STREAM(x) ROS_WARN_STREAM(x)
@@ -103,6 +106,13 @@ namespace svo
 
   class Frame;
   typedef boost::shared_ptr<Frame> FramePtr;
+
+static inline Eigen::Vector3d ros2eigen(const geometry_msgs::Vector3& v_ros)
+{
+  Eigen::Vector3d v_eigen(v_ros.x, v_ros.y, v_ros.z);
+  return v_eigen; 
+}
+
 } // namespace svo
 
 #endif // SVO_GLOBAL_H_

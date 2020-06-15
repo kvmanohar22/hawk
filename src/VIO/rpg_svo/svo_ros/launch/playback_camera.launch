@@ -6,19 +6,31 @@
   <arg name="left_image_topic" default="/hawk/stereo/left/image_raw"/>
   <arg name="right_image_topic" default="/hawk/stereo/right/image_raw"/>
 
+  <!-- set this to true if using monocular -->
+  <arg name="monocular" default="false"/>
+
   <!-- set this to true if using stereo -->
   <arg name="stereo" default="false"/>
 
   <!-- play rosbag -->
   <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)" output="screen"/>
 
-  <!-- image viewer -->
-  <node pkg="image_view" type="image_view" name="left"
-    args="image:=$(arg left_image_topic) _autosize:=true _window_name:=left"
-    output="$(arg output)"/>
+  <!-- stereo image viewer -->
+  <group if="$(arg stereo)">
+    <node pkg="image_view" type="image_view" name="left"
+      args="image:=$(arg left_image_topic) _autosize:=true _window_name:=left"
+      output="$(arg output)"/>
 
-  <!-- image viewer -->
-  <node pkg="image_view" type="image_view" name="right"
-    args="image:=$(arg right_image_topic) _autosize:=true _window_name:=right"
-    output="$(arg output)"/>
+    <node pkg="image_view" type="image_view" name="right"
+      args="image:=$(arg right_image_topic) _autosize:=true _window_name:=right"
+      output="$(arg output)"/>
+  </group>
+
+  <!-- monocular image viewer -->
+  <group if="$(arg monocular)">
+    <node pkg="image_view" type="image_view" name="right"
+      args="image:=$(arg image_topic) _autosize:=true _window_name:=hawk"
+      output="$(arg output)"/>
+  </group>
+
 </launch>

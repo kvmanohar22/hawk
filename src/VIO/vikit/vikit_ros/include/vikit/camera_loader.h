@@ -104,43 +104,23 @@ bool loadFromRosNs(const std::string& ns,
   return res;
 }
 
-// Loads rigid body transformation b/w body frame and camera frame
-Sophus::SE3 loadBodyToCam()
+/// Load a general 4x4 transformation (SE3) matrix
+Sophus::SE3 loadT(const std::string& name)
 {
-  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
-  Eigen::Matrix<double, 3, 3> R_cam_imu;
-  Eigen::Vector3d t_cam_imu;
+  const std::vector<double> T = vk::getParam<vector<double>>(name);
+  Eigen::Matrix<double, 3, 3> R;
+  Eigen::Vector3d t;
   for(size_t i=0; i<3; ++i) {
     for(size_t j=0; j<4; ++j) {
       const double v = T[i*4+j]; 
       if(j == 3) {
-        t_cam_imu(i) = v;
+        t(i) = v;
       } else {
-        R_cam_imu(i, j) = v;
+        R(i, j) = v;
       } 
     }
   }
-  return Sophus::SE3(R_cam_imu, t_cam_imu);
-}
-
-// Loads rigid body transformation b/w body frame and camera frame
-Sophus::SE3 loadBodyToCamInv()
-{
-  const std::vector<double> T = vk::getParam<vector<double>>("/hawk/svo/imu0/T_cam_imu");
-  Eigen::Matrix<double, 3, 3> R_cam_imu;
-  Eigen::Vector3d t_cam_imu;
-  for(size_t i=0; i<3; ++i) {
-    for(size_t j=0; j<4; ++j) {
-      const double v = T[i*4+j]; 
-      if(j == 3) {
-        t_cam_imu(i) = v;
-      } else {
-        R_cam_imu(i, j) = v;
-      } 
-    }
-  }
-
-  return Sophus::SE3(R_cam_imu, t_cam_imu).inverse();
+  return Sophus::SE3(R, t);
 }
 
 } // namespace camera_loader

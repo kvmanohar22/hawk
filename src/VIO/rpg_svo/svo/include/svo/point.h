@@ -20,16 +20,12 @@
 #include <boost/noncopyable.hpp>
 #include <svo/global.h>
 
-namespace g2o {
-  class VertexSBAPointXYZ;
-}
-typedef g2o::VertexSBAPointXYZ g2oPoint;
-
 namespace svo {
 
 class Feature;
 
 typedef Matrix<double, 2, 3> Matrix23d;
+typedef Matrix<double, 1, 3> Matrix13d;
 
 /// A 3D point on the surface of the scene.
 class Point : boost::noncopyable
@@ -52,16 +48,16 @@ public:
   bool                        normal_set_;              //!< Flag whether the surface normal was estimated or not.
   list<Feature*>              obs_;                     //!< References to keyframes which observe the point.
   size_t                      n_obs_;                   //!< Number of obervations: Keyframes AND successful reprojections in intermediate frames.
-  g2oPoint*                   v_pt_;                    //!< Temporary pointer to the point-vertex in g2o during bundle adjustment.
   int                         last_published_ts_;       //!< Timestamp of last publishing.
   int                         last_projected_kf_id_;    //!< Flag for the reprojection: don't reproject a pt twice.
   PointType                   type_;                    //!< Quality of the point.
   int                         n_failed_reproj_;         //!< Number of failed reprojections. Used to assess the quality of the point.
   int                         n_succeeded_reproj_;      //!< Number of succeeded reprojections. Used to assess the quality of the point.
   int                         last_structure_optim_;    //!< Timestamp of last point optimization
-
-  Vector3d                    scaled_pos_;              //!< Scaled position obtained from visual inertial estimator
-  int                         n_scaled_updates_;        //!< Number of times the point was optimized
+  int                         n_inertial_updates_;      //!< Number of times the point was optimized in inertial estimator
+  int                         last_updated_cid_;        //!< Used in the inertial estimator not to project a point twice
+  int                         last_outlier_check_id_;   //!< Used in inertial estimator to check for outliers
+  bool                        is_initialized_;          //!< Used in inertial estimator
 
   Point(const Vector3d& pos);
   Point(const Vector3d& pos, Feature* ftr);

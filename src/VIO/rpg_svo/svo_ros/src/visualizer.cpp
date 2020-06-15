@@ -84,14 +84,14 @@ void Visualizer::publishMinimal(
       msg_info.keyframes.push_back((*it)->id_);
     msg_info.stage = static_cast<int>(slam.stage());
     msg_info.tracking_quality = static_cast<int>(slam.trackingQuality());
-    if(frame != NULL)
+    if(frame != nullptr)
       msg_info.num_matches = slam.lastNumObservations();
     else
       msg_info.num_matches = 0;
     pub_info_.publish(msg_info);
   }
 
-  if(frame == NULL)
+  if(frame == nullptr)
   {
     if(pub_images_.getNumSubscribers() > 0 && slam.stage() == FrameHandlerBase::STAGE_PAUSED)
     {
@@ -120,9 +120,12 @@ void Visualizer::publishMinimal(
       const vector<cv::Point2f>& px_cur(slam.initFeatureTrackCurPx());
       for(vector<cv::Point2f>::const_iterator it_ref=px_ref.begin(), it_cur=px_cur.begin();
           it_ref != px_ref.end(); ++it_ref, ++it_cur)
+      {
         cv::line(img_rgb,
                  cv::Point2f(it_cur->x/scale, it_cur->y/scale),
                  cv::Point2f(it_ref->x/scale, it_ref->y/scale), cv::Scalar(0,255,0), 2);
+        cv::circle(img_rgb, cv::Point2f(it_ref->x/scale, it_ref->y/scale), 2, cv::Scalar(255,0,0), cv::FILLED);
+      }
     }
 
     if(img_pub_level_ == 0)
@@ -201,7 +204,7 @@ void Visualizer::visualizeMarkers(
     const set<FramePtr>& core_kfs,
     const Map& map)
 {
-  if(frame == NULL)
+  if(frame == nullptr)
     return;
 
   vk::output_helper::publishTfTransform(
@@ -227,6 +230,7 @@ void Visualizer::publishMapRegion(set<FramePtr> frames)
   if(pub_points_.getNumSubscribers() > 0)
   {
     int ts = vk::Timer::getCurrentTime();
+
     for(set<FramePtr>::iterator it=frames.begin(); it!=frames.end(); ++it)
       displayKeyframeWithMps(*it, ts);
   }
@@ -250,17 +254,20 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
       T_world_cam.translation(), "kfs", ros::Time::now(), frame->id_*10, 0, 0.015);
 
   // publish point cloud and links
+  size_t c=0;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point == NULL)
+    if((*it)->point == nullptr) {
+      ++c;
       continue;
+    }
 
     if((*it)->point->last_published_ts_ == ts)
       continue;
 
     vk::output_helper::publishPointMarker(
         pub_points_, T_world_from_vision_*(*it)->point->pos_, "pts",
-        ros::Time::now(), (*it)->point->id_, 0, 0.005, Vector3d(1.0, 0., 1.0),
+        ros::Time::now(), (*it)->point->id_, 0, 0.01, Vector3d(1.0, 0., 1.0),
         publish_points_display_time_);
     (*it)->point->last_published_ts_ = ts;
   }
@@ -269,7 +276,7 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
 void Visualizer::exportToDense(const FramePtr& frame)
 {
   // publish air_ground_msgs
-  if(frame != NULL && dense_pub_nth_ > 0
+  if(frame != nullptr && dense_pub_nth_ > 0
       && trace_id_%dense_pub_nth_ == 0 && pub_dense_.getNumSubscribers() > 0)
   {
     svo_msgs::DenseInput msg;
@@ -288,7 +295,7 @@ void Visualizer::exportToDense(const FramePtr& frame)
     double max_z = std::numeric_limits<double>::min();
     for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
     {
-      if((*it)->point==NULL)
+      if((*it)->point==nullptr)
         continue;
       Vector3d pos = frame->T_f_w_*(*it)->point->pos_;
       min_z = fmin(pos[2], min_z);

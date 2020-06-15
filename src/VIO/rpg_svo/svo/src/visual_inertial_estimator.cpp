@@ -1,51 +1,61 @@
 #include <svo/visual_inertial_estimator.h>
+#include <svo/frame_handler_mono.h>
 #include <svo/frame.h>
+#include <svo/feature.h>
+#include <svo/point.h>
+#include <svo/depth_filter.h>
+
+#include <gtsam/slam/ProjectionFactor.h>
+
+#include <thread>
+#include <chrono>
+#include <limits>
 
 namespace svo {
 
-VisualInertialEstimator::VisualInertialEstimator(vk::AbstractCamera* camera)
-  : stage_(EstimatorStage::PAUSED),
-    thread_(nullptr),
-    new_kf_added_(false),
-    quit_(false),
-    imu_preintegrated_(nullptr),
-    dt_(Config::dt()),
-    correction_count_(0),
-    imu_helper_(nullptr),
-    add_factor_to_graph_(false),
-    optimization_complete_(false),
-    multiple_int_complete_(true),
-    new_factor_added_(false),
-    n_integrated_measures_(0),
-    should_integrate_(false),
-    camera_(camera),
-    initialization_done_(false)
+VisualInertialEstimator::VisualInertialEstimator(
+  vk::AbstractCamera* camera,
+  callback_t update_bias_cb,
+  Map& map) :
+      stage_(EstimatorStage::PAUSED),
+      thread_(nullptr),
+      quit_(false),
+      use_imu_(true),
+      dt_(Config::dt()),
+      update_bias_cb_(update_bias_cb),
+      correction_count_(-1),
+      imu_helper_(nullptr),
+      n_integrated_measures_(0),
+      camera_(camera),
+      map_(map),
+      min_observations_(2),
+      opt_call_count_(0)
 {
-  n_iters_ = vk::getParam<int>("/hawk/svo/isam2_n_iters", 5);
+  n_iters_ = Config::isam2NumIters();
 
   imu_helper_ = new ImuHelper();
 
   // initialize the camera for isam2
-  // TODO: if the images are rectified, should not again use distortion parameters
   const auto c = dynamic_cast<vk::PinholeCamera*>(camera_);
   isam2_K_ = boost::make_shared<gtsam::Cal3DS2>(
       c->fx(), c->fy(), 0.0,
       c->cx(), c->cy(),
-      c->d0(), c->d1(), c->d2(), c->d3());    
+      c->d0(), c->d1(), c->d2(), c->d3());
 
-  measurement_noise_ = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+  // camera to body transformation
+  const gtsam::Rot3 R_b_c0(FrameHandlerMono::T_b_c0_.rotation_matrix());
+  const gtsam::Point3 t_b_c0(FrameHandlerMono::T_b_c0_.translation());
+  body_P_camera_ = gtsam::Pose3(R_b_c0, t_b_c0);
 
-  imu_preintegrated_ = std::make_shared<gtsam::PreintegratedCombinedMeasurements>(
-    imu_helper_->params_, imu_helper_->curr_imu_bias_);
-  assert(imu_preintegrated_);
-
-  isam2_params_.relinearizeThreshold = 0.01;
-  isam2_params_.relinearizeSkip = 1;
+  isam2_params_.factorization = gtsam::ISAM2Params::QR;
+  isam2_params_.enableDetailedResults = false;
+  isam2_params_.evaluateNonlinearError = true;
+  isam2_params_.relinearizeThreshold = 1e-2;
   isam2_ = gtsam::ISAM2(isam2_params_);
 
   graph_ = new gtsam::NonlinearFactorGraph();
 
-  initializePrior();
+  imu_container_ = boost::make_shared<ImuContainer>(50);
 }
 
 VisualInertialEstimator::~VisualInertialEstimator()
@@ -57,95 +67,136 @@ VisualInertialEstimator::~VisualInertialEstimator()
   SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator destructed");
 }
 
-void VisualInertialEstimator::integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg)
+void VisualInertialEstimator::integrateSingleMeasurement(
+  PreintegrationPtr imu_preintegrated, const ImuDataPtr& msg)
 {
-  const Eigen::Vector3d acc = ros2eigen(msg->linear_acceleration);
-  const Eigen::Vector3d omg = ros2eigen(msg->angular_velocity);
-  
-  imu_preintegrated_->integrateMeasurement(
-      gtsam::Vector3(acc(0), acc(1), acc(2)),
-      gtsam::Vector3(omg(0), omg(1), omg(2)),
-      dt_);
+  double dt = n_integrated_measures_ == 0 ? dt_ : msg->ts_ - prev_imu_ts_;
+  prev_imu_ts_ = msg->ts_;
+
+  imu_preintegrated->integrateMeasurement(msg->acc_, msg->omg_, dt);
   ++n_integrated_measures_;
 }
 
-void VisualInertialEstimator::integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs)
+void VisualInertialEstimator::integrateMultipleMeasurements(
+  PreintegrationPtr imu_preintegrated, list<ImuDataPtr>& stream)
 {
-  SVO_INFO_STREAM("[Estimator]: Integrating " << msgs.size() << " at once");
-  for(list<sensor_msgs::Imu::ConstPtr>::const_iterator itr=msgs.begin();
-      itr != msgs.end(); ++itr)
+  for(list<ImuDataPtr>::const_iterator itr=stream.begin(); itr != stream.end(); ++itr)
   {
-    integrateSingleMeasurement(*itr);
+    integrateSingleMeasurement(imu_preintegrated, *itr);
   }
-  msgs.clear();
+  stream.clear();
 }
 
-void VisualInertialEstimator::addImuFactorToGraph()
+VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::generateImuFactor(
+  const double& t0, const double& t1)
 {
-  SVO_INFO_STREAM("[Estimator]: Number of integrated measurements = " << n_integrated_measures_);
+  // first integrate the messages
+  PreintegrationPtr imu_preintegrated = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
+    imu_helper_->params_, imu_helper_->curr_imu_bias_);
+  list<ImuDataPtr> imu_stream = imu_container_->read(t0, t1);
+  integrateMultipleMeasurements(imu_preintegrated, imu_stream);
+  return imu_preintegrated;
+}
+
+VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImuFactorToGraph(
+  const double& t0, const int& idx0,
+  const double& t1, const int& idx1)
+{
+  // first integrate the messages
+  PreintegrationPtr imu_preintegrated = generateImuFactor(t0, t1);
+
+  // Now add imu factor to graph
+  SVO_DEBUG_STREAM("Estimator:\t Integrated b/w " << idx0 << " & " << idx1 << " = " << n_integrated_measures_);
   const gtsam::PreintegratedCombinedMeasurements& preint_imu_combined = 
     dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(
-       *imu_preintegrated_);
+       *imu_preintegrated);
 
   gtsam::CombinedImuFactor imu_factor(
-      Symbol::X(correction_count_-1), Symbol::V(correction_count_-1),
-      Symbol::X(correction_count_  ), Symbol::V(correction_count_  ),
-      Symbol::B(correction_count_-1), Symbol::B(correction_count_  ),
+      Symbol::X(idx0), Symbol::V(idx0),
+      Symbol::X(idx1), Symbol::V(idx1),
+      Symbol::B(idx0), Symbol::B(idx1),
       preint_imu_combined);
   graph_->add(imu_factor);
 
   n_integrated_measures_ = 0;
+  return imu_preintegrated;
 }
 
-void VisualInertialEstimator::addVisionFactorToGraph()
+int VisualInertialEstimator::addImuFactorsToGraph()
 {
-  SVO_INFO_STREAM(
-      "Keyframe correction id = " << keyframes_.front()->correction_id_ <<
-      "frame id = " << keyframes_.front()->id_ <<
-      "size = " << keyframes_.size());
-
-  if(initialization_done_)
+  imu_preintegrated_lst_.clear();
+  list<FramePtr>::iterator it_kf_begin = kf_list_.begin();
+  size_t idx0 = kf_list_.front()->correction_id_-1;
+  if(opt_call_count_ == 1)
   {
-
+    it_kf_begin = std::next(kf_list_.begin());
+    idx0 = 0;
   }
-  else
+
+  size_t n_imu_factors=0;
+  for(list<FramePtr>::iterator it=it_kf_begin; it!=kf_list_.end(); ++it)
   {
+    const double t1   = (*it)->timestamp_;
+    const size_t idx1 = (*it)->correction_id_;
+    const PreintegrationPtr imu_preintegrated = addSingleImuFactorToGraph(t0_, idx0, t1, idx1);
+    imu_preintegrated_lst_.push_back(make_pair(*it, imu_preintegrated));
 
+    // save this timestamp for next iteration
+    t0_  = t1;
+    idx0 = idx1;
+    ++n_imu_factors;
   }
+  return n_imu_factors;
+}
+
+void VisualInertialEstimator::gatherKeyframes()
+{
+  kf_list_.clear();
+  {
+    lock_t lock(kf_queue_mut_);
+    while(!keyframes_.empty())
+    {
+      FramePtr kf = keyframes_.front();
+      kf->correction_id_ = ++correction_count_;
+      kf_list_.push_back(kf);
+      keyframes_.pop();
+    }
+  }
+  SVO_DEBUG_STREAM("Estimator:\t n_kfs = " << kf_list_.size());
 }
 
 void VisualInertialEstimator::addFactorsToGraph()
 {
-  ++correction_count_;
-  addImuFactorToGraph();
-  addVisionFactorToGraph();
-  SVO_INFO_STREAM("[Estimator]: graph size = " << graph_->size());
+  // first collect keyframes from the queue filled by motion estimator thread
+  gatherKeyframes();
+
+  // add imu factors to graph
+  if(use_imu_)
+  {
+    const size_t n_imu_factors = addImuFactorsToGraph();
+    SVO_DEBUG_STREAM("Estimator:\t Number of imu factors = " << n_imu_factors);
+  }
+
+  // add vision factors to graph
+  // addVisionFactorsToGraph(kf_list_);
+
+  SVO_DEBUG_STREAM("Estimator:\t graph size = " << graph_->size());
 }
 
-void VisualInertialEstimator::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
+void VisualInertialEstimator::feedImu(const sensor_msgs::Imu::ConstPtr& msg)
 {
-  if(should_integrate_)
-  {
-    if(!imu_msgs_.empty())
-    {
-      integrateMultipleMeasurements(imu_msgs_);
-    }
-    integrateSingleMeasurement(msg);
-  }
-  else if(stage_ != EstimatorStage::PAUSED) {
-    imu_msgs_.push_back(msg);
-  }
+  imu_container_->add(msg);
 }
 
 void VisualInertialEstimator::startThread()
 {
-  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator start thread invoked"); 
+  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator start thread invoked");
   thread_ = new boost::thread(&VisualInertialEstimator::OptimizerLoop, this);
 }
 
 void VisualInertialEstimator::stopThread()
 {
-  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator stop thread invoked"); 
+  SVO_INFO_STREAM("[Estimator]: Visual Inertial Estimator stop thread invoked");
   if(thread_ != nullptr)
   {
     thread_->interrupt();
@@ -156,153 +207,569 @@ void VisualInertialEstimator::stopThread()
 
 void VisualInertialEstimator::addKeyFrame(FramePtr keyframe)
 {
-  keyframe->scaled_T_f_w_ = keyframe->T_f_w_;
-  new_kf_added_ = true;
-  keyframe->correction_id_ = correction_count_;
-  keyframes_.push(keyframe);
+  SVO_DEBUG_STREAM("Estimator:\t New KF arrived");
 
-  if(stage_ == EstimatorStage::PAUSED) {
-    SVO_INFO_STREAM("[Estimator]: First KF arrived: id = " << keyframe->id_); 
+  {
+    lock_t lock(kf_queue_mut_);
+    keyframes_.push(keyframe);
+    new_kf_arrived_ = true;
+    kf_queue_cond_.notify_one();
+  }
+
+  if(stage_ == EstimatorStage::PAUSED)
+  {
+    initializePrior(keyframe);
+    t0_ = keyframe->timestamp_;
     stage_ = EstimatorStage::FIRST_KEYFRAME;
-    should_integrate_ = true;
-  } else if (stage_ == EstimatorStage::FIRST_KEYFRAME) {
-    SVO_INFO_STREAM("[Estimator]: Second KF arrived id="<< keyframe->id_); 
+  }
+  else if(stage_ == EstimatorStage::FIRST_KEYFRAME)
+  {
+    initializePrior(keyframe, 1);
     stage_ = EstimatorStage::SECOND_KEYFRAME;
-    should_integrate_ = false;
-  } else {
-    SVO_INFO_STREAM("[Estimator]: New KF arrived id="<< keyframe->id_); 
+  } 
+  else if(stage_ == EstimatorStage::SECOND_KEYFRAME || stage_ == EstimatorStage::DEFAULT_KEYFRAME)
+  {
     stage_ = EstimatorStage::DEFAULT_KEYFRAME;
-    should_integrate_ = false;
   }
 }
 
-void VisualInertialEstimator::initializePrior()
+void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
 {
-  // initialize the prior state
-  curr_pose_     = gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3::Zero());
-  curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
-  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+  SVO_ASSERT_MSG(idx == 0 || idx == 1, "Trying to add prior on pose other than the first/second pose!");
 
-  initial_values_.clear();
-  initial_values_.insert(Symbol::X(correction_count_), curr_pose_);
-  initial_values_.insert(Symbol::V(correction_count_), curr_velocity_);
-  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
+  // we are estimating pose of body (imu) and not camera!
+  SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
+  gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
 
-  // Add in first keyframe's factors
-  graph_->resize(0);
-  graph_->add(gtsam::PriorFactor<gtsam::Pose3>(
-        Symbol::X(correction_count_), curr_pose_, imu_helper_->prior_pose_noise_model_));
-  graph_->add(gtsam::PriorFactor<gtsam::Vector3>(
-        Symbol::V(correction_count_), curr_velocity_, imu_helper_->prior_vel_noise_model_));
-  graph_->add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(
-        Symbol::B(correction_count_), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_));
+  if(idx == 0)
+  {
+    imu_helper_->prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.0001), gtsam::Vector3::Constant(0.00001)).finished());
+  }
+  else {
+    imu_helper_->prior_pose_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.01)).finished());
+  }
+  graph_->emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
+    Symbol::X(idx), T_w_b, imu_helper_->prior_pose_noise_model_);
 
-  SVO_INFO_STREAM("[Estimator]: Initialized Prior state");
+  if(!use_imu_)
+    return;
+
+  if(idx == 0)
+  {
+    curr_pose_ = T_w_b;
+    curr_velocity_.setZero();
+    curr_state_ = gtsam::NavState(curr_pose_, curr_velocity_);
+  }
+  else
+  {
+    PreintegrationPtr integrated = generateImuFactor(t0_, frame->timestamp_);
+    const gtsam::NavState predicted_state = integrated->predict(
+      curr_state_, imu_helper_->curr_imu_bias_);
+    curr_velocity_ = predicted_state.v();
+    // integrated->print("Integrated:\n");
+
+    const auto state_0 = curr_state_;
+    const auto state_1 = gtsam::NavState(T_w_b, curr_velocity_);
+    const auto e = integrated->computeError(state_0, state_1, imu_helper_->curr_imu_bias_,boost::none,boost::none,boost::none);
+    Vector3d errorR; errorR << e[0], e[1], e[2];
+    Vector3d errorP; errorP << e[3], e[4], e[5];
+    Vector3d errorV; errorV << e[6], e[7], e[8];
+    SVO_DEBUG_STREAM("Estimator:\t v0 = " << state_0.v().transpose());
+    SVO_DEBUG_STREAM("Estimator:\t v1 = " << state_1.v().transpose());
+    SVO_DEBUG_STREAM("Estimator:\t" << 
+                     "er = " << errorR.transpose() << "\t" <<
+                     "ep = " << errorP.transpose() << "\t" <<
+                     "ev = " << errorV.transpose() << "\t");
+    gtsam::Vector r(15);
+    r << e, Vector6d::Zero();
+    SVO_DEBUG_STREAM("Estimator:\t e = " << r.transpose() * dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*integrated).preintMeasCov().inverse() * r);
+  }
+
+  // add priors to graph
+  // graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+  //       Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
+  // graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+  //       Symbol::B(idx), imu_helper_->curr_imu_bias_, imu_helper_->prior_bias_noise_model_);
+
+  // insert initial values
+  if(idx == 0)
+  {
+    // This is only done for the first frame since there is no associated imu factor for this
+    initial_values_.insert(Symbol::V(idx), curr_velocity_);
+    initial_values_.insert(Symbol::B(idx), imu_helper_->curr_imu_bias_);
+  }
+
+  SVO_DEBUG_STREAM("[Estimator]: Adding prior state for kf = " << idx);
 }
 
 void VisualInertialEstimator::initializeNewVariables()
 {
-  // TODO: Initialize the fused value here?
+  // Initialize new poses
+  for(list<FramePtr>::iterator it=kf_list_.begin(); it!=kf_list_.end(); ++it)
+  {
+    initializeNewPose(*it);
+  }
 
-  const gtsam::NavState predicted_state = imu_preintegrated_->predict(
+  // initialize structure (only in case of Generic projection factors)
+  // initializeStructure();
+
+  if(!use_imu_)
+    return;
+
+  // Initialize velocities and biases
+  for(PreintegrationPtrList::iterator it=imu_preintegrated_lst_.begin();
+      it!=imu_preintegrated_lst_.end(); ++it)
+  {
+    const gtsam::NavState predicted_state = it->second->predict(
       curr_state_, imu_helper_->curr_imu_bias_);
+    initial_values_.insert(Symbol::V(it->first->correction_id_), predicted_state.v());
+    initial_values_.insert(Symbol::B(it->first->correction_id_), imu_helper_->curr_imu_bias_);
 
-  initial_values_.insert(Symbol::X(correction_count_), predicted_state.pose());
-  initial_values_.insert(Symbol::V(correction_count_), predicted_state.v());
-  initial_values_.insert(Symbol::B(correction_count_), imu_helper_->curr_imu_bias_);
-  SVO_INFO_STREAM("[Estimator]: Initialized values for optimization: " << correction_count_);
+    curr_pose_     = inertial_utils::createGtsamPose(FrameHandlerMono::T_b_c0_ * it->first->T_f_w_);
+    curr_velocity_ = predicted_state.v();
+    curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+  }
+
+  SVO_DEBUG_STREAM("Estimator:\t Initialized");
+}
+
+void VisualInertialEstimator::initializeNewPose(const FramePtr& frame)
+{
+  const SE3 T_b_w = FrameHandlerMono::T_b_c0_ * frame->T_f_w_;
+  gtsam::Pose3 T_w_b = inertial_utils::createGtsamPose(T_b_w);
+  initial_values_.insert(Symbol::X(frame->correction_id_), T_w_b);
 }
 
 EstimatorResult VisualInertialEstimator::runOptimization()
 {
+  ++opt_call_count_;
+
   // Add factors to graph
   addFactorsToGraph();
 
   // Initialize the variables
-  initializeNewVariables(); 
- 
-  // run the optimization 
-  SVO_INFO_STREAM("[Estimator]: optimization started b/w KF=" << correction_count_-1 << " and KF=" << correction_count_);
+  initializeNewVariables();
+
+  // run optimization
+  prev_result_.insert(initial_values_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
+
+  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_));
+
+/*  // TODO: Signature of update should be changed if using smart factors
+  gtsam::Values result;
   isam2_.update(*graph_, initial_values_);
+  result = isam2_.calculateEstimate();
   for(int i=0; i<n_iters_; ++i)
+  {
     isam2_.update();
-  SVO_INFO_STREAM("[Estimator]: Optimization took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
-  
-  // update the optimized variables 
-  start_time = ros::Time::now(); // TODO: Do better in terms of benchmarking times
- 
-  // TODO: Analyze whether optimization was converged! 
-  const gtsam::Values result = isam2_.calculateEstimate();
+    result = isam2_.calculateEstimate();
+  }
+
+  // update the optimized variables
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t ErrInit = " << graph_->error(prev_result_) <<
+                   "\t ErrFin. = " << graph_->error(result) <<
+                   "\t Time = " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
+  prev_result_ = result;
   updateState(result);
-  SVO_INFO_STREAM("[Estimator]: Update took " << (ros::Time::now()-start_time).toSec()*1e3 << " ms");
 
-  // clear the graph
-  SVO_INFO_STREAM("[Estimator]: Cleared the graph and initial values");
-  graph_->resize(0);
-  initial_values_.clear();
-
-  // clean up the integration from the above optimization
-  cleanUp(); 
-  
+  // // clean up the integration from the above optimization
+  cleanUp();
+*/
   return opt_result;
+}
+
+void VisualInertialEstimator::stopOtherThreads()
+{
+  motion_estimator_->requestStop();
+  depth_filter_->requestStop();
+
+  while(!(depth_filter_->isStopped() && motion_estimator_->isStopped()))
+  {
+    boost::this_thread::sleep_for(boost::chrono::microseconds(100));
+  }
+}
+
+void VisualInertialEstimator::resumeOtherThreads()
+{
+  motion_estimator_->release();
+  depth_filter_->release();
+}
+
+bool VisualInertialEstimator::reTriangulate(Point* point)
+{
+  if(point->nRefs() < 2)
+    return false;
+
+  // 1. create poses of cameras that observe this point
+  // 2. collect the corresponding measurements
+  vector<gtsam::Pose3> poses; poses.reserve(point->obs_.size());
+  std::vector<gtsam::Point2, Eigen::aligned_allocator<gtsam::Point2> > measurements;
+  measurements.reserve(point->obs_.size());
+  for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
+  {
+    poses.push_back(inertial_utils::createGtsamPose((*it_obs)->frame->T_f_w_));
+    measurements.push_back(gtsam::Point2((*it_obs)->px));
+  }
+  const gtsam::Point3 initial_estimate(point->pos_);
+
+  // optimize and update
+  const gtsam::Point3 refined_estimate = gtsam::triangulateNonlinear<gtsam::Cal3DS2>(poses, isam2_K_, measurements, initial_estimate);
+  point->pos_ = Vector3d(refined_estimate);
+  return true;
+}
+
+void VisualInertialEstimator::rejectOutliers()
+{
+  const double reprojection_threshold = Config::lobaThresh();
+  size_t n_removed_edges = 0;
+  size_t n_removed_points = 0;
+  list<FramePtr>* all_kfs = map_.getAllKeyframes();
+
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+      if((*it_ft)->point->type_ == Point::TYPE_DELETED)
+        continue;
+      Point* point = (*it_ft)->point;
+
+      // if we already checked this point for outlier test
+      if(point->last_outlier_check_id_ == opt_call_count_)
+        continue;
+      point->last_outlier_check_id_ = opt_call_count_;
+
+      bool point_status_removed=false;
+      for(Features::iterator it_obs=point->obs_.begin(); it_obs!=point->obs_.end(); ++it_obs)
+      {
+        const size_t n_refs = point->nRefs();
+        const Vector2d uv_true = (*it_obs)->px;
+        const Vector2d uv_repr = (*it_obs)->frame->w2c(point->pos_);
+        const double error = (uv_true-uv_repr).norm() / (1 << (*it_obs)->level);
+
+        if(error > reprojection_threshold)
+        {
+          ++n_removed_points;
+          n_removed_edges += n_refs;
+          map_.safeDeletePoint(point);
+          break;
+        }
+      }
+    }
+  }
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t Rem. points = " << n_removed_points <<
+                   "\t Rem. edges  = " << n_removed_edges);
 }
 
 void VisualInertialEstimator::updateState(const gtsam::Values& result)
 {
-  // Only update the latest pose
-  const auto pose            = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  gtsam::Matrix33 rotation   = pose.rotation().matrix();
-  gtsam::Vector3 translation = pose.translation().vector();
+  // wait for other threads to stop
+  stopOtherThreads();
 
-  FramePtr update_keyframe;
-  if(!initialization_done_)
+  // update poses
+  list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
   {
-    // we don't want to update the first frame's pose (since it is identity)
-    keyframes_.pop();
-    initialization_done_ = true;
-  }
-  
-  update_keyframe = keyframes_.front();
-  keyframes_.pop(); 
-  update_keyframe->scaled_T_f_w_ = Sophus::SE3(rotation, translation);
+    // ignore those frames which haven't been added to graph
+    if((*it_kf)->correction_id_ < 0)
+      continue;
 
-  // update the optimized state
-  curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
-  curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
-  curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
-  imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
-  SVO_INFO_STREAM("[Estimator]: Optimized state updated for KF="
-      << correction_count_ << " remaining kfs= " << keyframes_.size());
+    const auto pose  = result.at<gtsam::Pose3>(Symbol::X((*it_kf)->correction_id_));
+    const SE3 T_b_w  = inertial_utils::createSvoPose(pose);
+    (*it_kf)->T_f_w_ = FrameHandlerMono::T_c0_b_ * T_b_w;
+    ++(*it_kf)->n_inertial_updates_;
+  }
+
+  // update structure
+  // updateStructure(result);
+
+  // outlier rejection
+  rejectOutliers();
+
+  if(use_imu_)
+  {
+    // update the optimized state (the latest optimized pose)
+    curr_pose_     = result.at<gtsam::Pose3>(Symbol::X(correction_count_));
+    curr_velocity_ = result.at<gtsam::Vector3>(Symbol::V(correction_count_));
+    curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
+    imu_helper_->curr_imu_bias_ = result.at<gtsam::imuBias::ConstantBias>(Symbol::B(correction_count_));
+
+    // update the biases for sparse image alignment that use motion priors
+    update_bias_cb_(imu_helper_->curr_imu_bias_);
+  }
+
+  // resume other threads
+  resumeOtherThreads();
 }
 
 bool VisualInertialEstimator::shouldRunOptimization()
 {
-  return ((stage_ == EstimatorStage::SECOND_KEYFRAME) ||
-          (stage_ == EstimatorStage::DEFAULT_KEYFRAME));
+  return (stage_ == EstimatorStage::SECOND_KEYFRAME ||
+          stage_ == EstimatorStage::DEFAULT_KEYFRAME);
 }
 
 void VisualInertialEstimator::cleanUp()
 {
-  SVO_INFO_STREAM("[Estimator]: Reset integration of IMU");
-  SVO_INFO_STREAM("[Estimator]: ------------------------");
-  imu_preintegrated_->resetIntegrationAndSetBias(imu_helper_->curr_imu_bias_);
-  should_integrate_ = true;
+  graph_->resize(0);
+  initial_values_.clear();
+
+  SVO_DEBUG_STREAM("Estimator:\t All cleared");
+  SVO_DEBUG_STREAM("Estimator: ------------------------");
 }
 
 void VisualInertialEstimator::OptimizerLoop()
 {
   while(ros::ok() && !quit_ && !boost::this_thread::interruption_requested())
   {
-    if(new_kf_added_ || keyframes_.size() > 1)
+    // wait for arrival of new keyframe
     {
-      new_kf_added_ = false;
-      if (shouldRunOptimization())
+      lock_t lock(kf_queue_mut_);
+      while(keyframes_.empty() && new_kf_arrived_ == false)
+        kf_queue_cond_.wait(lock); 
+      new_kf_arrived_ = false;
+    }
+
+    if(shouldRunOptimization())
+    {
+      runOptimization();
+    }
+
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+  }
+}
+
+//********************************************************************
+void GenericInertialEstimator::addVisionFactorsToGraph(const list<FramePtr>& kfs)
+{
+  mps_.clear();
+  for(list<FramePtr>::const_iterator it_kf=kfs.begin(); it_kf!=kfs.end(); ++it_kf)
+  {
+    for(Features::iterator it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point != nullptr)
+        mps_.insert((*it_ft)->point);
+    }
+  }
+
+  size_t new_landmarks=0, new_edges=0, old_edges=0;
+  for(set<Point*>::iterator it=mps_.begin(); it!=mps_.end();)
+  {
+    if(edges_.find((*it)->id_) == edges_.end())
+    {
+      int n_edges = createNewLandmark(*it);
+      if(n_edges > 0)
       {
-        runOptimization(); 
+        ++new_landmarks;
+        new_edges += n_edges;
+      } else {
+        it = mps_.erase(it);
+        continue;
+      }
+    } else {
+      const size_t edges = augmentLandmark(*it);
+      old_edges += edges;
+    }
+    ++it;
+  }
+  SVO_DEBUG_STREAM("Estimator:"
+                   "\t New points = " << new_landmarks <<
+                   "\t New edges = " << new_edges << 
+                   "\t Old edges = " << old_edges);
+
+  // TODO: Move this to a better place?
+  // After first optimization, we restrict to 3 observations
+  min_observations_ = 3;
+}
+
+void GenericInertialEstimator::updateStructure(const gtsam::Values& result)
+{
+  // TODO: Should not be updating all keyframes but rather only those that have been optimized?
+  list<FramePtr>* all_kfs = map_.getAllKeyframes();
+  size_t n_newly_triangulated=0, n_updated=0;
+  for(list<FramePtr>::iterator it_kf=all_kfs->begin(); it_kf!=all_kfs->end(); ++it_kf)
+  {
+    for(auto it_ft=(*it_kf)->fts_.begin(); it_ft!=(*it_kf)->fts_.end(); ++it_ft)
+    {
+      if((*it_ft)->point == nullptr)
+        continue;
+
+      if((*it_ft)->point->type_ == Point::TYPE_DELETED)
+        continue;
+
+      // update the point only once
+      if((*it_ft)->point->last_updated_cid_ == opt_call_count_)
+        continue;
+      (*it_ft)->point->last_updated_cid_ = opt_call_count_;
+
+      const size_t key = (*it_ft)->point->id_;
+      if(edges_.find(key) == edges_.end())
+      {
+        if(reTriangulate((*it_ft)->point))
+          ++n_newly_triangulated;
+        continue;
+      } else {
+        gtsam::Point3 pt = result.at<gtsam::Point3>(Symbol::L(key));
+        Vector3d point(pt.x(), pt.y(), pt.z());
+        (*it_ft)->point->pos_ = point;
+        ++(*it_ft)->point->n_inertial_updates_;
+        ++n_updated;
       }
     }
+  }
+  SVO_DEBUG_STREAM("Estimator:" <<
+                   "\t triang. = " << n_newly_triangulated <<
+                   "\t updated = " << n_updated);
+}
+
+void GenericInertialEstimator::initializeStructure()
+{
+  for(set<Point*>::iterator it=mps_.begin(); it!=mps_.end(); ++it)
+  {
+    if(!(*it)->is_initialized_)
+    {
+      initial_values_.insert(Symbol::L((*it)->id_), gtsam::Point3((*it)->pos_));
+      (*it)->is_initialized_ = true;
+    }
+  }
+}
+
+int GenericInertialEstimator::createNewLandmark(const Point* point)
+{
+  // we need to take special care about number of observations
+  if(point->obs_.size() < min_observations_)
+    return -1;
+
+  const int pt_idx = point->id_;
+  size_t invalid = 0;
+  for(Features::const_iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
+  {
+    // FIXME: We are discarding valuable information. Could be handled better?
+    if((*it)->frame->correction_id_ < 0)
+    {
+      ++invalid;
+      continue;
+    }
+    addEdge(pt_idx, (*it)->frame->id_, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
+  }
+  return point->obs_.size()-invalid;
+}
+
+int GenericInertialEstimator::augmentLandmark(const Point* point)
+{
+  const int pt_idx = point->id_;
+  set<int> all_observations;
+  for(Features::const_iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
+  {
+    all_observations.insert((*it)->frame->id_);
+  }
+
+  // Get indices of new measurements to be added
+  set<int> new_observations;
+  std::set_difference(
+    all_observations.begin(), all_observations.end(),
+    edges_[pt_idx].begin(), edges_[pt_idx].end(),
+    std::inserter(new_observations, new_observations.end()));
+
+  if(new_observations.size() == 0)
+    return 0;
+
+  /// add new edges
+  size_t invalid=0;
+  for(Features::const_iterator it=point->obs_.begin(); it!=point->obs_.end(); ++it)
+  {
+    // FIXME: We are discarding valuable information. Could be handled better?
+    if((*it)->frame->correction_id_ < 0)
+    {
+      ++invalid;
+      continue;
+    }
+    if(new_observations.find((*it)->frame->id_) == new_observations.end())
+      continue;
+    addEdge(pt_idx, (*it)->frame->id_, (*it)->frame->correction_id_, (*it)->px, (*it)->level);
+  }
+  return new_observations.size()-invalid;
+}
+
+void GenericInertialEstimator::addEdge(
+  const int& pt_idx,
+  const int& frame_idx,
+  const int& correction_idx,
+  const Vector2d& px,
+  const int& scale)
+{
+  // TODO: Instead of creating new object everytime, store them in a lookup table?
+  auto noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0 * std::pow(2, scale));
+  graph_->emplace_shared<gtsam::GenericProjectionFactor<
+    gtsam::Pose3, gtsam::Point3, gtsam::Cal3DS2>>(
+      px, noise, Symbol::X(correction_idx), Symbol::L(pt_idx),
+      isam2_K_, false, false, body_P_camera_);
+  edges_[pt_idx].insert(frame_idx);
+}
+
+//********************************************************************
+SmartInertialEstimator::SmartInertialEstimator(
+  vk::AbstractCamera* camera,
+  VisualInertialEstimator::callback_t update_bias_cb,
+  Map& map)
+    : VisualInertialEstimator(camera, update_bias_cb, map)
+{
+  smart_params_.triangulation.enableEPI = true;
+  smart_params_.triangulation.rankTolerance = 1;
+  smart_params_.degeneracyMode = gtsam::ZERO_ON_DEGENERACY;
+  smart_params_.verboseCheirality = false;
+  smart_params_.throwCheirality = false;
+}
+
+void SmartInertialEstimator::addVisionFactorsToGraph(const list<FramePtr>& kfs)
+{
+
+}
+
+void SmartInertialEstimator::updateStructure(const gtsam::Values& result)
+{
+
+}
+
+VisualInertialEstimator::SmartFactorPtr SmartInertialEstimator::createNewSmartFactor(const Point* point)
+{
+  SmartFactorPtr new_factor;
+  return new_factor;
+}
+
+void SmartInertialEstimator::updateSmartFactor(SmartFactorPtr& factor, FramePtr& frame, Point* point)
+{
+  
+}
+
+void SmartInertialEstimator::initializeStructure()
+{
+
+}
+
+namespace inertial_utils
+{
+  gtsam::Pose3 createGtsamPose(const SE3& T_f_w)
+  {
+    const SE3 T_w_f = T_f_w.inverse();
+    const gtsam::Rot3 R_w_f = gtsam::Rot3(T_w_f.rotation_matrix());
+    const gtsam::Point3 t_w_f = gtsam::Point3(T_w_f.translation());
+    return gtsam::Pose3(R_w_f, t_w_f);
+  }
+
+  /// Returns conventional svo pose stored for each frame
+  SE3 createSvoPose(const gtsam::Pose3& pose)
+  {
+    gtsam::Matrix33 R_w_f = pose.rotation().matrix();
+    gtsam::Vector3 t_w_f  = pose.translation().vector();
+    SE3 T_f_w             = SE3(R_w_f, t_w_f).inverse();
+    return T_f_w;
   }
 }
 

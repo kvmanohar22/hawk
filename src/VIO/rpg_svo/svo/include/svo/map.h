@@ -91,10 +91,13 @@ public:
   bool safeDeleteFrame(FramePtr frame);
 
   /// Remove the references between a point and a frame.
-  void removePtFrameRef(Frame* frame, Feature* ftr);
+  bool removePtFrameRef(Frame* frame, Feature* ftr);
 
   /// Add a new keyframe to the map.
   void addKeyframe(FramePtr new_keyframe);
+
+  /// Return all the current keyframes in the map
+  inline list<FramePtr>* getAllKeyframes() { return &keyframes_; }
 
   /// Given a frame, return all keyframes which have an overlapping field of view.
   void getCloseKeyframes(const FramePtr& frame, list< pair<FramePtr,double> >& close_kfs) const;

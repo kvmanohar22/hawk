@@ -61,15 +61,21 @@ reprojError(const Vector3d& f1,
   Vector2d e = project2d(f1) - project2d(f2);
   return error_multiplier2 * e.norm();
 }
-
+/*
+    T    := (R, t)
+    Tinv := (R.T, -R.T * t)
+    fL   := Tinv * fR
+    Tinv := T_l_r
+    T    := T_r_l
+ */
 double
-computeInliers(const vector<Vector3d>& features1, // c1
-               const vector<Vector3d>& features2, // c2
-               const Matrix3d& R,                 // R_c1_c2
+computeInliers(const vector<Vector3d>& features1, // c1       [f_cur]     fr
+               const vector<Vector3d>& features2, // c2       [f_ref]     fl
+               const Matrix3d& R,                 // R_c1_c2  [R_ref_cur] T_l_r [R_cur_ref]
                const Vector3d& t,                 // c1_t
                const double reproj_thresh,
                double error_multiplier2,
-               vector<Vector3d>& xyz_vec,         // in frame c1
+               vector<Vector3d>& xyz_vec,         // in frame [cur]
                vector<int>& inliers,
                vector<int>& outliers)
 {

@@ -5,6 +5,7 @@ logs/**
 src/offboard/compile_commands.json
 src/VIO/rpg_svo/svo/compile_commands.json
 src/VIO/rpg_svo/svo_ros/compile_commands.json
+src/VIO/rpg_svo/svo_ros/benchmark/**
 scripts/frames*
 misc/**
 .catkin_tools
@@ -17,3 +18,6 @@ src/catkin_simple
 *.bag
 bags/**
 src/CMakeLists.txt
+evaluations/**
+analysis/smart_factors/**
+

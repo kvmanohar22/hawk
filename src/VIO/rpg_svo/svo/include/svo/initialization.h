@@ -18,10 +18,12 @@
 #define SVO_INITIALIZATION_H
 
 #include <svo/global.h>
+#include <svo/frame_handler_base.h>
 
 namespace svo {
 
 class FrameHandlerMono;
+class FrameHandlerBase;
 
 /// Bootstrapping the map from the first two views.
 namespace initialization {
@@ -36,10 +38,19 @@ public:
 
   FramePtr frame_ref_;
   KltHomographyInit() {};
+  KltHomographyInit(FrameHandlerBase::InitType init_type, bool verbose=false);
   ~KltHomographyInit() {};
   InitResult addFirstFrame(FramePtr frame_ref);
   InitResult addSecondFrame(FramePtr frame_ref);
   void reset();
+  void setBaseline(const Sophus::SE3& T_cur_from_ref);
+  
+  /// For stereo initialization, removes the outliers that are tracked incorrectly using KLT
+  void removeOutliersEpipolar(
+    vector<Vector3d>& f_ref,
+    vector<Vector3d>& f_cur,
+    vector<int>& inliers);
+
 
 protected:
   vector<cv::Point2f> px_ref_;      //!< keypoints to be tracked in reference frame.
@@ -50,6 +61,10 @@ protected:
   vector<int> inliers_;             //!< inliers after the geometric check (e.g., Homography).
   vector<Vector3d> xyz_in_cur_;     //!< 3D points computed during the geometric check.
   SE3 T_cur_from_ref_;              //!< computed transformation between the first two frames.
+  SE3 T_cl_cr_;                     //!< baseline in case of stereo initialization
+  FrameHandlerBase::InitType init_type_;              //!< initialization type
+  bool baseline_set_;               //!< boolean to check if the baseline is set
+  bool verbose_;                    //!< Display klt tracks and other debug information
 };
 
 /// Detect Fast corners in the image.
@@ -66,7 +81,8 @@ void trackKlt(
     vector<cv::Point2f>& px_cur,
     vector<Vector3d>& f_ref,
     vector<Vector3d>& f_cur,
-    vector<double>& disparities);
+    vector<double>& disparities,
+    bool is_monocular=true);
 
 void computeHomography(
     const vector<Vector3d>& f_ref,
@@ -76,6 +92,15 @@ void computeHomography(
     vector<int>& inliers,
     vector<Vector3d>& xyz_in_cur,
     SE3& T_cur_from_ref);
+
+void computeInitialMap(
+    const vector<Vector3d>& f_ref,
+    const vector<Vector3d>& f_cur,
+    double focal_length,
+    double reprojection_threshold,
+    vector<int>& inliers,
+    vector<Vector3d>& xyz_in_cur,
+    const SE3& T_cur_from_ref);
 
 } // namespace initialization
 } // namespace svo

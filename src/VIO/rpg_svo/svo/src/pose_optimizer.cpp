@@ -39,7 +39,7 @@ void optimizeGaussNewton(
   double chi2(0.0);
   vector<double> chi2_vec_init, chi2_vec_final;
   vk::robust_cost::TukeyWeightFunction weight_function;
-  SE3 T_old(frame->T_f_w());
+  SE3 T_old(frame->T_f_w_);
   Matrix6d A;
   Vector6d b;
 
@@ -49,8 +49,14 @@ void optimizeGaussNewton(
   {
     if((*it)->point == NULL)
       continue;
-    Vector2d e = vk::project2d((*it)->f)
-               - vk::project2d(frame->T_f_w() * (*it)->point->pos_);
+
+    Vector2d e;
+    if((*it)->type == Feature::EDGELET)
+      e = ((*it)->grad)*((*it)->grad).dot((vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_)));   ///handle for edgelet fatures
+    else
+      e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_); 
+
+
     e *= 1.0 / (1<<(*it)->level);
     errors.push_back(e.norm());
   }
@@ -79,18 +85,36 @@ void optimizeGaussNewton(
       if((*it)->point == NULL)
         continue;
       Matrix26d J;
-      Vector3d xyz_f(frame->T_f_w() * (*it)->point->pos_);
+      Vector3d xyz_w((*it)->point->pos_);
+      Vector3d xyz_f(frame->T_f_w_ * xyz_w);
       Frame::jacobian_xyz2uv(xyz_f, J);
-      Vector2d e = vk::project2d((*it)->f) - vk::project2d(xyz_f);
+
+      double e;
       double sqrt_inv_cov = 1.0 / (1<<(*it)->level);
-      e *= sqrt_inv_cov;
-      if(iter == 0)
-        chi2_vec_init.push_back(e.squaredNorm()); // just for debug
-      J *= sqrt_inv_cov;
-      double weight = weight_function.value(e.norm()/scale);
-      A.noalias() += J.transpose()*J*weight;
-      b.noalias() -= J.transpose()*e*weight;
-      new_chi2 += e.squaredNorm()*weight;
+      double weight;
+      if((*it)->type == Feature::EDGELET)
+      {
+        e = (*it)->grad.transpose() * (vk::project2d((*it)->f) - vk::project2d(xyz_f));
+        e *= sqrt_inv_cov;
+        if(iter == 0)
+          chi2_vec_init.push_back(e*e); // just for debug
+        J *= sqrt_inv_cov;
+        weight = weight_function.value(std::abs(e)/scale);
+        Matrix<double, 1, 6> J_edge = (*it)->grad.transpose() * J;
+        A.noalias() += J_edge.transpose()*J_edge*weight;
+        b.noalias() -= J_edge.transpose()*e*weight;
+      } else {
+        Vector2d e_vec = vk::project2d((*it)->f) - vk::project2d(xyz_f);
+        e_vec *= sqrt_inv_cov;
+        if(iter == 0)
+          chi2_vec_init.push_back(e_vec.squaredNorm()); // just for debug
+        J *= sqrt_inv_cov;
+        weight = weight_function.value(e_vec.norm()/scale);
+        A.noalias() += J.transpose()*J*weight;
+        b.noalias() -= J.transpose()*e_vec*weight;
+        e = e_vec.squaredNorm();
+      }
+      new_chi2 += e*weight;
     }
 
     // solve linear system
@@ -102,14 +126,14 @@ void optimizeGaussNewton(
       if(verbose)
         std::cout << "it " << iter
                   << "\t FAILURE \t new_chi2 = " << new_chi2 << std::endl;
-      frame->T_f_w(T_old); // roll-back
+      frame->T_f_w_ = T_old; // roll-back
       break;
     }
 
     // update the model
-    SE3 T_new = SE3::exp(dT)*frame->T_f_w();
-    T_old = frame->T_f_w();
-    frame->T_f_w(T_new);
+    SE3 T_new = SE3::exp(dT)*frame->T_f_w_;
+    T_old = frame->T_f_w_;
+    frame->T_f_w_ = T_new;
     chi2 = new_chi2;
     if(verbose)
       std::cout << "it " << iter
@@ -134,7 +158,13 @@ void optimizeGaussNewton(
       ++it;
       continue;
     }
-    Vector2d e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w() * (*it)->point->pos_);
+
+    Vector2d e;
+    if((*it)->type == Feature::EDGELET)
+      e = ((*it)->grad)*((*it)->grad).dot((vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_)));   ///handle for edgelet fatures
+    else
+      e = vk::project2d((*it)->f) - vk::project2d(frame->T_f_w_ * (*it)->point->pos_); 
+
     double sqrt_inv_cov = 1.0 / (1<<(*it)->level);
     e *= sqrt_inv_cov;
     chi2_vec_final.push_back(e.squaredNorm());

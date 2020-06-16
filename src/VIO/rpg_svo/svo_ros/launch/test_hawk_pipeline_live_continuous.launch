@@ -1,5 +1,5 @@
 <launch>
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera1.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="device" default="26807580"/>
     <arg name="expose_us" default="15000"/>
 

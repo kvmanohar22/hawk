@@ -2,10 +2,11 @@
     <!-- TODO: Set this parameter -->
     <arg name="bag_path" default=""/>
     <arg name="start" default="0"/>
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
     <arg name="rig" default="monocular"/>
     <arg name="save_trajectory" default="false"/>
+    <arg name="run_inertial_estimator" default="true"/>
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch">
@@ -13,12 +14,13 @@
       <arg name="image_topic" value="$(arg image_topic)"/>
       <arg name="rig" value="$(arg rig)"/>
       <arg name="save_trajectory" value="$(arg save_trajectory)"/>
+      <arg name="run_inertial_estimator" value="$(arg run_inertial_estimator)"/>
     </include>
 
     <!-- start rviz -->
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
 
     <!-- start rosbag -->
-    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start)"/>
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start) --keep-alive --rate=1"/>
 
 </launch>

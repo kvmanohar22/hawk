@@ -120,9 +120,12 @@ void Visualizer::publishMinimal(
       const vector<cv::Point2f>& px_cur(slam.initFeatureTrackCurPx());
       for(vector<cv::Point2f>::const_iterator it_ref=px_ref.begin(), it_cur=px_cur.begin();
           it_ref != px_ref.end(); ++it_ref, ++it_cur)
+      {
         cv::line(img_rgb,
                  cv::Point2f(it_cur->x/scale, it_cur->y/scale),
                  cv::Point2f(it_ref->x/scale, it_ref->y/scale), cv::Scalar(0,255,0), 2);
+        cv::circle(img_rgb, cv::Point2f(it_ref->x/scale, it_ref->y/scale), 2, cv::Scalar(255,0,0), cv::FILLED);
+      }
     }
 
     if(img_pub_level_ == 0)

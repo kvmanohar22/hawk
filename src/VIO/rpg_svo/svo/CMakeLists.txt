@@ -2,7 +2,7 @@
 # user build settings
 
 SET(TRACE TRUE)
-SET(HAVE_G2O FALSE) 
+SET(USE_EDGELETS FALSE) # Set TRUE if you want to use edgelet features
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
 SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
@@ -20,14 +20,14 @@ SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 IF(TRACE)
   ADD_DEFINITIONS(-DSVO_TRACE)
 ENDIF()
-IF(HAVE_G2O)
-  ADD_DEFINITIONS(-DUSE_BUNDLE_ADJUSTMENT)
-ENDIF()
 IF(USE_ROS)
   ADD_DEFINITIONS(-DSVO_USE_ROS)
 ENDIF()
 IF(DEBUG_OUTPUT)
   ADD_DEFINITIONS(-DSVO_DEBUG_OUTPUT)
+ENDIF()
+IF(USE_EDGELETS)
+  ADD_DEFINITIONS(-DSVO_USE_EDGELETS)
 ENDIF()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
@@ -40,9 +40,9 @@ ELSE()
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
 ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -g")
 ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g")
 ENDIF()
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
@@ -114,21 +114,9 @@ LIST(APPEND SOURCEFILES
   src/sparse_img_align.cpp
   src/imu.cpp
   src/visual_inertial_estimator.cpp
-  src/stereo.cpp)
-
-# Add g2o if available
-IF(HAVE_G2O)
-  FIND_PACKAGE(G2O REQUIRED)
-  INCLUDE_DIRECTORIES(
-    ${G2O_INCLUDE_DIR}
-    /usr/include/suitesparse # for cholmod
-  )
-  LIST(APPEND LINK_LIBS
-    ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
-    ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse
-  )
-  LIST(APPEND SOURCEFILES src/bundle_adjustment.cpp)
-ENDIF(HAVE_G2O)
+  src/stereo.cpp
+  src/inertial_initialization.cpp
+  src/bundle_adjustment.cpp)
 
 # Create svo library
 ADD_LIBRARY(svo SHARED ${SOURCEFILES})
@@ -154,4 +142,7 @@ IF(SVO_BUILD_TESTS)
 
   ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
   TARGET_LINK_LIBRARIES(test_pose_optimizer svo)
+
+  ADD_EXECUTABLE(test_imu_container test/test_imu_container.cpp)
+  TARGET_LINK_LIBRARIES(test_imu_container svo)
 ENDIF(SVO_BUILD_TESTS)

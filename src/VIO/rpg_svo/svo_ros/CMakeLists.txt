@@ -15,9 +15,9 @@ ELSE()
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
 ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -g")
 ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g")
 ENDIF()
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
@@ -89,3 +89,6 @@ TARGET_LINK_LIBRARIES(initialization svo_visualizer)
 
 ADD_EXECUTABLE(stereo_initialization src/test_stereo_initialization.cpp)
 TARGET_LINK_LIBRARIES(stereo_initialization svo_visualizer)
+
+ADD_EXECUTABLE(preintegration src/test_preintegration.cpp)
+TARGET_LINK_LIBRARIES(preintegration svo_visualizer)

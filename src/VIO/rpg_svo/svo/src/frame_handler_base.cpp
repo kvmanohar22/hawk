@@ -48,6 +48,7 @@ FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   // Initialize Performance Monitor
   g_permon = new vk::PerformanceMonitor();
   g_permon->addTimer("pyramid_creation");
+  g_permon->addTimer("imu_integration");
   g_permon->addTimer("sparse_img_align");
   g_permon->addTimer("reproject");
   g_permon->addTimer("reproject_kfs");
@@ -57,7 +58,6 @@ FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   g_permon->addTimer("point_optimizer");
   g_permon->addTimer("local_ba");
   g_permon->addTimer("tot_time");
-  g_permon->addTimer("imu_prior_wait");
   g_permon->addLog("timestamp");
   g_permon->addLog("img_align_n_tracked");
   g_permon->addLog("repr_n_mps");
@@ -70,6 +70,8 @@ FrameHandlerBase::FrameHandlerBase(InitType init_type) :
   g_permon->addLog("loba_n_erredges_fin");
   g_permon->addLog("loba_err_init");
   g_permon->addLog("loba_err_fin");
+  g_permon->addLog("loba_err_init_avg");
+  g_permon->addLog("loba_err_fin_avg");
   g_permon->addLog("n_candidates");
   g_permon->addLog("dropout");
   g_permon->init(Config::traceName(), Config::traceDir());

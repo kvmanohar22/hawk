@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camera0.yaml"/>
+    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
     <arg name="imu_topic" default="/mavros/imu/data_raw"/>
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
@@ -28,9 +28,6 @@
         <!-- Left camera topic to subscribe to [stereo case]-->
         <param name="left_image_topic" value="$(arg left_image_topic)" type="str" />
 
-        <param name="poseoptim_thresh" value="2.0" type="double" />
-        <param name="max_n_kfs" value="0" type="int" />
-
         <!-- Right camera topic to subscribe to [stereo case]-->
         <param name="right_image_topic" value="$(arg right_image_topic)" type="str" />
 
@@ -39,9 +36,6 @@
 
         <!-- Whether to run with imu -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />
-
-        <!-- Whether to run inertial estimator thread -->
-        <param name="run_inertial_estimator" value="$(arg run_inertial_estimator)" type="bool" />
 
         <param name="remote_key" value="false" type="bool" />
 
@@ -63,7 +57,7 @@
         <param name="max_measurements" value="50" />
 
         <!-- Initial camera orientation, make it point forward -->
-        <param name="init_rx" value="-1.57" />
+        <param name="init_rx" value="3.14" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
 

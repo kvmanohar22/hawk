@@ -96,11 +96,14 @@ public:
   /// Add a new keyframe to the map.
   void addKeyframe(FramePtr new_keyframe);
 
+  /// Return all the current keyframes in the map
+  inline list<FramePtr>* getAllKeyframes() { return &keyframes_; }
+
   /// Given a frame, return all keyframes which have an overlapping field of view.
-  void getCloseKeyframes(const FramePtr& frame, list< pair<FramePtr,double> >& close_kfs);
+  void getCloseKeyframes(const FramePtr& frame, list< pair<FramePtr,double> >& close_kfs) const;
 
   /// Return the keyframe which is spatially closest and has overlapping field of view.
-  FramePtr getClosestKeyframe(const FramePtr& frame);
+  FramePtr getClosestKeyframe(const FramePtr& frame) const;
 
   /// Return the keyframe which is furthest apart from pos.
   FramePtr getFurthestKeyframe(const Vector3d& pos) const;

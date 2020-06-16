@@ -24,12 +24,6 @@
 #include <boost/noncopyable.hpp>
 #include <svo/global.h>
 #include <ros/ros.h>
-#include <boost/thread.hpp>
-
-namespace g2o {
-class VertexSE3Expmap;
-}
-typedef g2o::VertexSE3Expmap g2oFrameSE3;
 
 namespace svo {
 
@@ -39,13 +33,14 @@ struct Feature;
 typedef list<Feature*> Features;
 typedef vector<cv::Mat> ImgPyr;
 
+typedef Matrix<double, 2, 3> Matrix23d;
+typedef Matrix<double, 3, 3> Matrix3d;
+
 /// A frame saves the image, the associated features and the estimated pose.
 class Frame : boost::noncopyable
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  typedef boost::unique_lock<boost::mutex> lock_t;
 
   static int                    frame_counter_;         //!< Counts the number of created frames. Used to set the unique id.
   int                           id_;                    //!< Unique id of the frame.
@@ -53,24 +48,18 @@ public:
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   vk::AbstractCamera*           cam_;                   //!< Camera model. (left stereo)
   vk::AbstractCamera*           camR_;                  //!< Camera model (right stereo).
+  Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.
   ImgPyr                        img_pyr_right_;         //!< Image Pyramid of right image in case of stereo
   Features                      fts_;                   //!< List of features in the image.
   vector<Feature*>              key_pts_;               //!< Five features and associated 3D points which are used to detect if two frames have overlapping field of view.
   bool                          is_keyframe_;           //!< Was this frames selected as keyframe?
-  g2oFrameSE3*                  v_kf_;                  //!< Temporary pointer to the g2o node object of the keyframe.
   int                           last_published_ts_;     //!< Timestamp of last publishing.
   int                           n_new_filters_init_;    //!< New filters initialized in Depth Filter
   int                           n_filters_converged_;   //!< How many of the above converged?
   int                           n_inertial_updates_;    //!< Number of times optimization was performed in inertial estimator thread
 
-  Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld. Do not directly access this unless you know what you are doing
-
-private:
-  boost::mutex                  t_mut_;                 //!< This protects concurrent access to T_f_w_
-
-public:
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
   Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
@@ -83,12 +72,6 @@ public:
 
   /// Add a feature to the image
   void addFeature(Feature* ftr);
-
-  /// Always access T_f_w_ through this. Thread safe
-  const SE3 T_f_w();
-
-  /// updates T_f_w. Thread safe
-  void T_f_w(SE3 T_f_w);
 
   /// The KeyPoints are those five features which are closest to the 4 image corners
   /// and to the center and which have a 3D point assigned. These points are used
@@ -105,7 +88,7 @@ public:
   inline size_t nObs() const { return fts_.size(); }
 
   /// Check if a point in (w)orld coordinate frame is visible in the image.
-  bool isVisible(const Vector3d& xyz_w);
+  bool isVisible(const Vector3d& xyz_w) const;
 
   /// Full resolution image stored in the frame.
   inline const cv::Mat& img() const { return img_pyr_[0]; }
@@ -164,6 +147,33 @@ public:
     J(1,3) = 1.0 + y*J(1,2);      // 1.0 + y^2/z^2
     J(1,4) = -J(0,3);             // -x*y/z^2
     J(1,5) = -x*z_inv;            // -x/z
+  }
+
+  /// Used in pose optimizer
+  inline static void po_jacobian_xyz2uv(
+      const Vector3d& xyz_in_f,
+      const Vector3d& xyz_in_w,
+      const Matrix3d& R_f_w,
+      Matrix<double,2,6>& J)
+  {
+    const double x = xyz_in_f[0];
+    const double y = xyz_in_f[1];
+    const double z_inv = 1./xyz_in_f[2];
+    const double z_inv_2 = z_inv*z_inv;
+
+    // Jacobian of projection of point to unit plane (z = 1)
+    Matrix23d J_g = (Matrix23d() << z_inv, 0, -x*z_inv_2, 0, z_inv, -y*z_inv_2).finished();
+
+    // point in world coordinates
+    Matrix3d p_w = vk::sqew(xyz_in_w);
+
+    // jacobian wrt phi (rotation vector element)
+    Matrix23d J_phi = J_g * R_f_w * p_w;
+
+    Matrix23d J_p = -J_g * R_f_w;
+
+    J.topLeftCorner(2, 3).noalias() = J_p;
+    J.topRightCorner(2, 3).noalias() = J_phi;
   }
 
   // Required in sparse image alignment step

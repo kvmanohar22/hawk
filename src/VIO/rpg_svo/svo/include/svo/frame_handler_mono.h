@@ -25,6 +25,7 @@
 #include <svo/imu.h>
 #include <svo/initialization.h>
 #include <svo/visual_inertial_estimator.h>
+#include <svo/bundle_adjustment.h>
 #include <sensor_msgs/Imu.h>
 #include <gtsam/navigation/ImuFactor.h>
 
@@ -36,6 +37,8 @@ class FrameHandlerMono : public FrameHandlerBase
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  typedef boost::unique_lock<boost::mutex> lock_t;
+
   FrameHandlerMono(vk::AbstractCamera* cam,
     FrameHandlerBase::InitType init_type=FrameHandlerBase::InitType::MONOCULAR);
 
@@ -44,7 +47,7 @@ public:
   virtual ~FrameHandlerMono();
 
   /// imu callback function
-  void imuCb(const sensor_msgs::Imu::ConstPtr& msg);
+  void feedImu(const sensor_msgs::Imu::ConstPtr& msg);
 
   /// Provide an image. Monocular initialization
   void addImage(const cv::Mat& img, ros::Time ts);
@@ -59,10 +62,10 @@ public:
   FramePtr lastFrame() { return last_frame_; }
 
   /// Integrate a single imu measurement (for motion priors)
-  void integrateSingleMeasurement(const sensor_msgs::Imu::ConstPtr& msg);
+  void integrateSingleMeasurement(const ImuDataPtr& msg);
 
   /// Integrate multiple imu measurements
-  void integrateMultipleMeasurements(list<sensor_msgs::Imu::ConstPtr>& msgs);
+  void integrateMultipleMeasurements(list<ImuDataPtr>& stream);
 
   /// This updates imu biases from visual inertial estimator thread
   void newImuBias(gtsam::imuBias::ConstantBias new_bias);
@@ -79,6 +82,9 @@ public:
 
   /// Access to member of inertial estimator
   inline VisualInertialEstimator* inertialEstimator() const { return inertial_estimator_; }
+
+  /// Handles interrupt from inertial estimator
+  void handleInterrupt();
 
   /// An external place recognition module may know where to relocalize.
   bool relocalizeFrameAtPose(
@@ -107,6 +113,8 @@ protected:
   vector< pair<FramePtr,size_t> > overlap_kfs_; //!< All keyframes with overlapping field of view. the paired number specifies how many common mappoints are observed TODO: why vector!?
   initialization::KltHomographyInit klt_homography_init_; //!< Used to estimate pose of the first two keyframes by estimating a homography.
   DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
+
+public:
   VisualInertialEstimator* inertial_estimator_; //!< Visual Inertial State Estimator
 
   Matrix3d  delta_R_; // Change in rotation in the IMU frame. used for motion priors
@@ -116,14 +124,17 @@ protected:
   ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
   bool new_bias_arrived_;                      //!< Flag to be set if a new bias has arrived
-  bool should_integrate_;                      //!< Should we start integrating imu measurements?
-  bool first_measurement_done_;                //!< We discard some initial imu mesages
   ImuHelper* imu_helper_;
-  std::list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   size_t n_integrated_measurements_;
-
   bool save_trajectory_;                      //!< Boolean to check if we have to save the trajectory
+  SE3   prior_pose_;                          //!< Prior pose estimated from inertial initializer (this is the pose of camera in global frame)
+  bool  prior_pose_set_;
+  ImuContainerPtr imu_container_;             //!< Container for imu messages
+  double prev_imu_ts_;                        //!< used for calculating dt for imu integration
+  ba::IncrementalBA* iba_;                        //!< Incremental BA
+  bool init_ba_done_;
 
+protected:
   /// Initialize the visual odometry algorithm.
   virtual void initialize();
 
@@ -154,6 +165,22 @@ protected:
   virtual bool needNewKf(double scene_depth_mean);
 
   void setCoreKfs(size_t n_closest);
+
+protected:
+  boost::mutex request_mut_;
+  bool stop_requested_;
+  bool is_stopped_;
+
+public:
+  // used by inertial estimator thread to request interrupts
+  void requestStop();
+  bool isStopped();
+  void release();
+
+  // local verification
+  bool stopRequested();
+  void setStop();
+  bool isReleased();
 };
 
 } // namespace svo

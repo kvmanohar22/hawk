@@ -37,7 +37,6 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
     cam_(cam),
     key_pts_(5),
     is_keyframe_(false),
-    v_kf_(NULL),
     n_new_filters_init_(0),
     n_filters_converged_(0),
     n_inertial_updates_(0)
@@ -53,7 +52,6 @@ Frame::Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& i
     camR_(cam1),
     key_pts_(5),
     is_keyframe_(false),
-    v_kf_(NULL),
     n_new_filters_init_(0),
     n_filters_converged_(0),
     n_inertial_updates_(0)
@@ -91,18 +89,6 @@ void Frame::setKeyframe()
 void Frame::addFeature(Feature* ftr)
 {
   fts_.push_back(ftr);
-}
-
-const SE3 Frame::T_f_w()
-{
-  lock_t lock(t_mut_);
-  return T_f_w_;
-}
-
-void Frame::T_f_w(SE3 _T_f_w)
-{
-  lock_t lock(t_mut_);
-  T_f_w_ = _T_f_w;
 }
 
 void Frame::setKeyPoints()
@@ -174,9 +160,9 @@ void Frame::removeKeyPoint(Feature* ftr)
     setKeyPoints();
 }
 
-bool Frame::isVisible(const Vector3d& xyz_w)
+bool Frame::isVisible(const Vector3d& xyz_w) const
 {
-  const Vector3d xyz_f = T_f_w()*xyz_w;
+  Vector3d xyz_f = T_f_w_*xyz_w;
   if(xyz_f.z() < 0.0)
     return false; // point is behind the camera
   Vector2d px = f2c(xyz_f);

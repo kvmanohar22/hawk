@@ -1,0 +1,13 @@
+<launch>
+    <arg name="bag_path" default=""/>
+    <arg name="start" default="0"/>
+
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start)"/>
+
+    <!-- Start preintegration node -->
+    <node pkg="svo" type="test_imu_container" name="svo" output="screen" ns="hawk">
+      <param name="imu_topic" value="/mavros/imu/data_raw"/>
+    </node>
+
+</launch>

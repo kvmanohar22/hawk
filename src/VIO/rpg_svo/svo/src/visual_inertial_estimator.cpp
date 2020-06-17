@@ -178,7 +178,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   }
 
   // add vision factors to graph
-  // addVisionFactorsToGraph(kf_list_);
+  addVisionFactorsToGraph(kf_list_);
 
   SVO_DEBUG_STREAM("Estimator:\t graph size = " << graph_->size());
 }
@@ -313,7 +313,7 @@ void VisualInertialEstimator::initializeNewVariables()
   }
 
   // initialize structure (only in case of Generic projection factors)
-  // initializeStructure();
+  initializeStructure();
 
   if(!use_imu_)
     return;
@@ -359,7 +359,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
 
   SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_));
 
-/*  // TODO: Signature of update should be changed if using smart factors
+  // TODO: Signature of update should be changed if using smart factors
   gtsam::Values result;
   isam2_.update(*graph_, initial_values_);
   result = isam2_.calculateEstimate();
@@ -377,9 +377,9 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   prev_result_ = result;
   updateState(result);
 
-  // // clean up the integration from the above optimization
+  // clean up the integration from the above optimization
   cleanUp();
-*/
+
   return opt_result;
 }
 

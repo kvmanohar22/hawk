@@ -37,10 +37,9 @@ case ${DATA} in
   RIG=stereo
   ;;
 'tum')
-  BAG_PATH=${HAWK_ROOT}/bags/tum/dataset-room1_512_16.bag
-  CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/camera_calibration_rectified.yaml
-  IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/imu_calibration.yaml
-  RIG=stereo
+  BAG_PATH=${HAWK_ROOT}/bags/tum/rectified_bag_2020-06-17-22-15-22.bag
+  CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/tum/camera_calibration_rectified.yaml
+  IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/tum/imu_calibration.yaml
   echo -e "\n\n Using rectified images... \n\n"
   ;;
 *)

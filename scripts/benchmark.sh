@@ -1,10 +1,10 @@
 #! /bin/bash
 
-DATA_AVAILABLE=('airground' 'mav_circle' 'hawk' 'tum')
+DATA_AVAILABLE=('airground' 'mav_circle' 'hawk' 'tum' 'euroc')
 DATA='airground' # choose among (airground mav_circle)
-BAG_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
-CAMERA_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
-IMU_CALIBRATION_PATH=/home/kv/ros/hawk/src/VIO/rpg_svo/svo_ros/benchmark
+BAG_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/benchmark
+CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/benchmark
+IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/benchmark
 START=0
 RIG=monocular
 
@@ -37,10 +37,15 @@ case ${DATA} in
   RIG=stereo
   ;;
 'tum')
-  BAG_PATH=${HAWK_ROOT}/bags/tum/rectified_bag_2020-06-17-22-15-22.bag
+  BAG_PATH=${HAWK_ROOT}/bags/tum/magistrale1_512_16_rectified_realtime.bag
   CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/tum/camera_calibration_rectified.yaml
   IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/tum/imu_calibration.yaml
   echo -e "\n\n Using rectified images... \n\n"
+  ;;
+'euroc')
+  BAG_PATH=${HAWK_ROOT}/bags/euroc/V1_01_easy.bag
+  CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/euroc/camera_calibration.yaml
+  IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/euroc/imu_calibration.yaml
   ;;
 *)
   echo 'WRONG DATA'${DATA}

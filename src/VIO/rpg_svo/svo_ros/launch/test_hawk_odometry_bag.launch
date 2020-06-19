@@ -6,6 +6,7 @@
     <!-- calibration file paths -->
     <arg name="camera_calibration_file" default=""/>
     <arg name="imu_calibration_file" default=""/>
+    <arg name="svo_params_file" default=""/>
     <arg name="rig" default="monocular"/>
 
     <!-- which parts of the pipeline to run -->
@@ -16,6 +17,7 @@
     <include file="$(find svo_ros)/launch/load_svo.launch">
       <arg name="camera_calibration_file" value="$(arg camera_calibration_file)"/>
       <arg name="imu_calibration_file" value="$(arg imu_calibration_file)"/>
+      <arg name="svo_params_file" value="$(arg svo_params_file)"/>
       <arg name="rig" value="$(arg rig)"/>
 
       <arg name="run_inertial_estimator" value="$(arg run_inertial_estimator)"/>

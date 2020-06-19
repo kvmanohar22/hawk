@@ -92,3 +92,6 @@ TARGET_LINK_LIBRARIES(stereo_initialization svo_visualizer)
 
 ADD_EXECUTABLE(preintegration src/test_preintegration.cpp)
 TARGET_LINK_LIBRARIES(preintegration svo_visualizer)
+
+ADD_EXECUTABLE(test_pose src/test_pose.cpp)
+TARGET_LINK_LIBRARIES(test_pose svo_visualizer)

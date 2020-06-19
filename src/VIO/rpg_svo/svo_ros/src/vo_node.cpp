@@ -114,7 +114,7 @@ VoNode::~VoNode()
 
 bool VoNode::initializeGravity()
 {
-  inertial_init_done_ = inertial_init_->initialize();
+  inertial_init_done_ = inertial_init_->initializeFast();
   if(inertial_init_done_)
   {
     // pose of IMU (at t=0) in Global frame of reference

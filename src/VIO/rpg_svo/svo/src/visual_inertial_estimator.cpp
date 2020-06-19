@@ -287,7 +287,7 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
     SVO_DEBUG_STREAM("Estimator:\t e = " << r.transpose() * dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*integrated).preintMeasCov().inverse() * r);
   }
 
-  // add priors to graph
+  // // add priors to graph
   // graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
   //       Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
   // graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
@@ -356,8 +356,6 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   prev_result_.insert(initial_values_);
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
-
-  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_));
 
   // TODO: Signature of update should be changed if using smart factors
   gtsam::Values result;
@@ -488,7 +486,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   }
 
   // update structure
-  // updateStructure(result);
+  updateStructure(result);
 
   // outlier rejection
   rejectOutliers();

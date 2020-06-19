@@ -17,6 +17,7 @@ public:
 
   void feedImu(const sensor_msgs::Imu::ConstPtr& msg);
   bool initialize();
+  bool initializeFast();
 
   list<sensor_msgs::Imu::ConstPtr> imu_msgs_;
   double      window_len_;      //!< in sec.

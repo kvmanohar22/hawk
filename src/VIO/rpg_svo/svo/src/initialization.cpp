@@ -150,16 +150,19 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       Point* new_point = new Point(pos);
       depth_vec.push_back(pos.z());
 
-      // if(is_monocular)
+      // if(is_monocular) // FIXMENOW
       {
         Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
         frame_cur->addFeature(ftr_cur);
         new_point->addFrameRef(ftr_cur);
       }
 
-      Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
-      frame_ref_->addFeature(ftr_ref);
-      new_point->addFrameRef(ftr_ref);
+      if(is_monocular)
+      {
+        Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
+        frame_ref_->addFeature(ftr_ref);
+        new_point->addFrameRef(ftr_ref);
+      }
 
       const Vector2d uv = frame_ref_->w2c(pos);
       error += (uv-px_ref).norm();

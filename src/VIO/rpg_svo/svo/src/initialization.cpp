@@ -100,10 +100,10 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     return FAILURE;
   }
 
-  frame_cur->T_f_w_ = T_cur_from_ref_ * frame_ref_->T_f_w_;
   double scale;
   if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
   {
+    frame_cur->T_f_w_ = T_cur_from_ref_ * frame_ref_->T_f_w_;
     // Rescale the map such that the mean scene depth is equal to the specified scale
     vector<double> depth_vec;
     for(size_t i=0; i<xyz_in_cur_.size(); ++i)

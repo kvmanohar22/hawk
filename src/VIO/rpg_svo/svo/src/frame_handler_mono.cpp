@@ -383,8 +383,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     return RESULT_FAILURE;
   }
   // we want the right camera to be world
-  const double timestamp = new_frame_->timestamp_;
-  new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
+  // const double timestamp = new_frame_->timestamp_;
+  // new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = true;
@@ -398,21 +398,21 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // map_.addKeyframe(last_frame_);
 
   // we are inverting the images. add left image
-  new_frame_.reset(new Frame(cam_, imgl.clone(), last_frame_->timestamp_));
-  new_frame_->T_f_w_ = FrameHandlerMono::T_c0_c1_ * last_frame_->T_f_w_;
+  new_frame_.reset(new Frame(cam1_, imgr.clone(), last_frame_->timestamp_));
+  new_frame_->T_f_w_ = FrameHandlerMono::T_c1_c0_ * last_frame_->T_f_w_;
 
   // set baseline for computing map
-  klt_homography_init_.setBaseline(FrameHandlerMono::T_c1_c0_);
+  klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
 
   // Process second frame
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
-/*
+
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
   last_frame_.reset();
-*/
+
   // Now, the map is initialized and set the keyframe
   new_frame_->setKeyframe();
   map_.addKeyframe(new_frame_);

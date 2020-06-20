@@ -387,9 +387,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
 
+  // first frame will not have any keypoints
+  map_.addKeyframe(new_frame_);
+
   // Reset the frames
   last_frame_ = new_frame_;
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), last_frame_->timestamp_));
+
+  // we are inverting the images (left <-> right)
+  new_frame_.reset(new Frame(cam_, cam1_, imgr.clone(), imgl.clone(), last_frame_->timestamp_));
+  new_frame_->T_f_w_ = FrameHandlerMono::T_c1_c0_ * last_frame_->T_f_w_;
 
   // set baseline for computing map
   klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
@@ -400,13 +406,18 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
 
   // Now, the map is initialized and set the keyframe
   last_frame_->setKeyframe();
-  map_.addKeyframe(last_frame_);
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+  SVO_DEBUG_STREAM("N_KFS = " << map_.size());
+  cout << "last kf size = " << last_frame_->nObs() << endl;
+  cout << "newk kf size = " << new_frame_->nObs() << endl;
 
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
 
-  if (Config::runInertialEstimator()) {
+  if (Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 

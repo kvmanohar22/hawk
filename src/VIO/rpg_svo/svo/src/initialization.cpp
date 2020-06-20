@@ -64,7 +64,8 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
 
   double disparity = vk::getMedian(disparities_);
   SVO_INFO_STREAM("Init: KLT "<<disparity<<"px average disparity.");
-  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR) {
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+  {
     if(disparity < Config::initMinDisparity())
       return NO_KEYFRAME;
   }
@@ -150,11 +151,9 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       Point* new_point = new Point(pos);
       depth_vec.push_back(pos.z());
 
-      if(is_monocular) { // we only add the current features in this case
-        Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
-        frame_cur->addFeature(ftr_cur);
-        new_point->addFrameRef(ftr_cur);
-      }
+      Feature* ftr_cur(new Feature(frame_cur.get(), new_point, px_cur, f_cur_[*it], 0));
+      frame_cur->addFeature(ftr_cur);
+      new_point->addFrameRef(ftr_cur);
 
       Feature* ftr_ref(new Feature(frame_ref_.get(), new_point, px_ref, f_ref_[*it], 0));
       frame_ref_->addFeature(ftr_ref);
@@ -265,9 +264,15 @@ void trackKlt(
   vector<float> error;
   vector<float> min_eig_vec;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, klt_max_iter, klt_eps);
+
+  // in stereo initialization, this image is right image (not left!)
   cv::Mat img_cur = frame_cur->img_pyr_[0];
+
+  // Image of frame_cur are inverted (left <-> right)
   if(!is_monocular)
-    img_cur = frame_cur->img_pyr_right_[0];
+  {
+    // img_cur = frame_cur->img_pyr_right_[0];
+  }
   cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], img_cur,
                            px_ref, px_cur,
                            status, error,

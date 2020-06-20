@@ -115,7 +115,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   if(verbose_) {
     // plot the klt tracks
     cv::Mat limg = frame_ref_->img();
-    cv::Mat rimg = frame_cur->imgRight();
+    cv::Mat rimg = frame_cur->img();
     cv::cvtColor(limg, limg, cv::COLOR_GRAY2BGR);
     for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
     {
@@ -131,7 +131,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   if(is_monocular)
     T_world_cur = frame_cur->T_f_w_.inverse();
   else
-    T_world_cur = frame_ref_->T_f_w_.inverse() * T_cl_cr_;
+    T_world_cur = frame_cur->T_f_w_.inverse();
 
   double error=0;
   int count=0;
@@ -164,6 +164,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       ++count;
     }
   }
+  SVO_DEBUG_STREAM("Init: Initialized map with " << count << " map points");
   if(verbose_) {
     std::cout << "total error = " << error << "\t" 
               << "avg = " << error/count << "\t"
@@ -205,7 +206,7 @@ void KltHomographyInit::removeOutliersEpipolar(
   vector<double> e_vec;
   e_vec.reserve(N);
   const Matrix3d Kl = dynamic_cast<vk::PinholeCamera*>(frame_ref_->cam_)->K();
-  const Matrix3d Kr = dynamic_cast<vk::PinholeCamera*>(frame_ref_->camR_)->K();
+  const Matrix3d Kr = dynamic_cast<vk::PinholeCamera*>(frame_ref_->cam_)->K();
   const Matrix3d KlInv_E_KrInv = Kl.inverse().transpose() * E * Kr.inverse();
   for(vector<int>::iterator it=inliers.begin(); it!=inliers.end();) {
     Vector3d uv_r = Kl * f_ref[*it];
@@ -264,16 +265,7 @@ void trackKlt(
   vector<float> error;
   vector<float> min_eig_vec;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, klt_max_iter, klt_eps);
-
-  // in stereo initialization, this image is right image (not left!)
-  cv::Mat img_cur = frame_cur->img_pyr_[0];
-
-  // Image of frame_cur are inverted (left <-> right)
-  if(!is_monocular)
-  {
-    // img_cur = frame_cur->img_pyr_right_[0];
-  }
-  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], img_cur,
+  cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], frame_cur->img_pyr_[0],
                            px_ref, px_cur,
                            status, error,
                            cv::Size2i(klt_win_size, klt_win_size),
@@ -293,11 +285,7 @@ void trackKlt(
       f_ref_it = f_ref.erase(f_ref_it);
       continue;
     }
-    if(is_monocular)
-      f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
-    else
-      f_cur.push_back(frame_cur->c2f_stereo(px_cur_it->x, px_cur_it->y));
-
+    f_cur.push_back(frame_cur->c2f(px_cur_it->x, px_cur_it->y));
     disparities.push_back(Vector2d(px_ref_it->x - px_cur_it->x, px_ref_it->y - px_cur_it->y).norm());
     ++px_ref_it;
     ++px_cur_it;

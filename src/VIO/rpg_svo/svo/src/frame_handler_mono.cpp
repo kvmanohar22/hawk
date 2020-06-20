@@ -266,9 +266,9 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   core_kfs_.clear();
   overlap_kfs_.clear();
 
-  // create new frame
+  // create new frame (we use left image by default and it's camera)
   SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), ts.toSec()));
+  new_frame_.reset(new Frame(cam_, imgl.clone(), ts.toSec()));
   SVO_STOP_TIMER("pyramid_creation");
 
   // process frame
@@ -381,40 +381,34 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     SVO_ERROR_STREAM("Prior pose not set!");
     return RESULT_FAILURE;
   }
+  // we want the right camera to be world
+  const double timestamp = new_frame_->timestamp_;
+  new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
 
-  // first frame will not have any keypoints
-  map_.addKeyframe(new_frame_);
-
   // Reset the frames
   last_frame_ = new_frame_;
 
-  // we are inverting the images (left <-> right)
-  new_frame_.reset(new Frame(cam_, cam1_, imgr.clone(), imgl.clone(), last_frame_->timestamp_));
-  new_frame_->T_f_w_ = FrameHandlerMono::T_c1_c0_ * last_frame_->T_f_w_;
+  // we are inverting the images. add left image
+  new_frame_.reset(new Frame(cam_, imgl.clone(), last_frame_->timestamp_));
+  new_frame_->T_f_w_ = FrameHandlerMono::T_c0_c1_ * last_frame_->T_f_w_;
 
   // set baseline for computing map
-  klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
+  klt_homography_init_.setBaseline(FrameHandlerMono::T_c1_c0_);
 
   // Process second frame
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
 
   // Now, the map is initialized and set the keyframe
-  last_frame_->setKeyframe();
+  last_frame_->setKeyframe(); // move this up?
   new_frame_->setKeyframe();
+  map_.addKeyframe(last_frame_);
   map_.addKeyframe(new_frame_);
-  SVO_DEBUG_STREAM("N_KFS = " << map_.size());
-  cout << "last kf size = " << last_frame_->nObs() << endl;
-  cout << "newk kf size = " << new_frame_->nObs() << endl;
-
-  // revert back the frames
-  new_frame_.reset();
-  new_frame_ = last_frame_;
 
   if (Config::runInertialEstimator())
   {

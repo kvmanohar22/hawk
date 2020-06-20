@@ -387,7 +387,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
-  klt_homography_init_.verbose_ = false;
+  klt_homography_init_.verbose_ = true;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
 
@@ -404,14 +404,19 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   // Process second frame
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
-
+/*
+  // revert back the frames
+  new_frame_.reset();
+  new_frame_ = last_frame_;
+  last_frame_.reset();
+*/
   // Now, the map is initialized and set the keyframe
-  last_frame_->setKeyframe(); // move this up?
-  new_frame_->setKeyframe();
+  last_frame_->setKeyframe();
   map_.addKeyframe(last_frame_);
+  new_frame_->setKeyframe();
   map_.addKeyframe(new_frame_);
 
-  if (Config::runInertialEstimator())
+  if(Config::runInertialEstimator())
   {
     inertial_estimator_->addKeyFrame(new_frame_);
   }

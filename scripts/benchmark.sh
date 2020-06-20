@@ -10,8 +10,8 @@ START=0
 RIG=stereo
 
 # Which parts of the system are to be started
-INERTIAL_ESTIMATOR=true
-MOTION_PRIORS=true
+INERTIAL_ESTIMATOR=false
+MOTION_PRIORS=false
 
 if [ $# -eq 1 ]; then
   DATA=${1}

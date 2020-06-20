@@ -39,5 +39,4 @@
         <param name="publish_markers" value="true"/>
         <param name="publish_dense_input" value="true"/>
     </node>
-
 </launch>

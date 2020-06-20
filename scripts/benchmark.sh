@@ -23,9 +23,7 @@ case ${DATA} in
   CAMERA_CALIBRATION_PATH=${CAMERA_CALIBRATION_PATH}/airground_s3/camera_calibration.yaml
   IMU_CALIBRATION_PATH=${IMU_CALIBRATION_PATH}/airground_s3/imu_calibration.yaml
   SVO_PARAMS_PATH=${SVO_PARAMS_PATH}/vo_accurate.yaml
-
-  # This data has imu at 100Hz, this is too slow
-  MOTION_PRIORS=false
+  MOTION_PRIORS=false # This data has imu at 100Hz, this is too slow
   ;;
 'mav_circle')
   BAG_PATH=${BAG_PATH}/mav_circle/data.bag

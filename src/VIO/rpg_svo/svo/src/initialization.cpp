@@ -81,12 +81,16 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
       return FAILURE;
     }
     computeInitialMap(
-        f_ref_, f_cur_,
+        f_ref_, // left
+        f_cur_, // right
         frame_ref_->cam_->errorMultiplier2(), Config::poseOptimThresh(),
-        inliers_, xyz_in_cur_, T_cl_cr_);
+        inliers_,
+        xyz_in_cur_, // right
+        T_cl_cr_     // T_l_r
+    );
 
     // remove outliers
-    removeOutliersEpipolar(f_ref_, f_cur_, inliers_);
+    // removeOutliersEpipolar(f_ref_, f_cur_, inliers_);
   }
   SVO_INFO_STREAM("Init: Homography RANSAC "<<inliers_.size()<<" inliers.");
 

@@ -254,7 +254,8 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 {
   handleInterrupt();
 
-  if(init_type_ != FrameHandlerBase::InitType::STEREO) {
+  if(init_type_ != FrameHandlerBase::InitType::STEREO)
+  {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
     return;
   }

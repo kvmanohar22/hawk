@@ -385,6 +385,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
 
   // FIXME: Need to fix this. when using stereo initialization, adding
   //        right image as keyframe or as world frame doesn't seem to work
+  //        Make sure initialization.cpp is changed appropriately as well.
   // we want the right camera to be world
   // const double timestamp = new_frame_->timestamp_;
   // new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));

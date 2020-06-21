@@ -485,8 +485,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   // Set initial pose
   // TODO: Set this initial transformation to the one from IMU?
   new_frame_->T_f_w_ = last_frame_->T_f_w_;
-  cout << vk::dcm2rpy(last_frame_->T_f_w_.rotation_matrix()).transpose()*180/PI;
-  cout << last_frame_->T_f_w_.translation().transpose() << endl;
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");
@@ -502,8 +500,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);
-  cout << vk::dcm2rpy(new_frame_->T_f_w_.rotation_matrix()).transpose()*180/PI;
-  cout << new_frame_->T_f_w_.translation().transpose() << endl;
 
   // map reprojection & feature alignment
   SVO_START_TIMER("reproject");

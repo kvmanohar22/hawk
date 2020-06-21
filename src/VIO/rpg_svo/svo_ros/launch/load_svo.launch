@@ -6,6 +6,9 @@
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
 
+    <!-- typically used when interfacing with drone. we do not want to start right away -->
+    <arg name="start_vo" default="true"/>
+
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
 
@@ -13,6 +16,8 @@
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- camera rig type -->
         <param name="rig" value="$(arg rig)" type="str" />
+
+        <param name="start_vo" value="$(arg start_vo)" type="bool"/>
 
         <!-- Which parts of the system to run -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />

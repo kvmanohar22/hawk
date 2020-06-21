@@ -1,0 +1,31 @@
+<launch>
+    <!-- calibration file paths -->
+    <arg name="camera_calibration_file" default=""/>
+    <arg name="imu_calibration_file" default=""/>
+    <arg name="svo_params_file" default=""/>
+    <arg name="rig" default="monocular"/>
+
+    <!-- which parts of the pipeline to run -->
+    <arg name="run_inertial_estimator" default="false"/>
+    <arg name="use_motion_priors" default="false"/>
+
+    <!-- start svo hawk pipeline -->
+    <include file="$(find svo_ros)/launch/load_svo.launch">
+      <arg name="camera_calibration_file" value="$(arg camera_calibration_file)"/>
+      <arg name="imu_calibration_file" value="$(arg imu_calibration_file)"/>
+      <arg name="svo_params_file" value="$(arg svo_params_file)"/>
+      <arg name="rig" value="$(arg rig)"/>
+
+      <!-- we do not want to start VO right away -->
+      <arg name="start_vo" value="false"/>
+
+      <arg name="run_inertial_estimator" value="$(arg run_inertial_estimator)"/>
+      <arg name="use_motion_priors" value="$(arg use_motion_priors)"/>
+    </include>
+
+    <!-- start rviz -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start) --keep-alive --rate=1"/>
+</launch>

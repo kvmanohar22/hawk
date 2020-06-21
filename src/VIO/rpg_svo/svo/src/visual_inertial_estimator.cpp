@@ -102,8 +102,17 @@ VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImu
   const double& t0, const int& idx0,
   const double& t1, const int& idx1)
 {
+  PreintegrationPtr imu_preintegrated;
+
+  if(abs(t0-t1) < 1e-4)
+  {
+    SVO_WARN_STREAM("Estimator:\t Encountered two very close keyframes: idx0 = " << idx0 << "\t idx1 = " << idx1);
+    imu_preintegrated.reset();
+    return imu_preintegrated;
+  }
+
   // first integrate the messages
-  PreintegrationPtr imu_preintegrated = generateImuFactor(t0, t1);
+  imu_preintegrated = generateImuFactor(t0, t1);
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("Estimator:\t Integrated b/w " << idx0 << " & " << idx1 << " = " << n_integrated_measures_);
@@ -139,12 +148,16 @@ int VisualInertialEstimator::addImuFactorsToGraph()
     const double t1   = (*it)->timestamp_;
     const size_t idx1 = (*it)->correction_id_;
     const PreintegrationPtr imu_preintegrated = addSingleImuFactorToGraph(t0_, idx0, t1, idx1);
-    imu_preintegrated_lst_.push_back(make_pair(*it, imu_preintegrated));
+
+    if(imu_preintegrated)
+    {
+      imu_preintegrated_lst_.push_back(make_pair(*it, imu_preintegrated));
+      ++n_imu_factors;
+    }
 
     // save this timestamp for next iteration
     t0_  = t1;
     idx0 = idx1;
-    ++n_imu_factors;
   }
   return n_imu_factors;
 }

@@ -382,12 +382,15 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     SVO_ERROR_STREAM("Prior pose not set!");
     return RESULT_FAILURE;
   }
+
+  // FIXME: Need to fix this. when using stereo initialization, adding
+  //        right image as keyframe or as world frame doesn't seem to work
   // we want the right camera to be world
   // const double timestamp = new_frame_->timestamp_;
   // new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
-  klt_homography_init_.verbose_ = true;
+  klt_homography_init_.verbose_ = false;
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
 

@@ -98,16 +98,6 @@ void DetectorRos::img_cb(const sensor_msgs::ImageConstPtr& msg) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
   }
 
-
-  // WARNING: Use this with caution
-  uint8_t *data = (uint8_t*)img.data;
-  for(int i=0; i<img.rows;++i) {
-    for (int j=0; j<img.cols;++j) {
-      data[i*img.cols+j] *= 2;
-    }
-  }
-
-
   // detect features
   detect_features(img);
 }
@@ -137,9 +127,11 @@ void DetectorRos::detect_features(cv::Mat img) {
 void DetectorRos::overlay_features(cv::Mat img, const svo::Features& fts) {
   cv::Mat img_rgb = cv::Mat(img.size(), CV_8UC3);
   cv::cvtColor(img, img_rgb, cv::COLOR_GRAY2RGB);
+  stringstream n_fts_text; n_fts_text << fts.size();
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
     cv::rectangle(img_rgb, cv::Point2f(i->px[0]-2, i->px[1]-2), cv::Point2f(i->px[0]+2, i->px[1]+2), cv::Scalar(0,255,0), cv::FILLED);
   });
+  cv::putText(img_rgb, n_fts_text.str(), cv::Point2f(10.0, 10.0), 0, 0.5, cv::Scalar(0, 255, 0));
   cv::imshow("ref_img", img_rgb);
   cv::waitKey(1);
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){ delete i; });

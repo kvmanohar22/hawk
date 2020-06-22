@@ -254,7 +254,8 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 {
   handleInterrupt();
 
-  if(init_type_ != FrameHandlerBase::InitType::STEREO) {
+  if(init_type_ != FrameHandlerBase::InitType::STEREO)
+  {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
     return;
   }
@@ -266,9 +267,9 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   core_kfs_.clear();
   overlap_kfs_.clear();
 
-  // create new frame
+  // create new frame (we use left image by default and it's camera)
   SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), ts.toSec()));
+  new_frame_.reset(new Frame(cam_, imgl.clone(), ts.toSec()));
   SVO_STOP_TIMER("pyramid_creation");
 
   // process frame
@@ -381,6 +382,13 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     SVO_ERROR_STREAM("Prior pose not set!");
     return RESULT_FAILURE;
   }
+
+  // FIXME: Need to fix this. when using stereo initialization, adding
+  //        right image as keyframe or as world frame doesn't seem to work
+  //        Make sure initialization.cpp is changed appropriately as well.
+  // we want the right camera to be world
+  // const double timestamp = new_frame_->timestamp_;
+  // new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = false;
@@ -389,7 +397,13 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
 
   // Reset the frames
   last_frame_ = new_frame_;
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), last_frame_->timestamp_));
+
+  // last_frame_->setKeyframe();
+  // map_.addKeyframe(last_frame_);
+
+  // we are inverting the images. add left image
+  new_frame_.reset(new Frame(cam1_, imgr.clone(), last_frame_->timestamp_));
+  new_frame_->T_f_w_ = FrameHandlerMono::T_c1_c0_ * last_frame_->T_f_w_;
 
   // set baseline for computing map
   klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
@@ -398,15 +412,17 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
 
-  // Now, the map is initialized and set the keyframe
-  last_frame_->setKeyframe();
-  map_.addKeyframe(last_frame_);
-
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
+  last_frame_.reset();
 
-  if (Config::runInertialEstimator()) {
+  // Now, the map is initialized and set the keyframe
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+
+  if(Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 

@@ -44,24 +44,6 @@ Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
   initFrame(img, img_pyr_);
 }
 
-Frame::Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double ts) :
-    id_(frame_counter_++),
-    correction_id_(-1),
-    timestamp_(ts),
-    cam_(cam),
-    camR_(cam1),
-    key_pts_(5),
-    is_keyframe_(false),
-    n_new_filters_init_(0),
-    n_filters_converged_(0),
-    n_inertial_updates_(0)
-{
-  boost::thread thread_l(&Frame::initFrame, this, imgl, std::ref(img_pyr_));
-  boost::thread thread_r(&Frame::initFrame, this, imgr, std::ref(img_pyr_right_));
-  thread_l.join();
-  thread_r.join();
-}
-
 Frame::~Frame()
 {
   std::for_each(fts_.begin(), fts_.end(), [&](Feature* i){delete i;});

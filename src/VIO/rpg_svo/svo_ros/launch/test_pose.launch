@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="svo_ros" type="test_pose" name="svo" clear_params="true" output="screen" ns="hawk">
+        <rosparam file="$(find svo_ros)/param/euroc/camera_calibration.yaml"/>
+    </node>
+</launch>

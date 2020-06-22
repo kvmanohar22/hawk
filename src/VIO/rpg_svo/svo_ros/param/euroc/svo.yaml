@@ -1,11 +1,13 @@
+# Euroc data specific svo parameters
+
 grid_size: 7
 max_n_kfs: 0
 loba_num_iter: 0
 max_fts: 500
 triang_min_corner_score: 20.0
-quality_max_drop_fts: 80
+quality_max_drop_fts: 100
 map_scale: 1.0
-kfselect_mindist: 0.12
+kfselect_mindist: 0.05
 publish_map_every_frame: false
 
 # Factor type to be used in local bundle adjustment

@@ -102,8 +102,17 @@ VisualInertialEstimator::PreintegrationPtr VisualInertialEstimator::addSingleImu
   const double& t0, const int& idx0,
   const double& t1, const int& idx1)
 {
+  PreintegrationPtr imu_preintegrated;
+
+  if(abs(t0-t1) < 1e-4)
+  {
+    SVO_WARN_STREAM("Estimator:\t Encountered two very close keyframes: idx0 = " << idx0 << "\t idx1 = " << idx1);
+    imu_preintegrated.reset();
+    return imu_preintegrated;
+  }
+
   // first integrate the messages
-  PreintegrationPtr imu_preintegrated = generateImuFactor(t0, t1);
+  imu_preintegrated = generateImuFactor(t0, t1);
 
   // Now add imu factor to graph
   SVO_DEBUG_STREAM("Estimator:\t Integrated b/w " << idx0 << " & " << idx1 << " = " << n_integrated_measures_);
@@ -139,12 +148,16 @@ int VisualInertialEstimator::addImuFactorsToGraph()
     const double t1   = (*it)->timestamp_;
     const size_t idx1 = (*it)->correction_id_;
     const PreintegrationPtr imu_preintegrated = addSingleImuFactorToGraph(t0_, idx0, t1, idx1);
-    imu_preintegrated_lst_.push_back(make_pair(*it, imu_preintegrated));
+
+    if(imu_preintegrated)
+    {
+      imu_preintegrated_lst_.push_back(make_pair(*it, imu_preintegrated));
+      ++n_imu_factors;
+    }
 
     // save this timestamp for next iteration
     t0_  = t1;
     idx0 = idx1;
-    ++n_imu_factors;
   }
   return n_imu_factors;
 }
@@ -178,7 +191,7 @@ void VisualInertialEstimator::addFactorsToGraph()
   }
 
   // add vision factors to graph
-  // addVisionFactorsToGraph(kf_list_);
+  addVisionFactorsToGraph(kf_list_);
 
   SVO_DEBUG_STREAM("Estimator:\t graph size = " << graph_->size());
 }
@@ -287,7 +300,7 @@ void VisualInertialEstimator::initializePrior(const FramePtr& frame, int idx)
     SVO_DEBUG_STREAM("Estimator:\t e = " << r.transpose() * dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(*integrated).preintMeasCov().inverse() * r);
   }
 
-  // add priors to graph
+  // // add priors to graph
   // graph_->emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
   //       Symbol::V(idx), curr_velocity_, imu_helper_->prior_vel_noise_model_);
   // graph_->emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
@@ -313,7 +326,7 @@ void VisualInertialEstimator::initializeNewVariables()
   }
 
   // initialize structure (only in case of Generic projection factors)
-  // initializeStructure();
+  initializeStructure();
 
   if(!use_imu_)
     return;
@@ -357,9 +370,7 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   EstimatorResult opt_result = EstimatorResult::GOOD;
   ros::Time start_time = ros::Time::now();
 
-  SVO_DEBUG_STREAM("Estimator:\t ErrInit = " << graph_->error(prev_result_));
-
-/*  // TODO: Signature of update should be changed if using smart factors
+  // TODO: Signature of update should be changed if using smart factors
   gtsam::Values result;
   isam2_.update(*graph_, initial_values_);
   result = isam2_.calculateEstimate();
@@ -377,9 +388,9 @@ EstimatorResult VisualInertialEstimator::runOptimization()
   prev_result_ = result;
   updateState(result);
 
-  // // clean up the integration from the above optimization
+  // clean up the integration from the above optimization
   cleanUp();
-*/
+
   return opt_result;
 }
 
@@ -488,7 +499,7 @@ void VisualInertialEstimator::updateState(const gtsam::Values& result)
   }
 
   // update structure
-  // updateStructure(result);
+  updateStructure(result);
 
   // outlier rejection
   rejectOutliers();

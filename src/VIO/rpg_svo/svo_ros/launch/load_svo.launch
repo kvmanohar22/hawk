@@ -1,9 +1,13 @@
 <launch>
     <arg name="camera_calibration_file" default=""/>
     <arg name="imu_calibration_file" default=""/>
+    <arg name="svo_params_file" default=""/>
 
     <arg name="use_motion_priors" default="false"/>
     <arg name="run_inertial_estimator" default="false"/>
+
+    <!-- typically used when interfacing with drone. we do not want to start right away -->
+    <arg name="start_vo" default="true"/>
 
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
@@ -12,6 +16,8 @@
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
         <!-- camera rig type -->
         <param name="rig" value="$(arg rig)" type="str" />
+
+        <param name="start_vo" value="$(arg start_vo)" type="bool"/>
 
         <!-- Which parts of the system to run -->
         <param name="use_motion_priors" value="$(arg use_motion_priors)" type="bool" />
@@ -23,14 +29,14 @@
         <!-- Load imu calibration params -->
         <rosparam file="$(arg imu_calibration_file)"/>
 
-        <!-- Default parameter settings: choose between vo_fast and vo_accurate -->
-        <rosparam file="$(find svo_ros)/param/vo_accurate.yaml" />
+        <!-- SVO params -->
+        <rosparam file="$(arg svo_params_file)" />
 
         <!-- Load imu preintegration params -->
         <rosparam file="$(find svo_ros)/param/hawk/isam2_params.yaml" />
 
         <!-- Initial camera orientation, make it point forward -->
-        <param name="init_rx" value="3.14" />
+        <param name="init_rx" value="-1.57" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
 
@@ -38,5 +44,4 @@
         <param name="publish_markers" value="true"/>
         <param name="publish_dense_input" value="true"/>
     </node>
-
 </launch>

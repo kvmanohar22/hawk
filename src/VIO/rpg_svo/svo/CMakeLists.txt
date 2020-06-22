@@ -114,7 +114,6 @@ LIST(APPEND SOURCEFILES
   src/sparse_img_align.cpp
   src/imu.cpp
   src/visual_inertial_estimator.cpp
-  src/stereo.cpp
   src/inertial_initialization.cpp
   src/bundle_adjustment.cpp)
 

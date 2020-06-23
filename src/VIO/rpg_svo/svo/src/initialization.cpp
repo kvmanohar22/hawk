@@ -123,7 +123,7 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
     cv::cvtColor(limg, limg, cv::COLOR_GRAY2BGR);
     for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
     {
-      cv::circle(limg, px_ref_[*it], 2 , cv::Scalar(255,0,0),cv::FILLED);
+      // cv::circle(limg, px_ref_[*it], 2 , cv::Scalar(255,0,0),cv::FILLED);
       cv::line(limg, px_ref_[*it], px_cur_[*it], cv::Scalar(0,255,0),1);
     }
     cv::imshow("klt tracks", limg);

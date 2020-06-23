@@ -47,6 +47,7 @@ ENDIF()
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 # Add plain cmake packages 
+SET(OpenCV_DIR "/home/hawk/Downloads/opencv-2.4.13.5/build") 
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Eigen3 REQUIRED)
 FIND_PACKAGE(Sophus REQUIRED)

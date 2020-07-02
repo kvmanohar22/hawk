@@ -34,6 +34,7 @@
 #include <deque>
 #include <algorithm>
 #include <svo_msgs/DenseInput.h>
+#include <opencv2/imgproc.hpp>
 
 namespace svo {
 

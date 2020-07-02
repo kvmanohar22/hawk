@@ -8,6 +8,8 @@
 #include <gtsam/slam/ProjectionFactor.h>
 
 #include <thread>
+#include <queue>
+#include <map>
 #include <chrono>
 #include <limits>
 

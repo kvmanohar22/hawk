@@ -130,8 +130,8 @@ IF(SVO_BUILD_TESTS)
   ADD_EXECUTABLE(test_matcher test/test_matcher.cpp)
   TARGET_LINK_LIBRARIES(test_matcher svo)
 
-  ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
-  TARGET_LINK_LIBRARIES(test_feature_detection svo)
+  # ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
+  # TARGET_LINK_LIBRARIES(test_feature_detection svo)
 
   ADD_EXECUTABLE(test_depth_filter test/test_depth_filter.cpp)
   TARGET_LINK_LIBRARIES(test_depth_filter svo)

@@ -13,6 +13,8 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3DS2_Base.h>
+#include <unordered_map>
+#include <queue>
 
 namespace svo {
 

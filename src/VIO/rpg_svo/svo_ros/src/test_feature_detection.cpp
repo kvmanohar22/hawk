@@ -72,17 +72,17 @@ public:
 
 DetectorRos::DetectorRos() :
   quit_(false),
-  detector_type_(DetectorType::ORB),
+  detector_type_(DetectorType::FAST),
   width(0),
   height(0)
 {
-  if(!vk::camera_loader::loadFromRosNs("svo_features", "cam0", cam_))
+  if(!vk::camera_loader::loadFromRosNs("svo", "cam0", cam_))
     throw std::runtime_error("Camera model not correctly specified.");
   width = cam_->width();
   height = cam_->height();
 
   fast_detector_ = new svo::feature_detection::FastDetector(width, height, svo::Config::gridSize(), svo::Config::nPyrLevels());
-  orb_detector_ = cv::ORB::create(1000, 1.2f, 3);
+  // orb_detector_ = cv::ORB::create(1000, 1.2f, 3);
 }
 
 DetectorRos::~DetectorRos() {
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
   DetectorRos detector_node;
 
   // subscribe to cam msgs
-  std::string cam_topic(vk::getParam<std::string>("/hawk/svo_features/image_topic"));
+  std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic"));
   image_transport::ImageTransport it(nh);
   image_transport::Subscriber it_sub = it.subscribe(cam_topic, 5, &::DetectorRos::img_cb, &detector_node);
 

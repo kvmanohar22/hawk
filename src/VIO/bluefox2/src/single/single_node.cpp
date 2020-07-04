@@ -11,7 +11,7 @@ SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
       fifoReadPos(0),
       fifoWritePos(0)
 {
-  ros::param::get("/hawk/stereo/offset_imu_cam", offset_from_kalibr_imu_cam_);
+  ros::param::get("/hawk/svo/cam0/timeshift_cam_imu", offset_from_kalibr_imu_cam_);
   pnh.param("ctm", ctm, 1);
 
   if (ctm == 3) { // hardware triggering

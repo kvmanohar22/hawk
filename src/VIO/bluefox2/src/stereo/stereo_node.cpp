@@ -11,9 +11,11 @@ StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
       nextTriggerCounter(0),
       fifoReadPos(0),
       fifoWritePos(0),
-      offset_from_kalibr_imu_cam_(0)
+      offset_cam_l_sec_(0),
+      offset_cam_r_sec_(0)
 {
-  ros::param::get("/hawk/stereo/offset_imu_cam", offset_from_kalibr_imu_cam_);
+  ros::param::get("/hawk/svo/cam0/timeshift_cam_imu", offset_cam_l_sec_);
+  ros::param::get("/hawk/svo/cam1/timeshift_cam_imu", offset_cam_r_sec_);
   pnh.param("ctm", ctm, 1);
 
   if (ctm == 3) { // hardware triggering
@@ -89,9 +91,11 @@ void StereoNode::Acquire() {
   if (ctm == 3) { // hardware triggering
     const static auto expose_us = left_ros_->camera().GetExposeUs();
     const static auto half_expose_duration = ros::Duration(expose_us * 1e-6 / 2);
-    const static auto offset_time = ros::Duration(offset_from_kalibr_imu_cam_);
+    const static auto offset_time_l = ros::Duration(offset_cam_l_sec_);
+    const static auto offset_time_r = ros::Duration(offset_cam_r_sec_);
 
-    while (is_acquire() && ros::ok()) {
+    while (is_acquire() && ros::ok())
+    {
       boost::thread thread_l(&StereoNode::threadedRequest, this, left_ros_);
       boost::thread thread_r(&StereoNode::threadedRequest, this, right_ros_);
 
@@ -100,19 +104,22 @@ void StereoNode::Acquire() {
 
       // wait for new trigger packet to receive
       bluefox2::TriggerPacket_t pkt;
-      while (!fifoLook(pkt)) {
-        ros::Duration(0.00001).sleep();
+      while (!fifoLook(pkt))
+      {
+        ros::Duration(0.000001).sleep();
       }
 
       // a new video frame was captured
       // check if we need to skip it if one trigger packet was lost
-      if (pkt.triggerCounter == nextTriggerCounter) {
+      if (pkt.triggerCounter == nextTriggerCounter)
+      {
         fifoRead(pkt);
 
         // start threaded readout of images
-        ros::Time img_timestamp = pkt.triggerTime + half_expose_duration + offset_time;
-        boost::thread thread_l(&StereoNode::threadedAcquisition, this, left_ros_, img_timestamp);
-        boost::thread thread_r(&StereoNode::threadedAcquisition, this, right_ros_, img_timestamp);
+        ros::Time img_timestamp_l = pkt.triggerTime + half_expose_duration + offset_time_l;
+        ros::Time img_timestamp_r = pkt.triggerTime + half_expose_duration + offset_time_r;
+        boost::thread thread_l(&StereoNode::threadedAcquisition, this, left_ros_, img_timestamp_l);
+        boost::thread thread_r(&StereoNode::threadedAcquisition, this, right_ros_, img_timestamp_r);
 
         // wait until both the images are readout
         thread_l.join();

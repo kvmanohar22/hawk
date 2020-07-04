@@ -76,6 +76,17 @@ public:
   /// engage offboard mode [arm, takeoff, pos+vel setpoints from trajectory node]
   bool engage_offboard_trajectory();
 
+  /// engage offboard mode
+  /*
+    1. arm
+    2. takeoff
+    3. wait for positional mode
+    4. wait for switch to offboard mode from RC
+    5. execute path from planner
+    6. land
+  */
+  bool engage_offboard_vio();
+
   /// TODO: move this out of here
   bool MultiDOFJointTrajectory_to_posvel(
       const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& src,

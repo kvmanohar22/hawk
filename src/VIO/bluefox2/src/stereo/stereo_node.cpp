@@ -14,8 +14,8 @@ StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
       offset_cam_l_sec_(0),
       offset_cam_r_sec_(0)
 {
-  ros::param::get("/hawk/svo/cam0/timeshift_cam_imu", offset_cam_l_sec_);
-  ros::param::get("/hawk/svo/cam1/timeshift_cam_imu", offset_cam_r_sec_);
+  ros::param::get("/hawk/cam0/timeshift_cam_imu", offset_cam_l_sec_);
+  ros::param::get("/hawk/cam1/timeshift_cam_imu", offset_cam_r_sec_);
   pnh.param("ctm", ctm, 1);
 
   if (ctm == 3) { // hardware triggering

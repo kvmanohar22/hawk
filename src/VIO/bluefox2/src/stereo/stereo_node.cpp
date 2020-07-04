@@ -5,8 +5,8 @@ namespace bluefox2 {
 
 StereoNode::StereoNode(const ros::NodeHandle &pnh, ros::NodeHandle& nh)
     : CameraNodeBase(pnh),
-      left_ros_(boost::make_shared<Bluefox2Ros>(pnh, "left")),
-      right_ros_(boost::make_shared<Bluefox2Ros>(pnh, "right")),
+      left_ros_(boost::make_shared<Bluefox2Ros>(pnh, "left", 3)),
+      right_ros_(boost::make_shared<Bluefox2Ros>(pnh, "right", 3)),
       outOfSyncCounter(0),
       nextTriggerCounter(0),
       fifoReadPos(0),

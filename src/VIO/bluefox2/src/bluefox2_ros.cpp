@@ -2,7 +2,7 @@
 
 namespace bluefox2 {
 
-Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix)
+Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix, const int mm)
     : CameraRosBase(nh, prefix), bluefox2_(identifier()) {
   //  bluefox2_.OpenDevice();
   SetHardwareId(bluefox2_.serial());
@@ -19,8 +19,6 @@ Bluefox2Ros::Bluefox2Ros(const ros::NodeHandle& nh, const std::string& prefix)
   }
 
   // Set mirror mode on construction
-  int mm;
-  cnh.param<int>("/hawk/stereo/mm", mm, 0);
   bluefox2_.SetMM(mm);
 }
 

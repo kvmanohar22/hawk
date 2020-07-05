@@ -162,8 +162,10 @@ void VoNode::localPoseCb(const geometry_msgs::PoseStampedConstPtr& msg)
       msg->pose.orientation.x,
       msg->pose.orientation.y,
       msg->pose.orientation.z);
-    const auto t = msg->pose.position; 
-    Vector3d t_w_b; t_w_b << t.x, t.y, t.z; 
+    const auto t = msg->pose.position;
+
+    /// This should be zero exactly. No translation!
+    Vector3d t_w_b; t_w_b << t.x, t.y, 0.0;
     T_px4w_b0_ = Sophus::SE3(q_w_b, t_w_b); 
   }
 }
@@ -173,10 +175,7 @@ void VoNode::publishPose(const FramePtr& frame)
   const SE3 T_w_b =  frame->T_f_w_.inverse() * FrameHandlerMono::T_c0_b_;
 
   // transform into the px4's world frame
- 
-  // DO not use barometer! 
-  // const SE3 T_px4w_b = T_px4w_b0_ * T_w_b0_.inverse() * T_w_b;
-  const SE3 T_px4w_b = T_w_b;
+  const SE3 T_px4w_b = T_px4w_b0_ * T_w_b0_.inverse() * T_w_b;
 
   const Vector3d t = T_px4w_b.translation();
   const Quaterniond q = T_px4w_b.unit_quaternion(); 

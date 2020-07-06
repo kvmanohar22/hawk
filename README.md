@@ -5,6 +5,7 @@
 - [Transformations](#transforms)
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
+- [Run ROS over network](#network)
 
 <a name="setup"></a>
 ## Setup
@@ -163,3 +164,23 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
   - Change the exposure in the above launch file
   - **WARNING**: Pass in the right calibration file (`calibration:=/path/to/calibration`)
   - **WARNING**: Set the proper device. Defaults to `camera_1` (`device:=<serial number>`)
+
+<a name="network"></a>
+## Run ROS over network
+Super useful when you want to run rviz over PC and other stuff over drone.
+1. Edit `/etc/hosts` file on both drone and local PC and add ip addresses as follows
+```bash
+<ip of onboard device> <username of onboard device>
+<ip of local PC 1> <username of local PC 1>
+<ip of local PC 2> <username of local PC 2>
+...
+<ip of local PC N> <username of local PC N>
+```
+2. change `ROS_MASTER_URI` to the ip address where you want ROS master to run. eg:
+```bash
+export ROS_MASTER_URI=http://<ip address of host>:11311
+export ROS_HOSTNAME=<local username>
+```
+
+That's it. You should be able to stream on any device now!
+

@@ -44,7 +44,7 @@ class Bbox {
                 outNames = net.getUnconnectedOutLayersNames();
             }
 
-        void setParams(int _inpW, int _inpH, vector<string> _classes,
+        void setParams(int _inpW, int _inpH, const vector<string>& _classes,
                             float _confThreshold, float _nmsThreshold, Scalar _mean, bool _swapRB, string _kWinName="BBOX Output") {
                 inpWidth = _inpW;
                 inpHeight = _inpH;
@@ -55,9 +55,10 @@ class Bbox {
                 swapRB = _swapRB;
                 kWinName = _kWinName;
         }
-        std::tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> predict(Mat frame);
+        std::tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> predict(Mat frame, bool draw=false);
 
-        void postprocess(Mat& frame, const vector<Mat>& out, Net& net, std::vector<int>& classIds, std::vector<float>& confidences, std::vector<Rect>& boxes);
+        void postprocess(Mat& frame, const vector<Mat>& out, Net& net, std::vector<int>& classIds,
+                            std::vector<float>& confidences, std::vector<Rect>& boxes, vector<int>& indices, bool draw);
 
         void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame);
 };

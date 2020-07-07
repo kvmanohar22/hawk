@@ -16,7 +16,7 @@ using namespace cv;
 using namespace cv::dnn;
 
 
-tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat frame) {
+tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat frame, bool draw=false) {
     Mat blob;
     // frame = imread(file_path, CV_LOAD_IMAGE_COLOR);
     Size inpSize(this->inpWidth > 0 ? this->inpWidth : frame.cols,
@@ -33,11 +33,12 @@ tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat
     std::vector<Mat> outs;
     this->net.forward(outs, this->outNames);
 
-    std::vector<int> classIds;
-    std::vector<float> confidences;
-    std::vector<Rect> boxes;
+    std::vector<int> classIds_;
+    std::vector<float> confidences_;
+    std::vector<Rect> boxes_;
+    std::vector<int> indices_;
 
-    this->postprocess(frame, outs, net, classIds, confidences, boxes);
+    this->postprocess(frame, outs, net, classIds_, confidences_, boxes_, indices_, draw);
 
     // Put efficiency information.
     std::vector<double> layersTimes;
@@ -46,14 +47,28 @@ tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat
     std::string label = format("Inference time: %.2f ms", t);
     std::cout << label << std::endl;
 
-    imshow(this->kWinName, frame);
+    std::vector<int> classIds;
+    std::vector<float> confidences;
+    std::vector<Rect> boxes;
+
+    for(size_t i = 0; i < (int) indices_.size(); i++) {
+        classIds.push_back(classIds_[i]);
+        confidences.push_back(confidences_[i]);
+        boxes.push_back(boxes_[i]);
+    }
+
+
+    if(draw) {
+        imshow(this->kWinName, frame);
+    }
 
     return make_tuple(classIds, confidences, boxes);
 
 }
 
 void Bbox::postprocess(Mat& frame, const std::vector<Mat>& outs, Net& net,
-                    std::vector<int>& classIds, std::vector<float>& confidences, std::vector<Rect>& boxes) {
+                    std::vector<int>& classIds, std::vector<float>& confidences,
+                    std::vector<Rect>& boxes, std::vector<int>& indices, bool draw) {
 
     if (this->outLayerType == "DetectionOutput") {
         // Network produces output blob with a shape 1x1xNx7 where N is a number of
@@ -114,13 +129,14 @@ void Bbox::postprocess(Mat& frame, const std::vector<Mat>& outs, Net& net,
         CV_Error(Error::StsNotImplemented, "Unknown output layer type: " + this->outLayerType);
     }
 
-    std::vector<int> indices;
     NMSBoxes(boxes, confidences, this->confThreshold, this->nmsThreshold, indices);
     for (size_t i = 0; i < indices.size(); ++i) {
         int idx = indices[i];
         Rect box = boxes[idx];
-        drawPred(classIds[idx], confidences[idx], box.x, box.y,
+        if(draw) {
+            drawPred(classIds[idx], confidences[idx], box.x, box.y,
                  box.x + box.width, box.y + box.height, frame);
+        }
     }
 }
 

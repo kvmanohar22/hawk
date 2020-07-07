@@ -1,49 +1,54 @@
+#include <vector>
+#include <string>
+#include <fstream>
+
 #include <benchmark/benchmark.h>
-#include <random>
-#include <iostream>
+#include <opencv2/highgui/highgui.hpp>
+#include <bbox/bbox.h>
 
-std::mt19937 rng;
+#define USE_RANDOM_IMAGE
 
-void SomeFunction_rand(std::vector<int>& arr, std::vector<int>& idx) {
-    int s = 0;
-    for(auto i : idx) {
-        s += arr[i];
-    }
-    // std::cout << s << std::endl;
-}
-
-void SomeFunction(std::vector<int>& arr) {
-    int s = 0;
-    for(int i = 0; i < (int) arr.size(); i++) {
-        s += arr[i];
-    }
-    // std::cout << s << std::endl;
-}
-
-static void BM_SomeFunction_rand(benchmark::State& state) {
+static void OpenCV_DNN_readnet(benchmark::State& state) {
   // Perform setup here
-  rng.seed(12345);
-  std::vector<int> arr((int)1e5, 1), idx((int)1e5);
-  std::uniform_int_distribution<uint32_t> uint_dist(0, (int) arr.size() - 1);
-  for(auto& x : idx) {
-      x = uint_dist(rng);
-  }
+  vector<string> classes;
+  // get labels of all classes
+  string classesFile = "/home/sipah00/hawk_ws/src/tracking/coco.names";
+  ifstream ifs(classesFile.c_str());
+  string line;
+  while(getline(ifs, line)) classes.push_back(line);
+  cout << "Total Number of classes: " << classes.size() << endl;
+
+  int inpW = 416;
+  int inpH = 416;
+  float confThreshold = 0.5;
+  float nmsThreshold = 0.4;
+  bool swapRB = true;
+  auto mean = cv::Scalar(0,0,0);
+  
+  string kWinName = "bbox_test";
+
+  Bbox box(model, config, "yolo");
+  box.setParams(inpW, inpH, classes, confThreshold, nmsThreshold, mean, swapRB, kWinName);
+
+
+  #ifdef USE_RANDOM_IMAGE
+  cv::Mat img(cv::Size(416, 416), CV_32FC3);
+  cv::randu(img, cv::Scalar(0, 0, 0), cv::Scalar(255, 255, 255))
+  #else
+  string file = "";
+  cv::Mat img = cv::imread(file);
+  #endif
+
+  vector<int> classIds;
+  vector<float> confidences;
+  vector<cv::Rect> boxes;
+
   for (auto _ : state) {
     // This code gets timed
-    SomeFunction_rand(arr, idx);
-  }
-}
-
-static void BM_SomeFunction(benchmark::State& state) {
-  // Perform setup here
-  std::vector<int> arr((int)1e5, 1);
-  for (auto _ : state) {
-    // This code gets timed
-    SomeFunction(arr);
+    tie (classIds, confidences, boxes) = box.predict(img, false);
   }
 }
 // Register the function as a benchmark
-BENCHMARK(BM_SomeFunction_rand);
-BENCHMARK(BM_SomeFunction);
+BENCHMARK(OpenCV_DNN_readnet);
 // Run the benchmark
 BENCHMARK_MAIN();

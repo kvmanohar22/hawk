@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(tracking_test)
 
-set(bbox_DIR /home/sipah00/hawk_ws/src/tracking/bbox/cmake/)
 
 find_package(benchmark REQUIRED)
 find_package(OpenCV 4.2.0 CONFIG REQUIRED)

@@ -13,7 +13,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-#define PERSON_CLASS_ID 92
+#define PERSON_CLASS_ID 1 
 
 int tracking::Tracker::startTracker(cv::Mat& mat_img) {
     if (mat_img.empty()) {

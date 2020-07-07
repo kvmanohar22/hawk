@@ -12,7 +12,9 @@ static void OpenCV_DNN_readnet(benchmark::State& state) {
   // Perform setup here
   vector<string> classes;
   // get labels of all classes
-  string classesFile = "/home/sipah00/hawk_ws/src/tracking/coco.names";
+  string classesFile = "/home/sipah00/hawk_ws/src/tracking/models/coco.names";
+  string model = "/home/sipah00/hawk_ws/src/tracking/models/yolov3.weights";
+
   ifstream ifs(classesFile.c_str());
   string line;
   while(getline(ifs, line)) classes.push_back(line);
@@ -35,7 +37,7 @@ static void OpenCV_DNN_readnet(benchmark::State& state) {
   cv::Mat img(cv::Size(416, 416), CV_32FC3);
   cv::randu(img, cv::Scalar(0, 0, 0), cv::Scalar(255, 255, 255))
   #else
-  string file = "";
+  string file = "/home/sipah00/hawk_ws/src/tracking/video_frames/frame_000100.jpg";
   cv::Mat img = cv::imread(file);
   #endif
 
@@ -46,6 +48,10 @@ static void OpenCV_DNN_readnet(benchmark::State& state) {
   for (auto _ : state) {
     // This code gets timed
     tie (classIds, confidences, boxes) = box.predict(img, false);
+    for(int i = 0; i < classIds.size(); i++) {
+      cout << "Class Id: " << classids[i] << endl;
+      cout << "Conf: " << confidences[i] << endl;
+    }
   }
 }
 // Register the function as a benchmark

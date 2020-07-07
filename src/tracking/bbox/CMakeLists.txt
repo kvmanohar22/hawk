@@ -24,3 +24,20 @@ target_link_libraries(bbox PUBLIC
 #############
 ## Testing ##
 #############
+
+# Export
+include(GNUInstallDirs)
+install(TARGETS bbox
+    EXPORT bbox-targets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(EXPORT bbox-targets
+  FILE
+    bboxTargets.cmake
+  NAMESPACE
+    bbox::
+  DESTINATION
+    ${CMAKE_INSTALL_LIBDIR}/cmake/bbox
+)

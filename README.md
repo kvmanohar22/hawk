@@ -6,6 +6,7 @@
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
 - [Run ROS over network](#network)
+- [Important PX4 PARAMS](px4)
 
 <a name="setup"></a>
 ## Setup
@@ -22,7 +23,7 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 - Ubuntu setup
   - Set the environment variable `HAWK_PX4_FIRMWARE` to the source of `px4/Firmware` in `scripts/load_px4_firmware`.
   - Copy the file `99-pixhawk.rules` to the following directory `/etc/udev/rules.d/`.
-  - Add yourself to the following groups (reboot required to take effect)
+  - Add yourself to the following groups (reboot required to take effect). This is for enabling offboard communication through serial port.
 
     ```bash
       sudo usermod -a -G tty <username>
@@ -39,7 +40,7 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 
 - Install the following dependencies as well
   ```bash
-    sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf
+    sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf libyaml-cpp-dev
   ```
 
 - Install MatrixVision driver. Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
@@ -47,6 +48,10 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 - Install GTSAM as outlined [here](https://github.com/borglab/gtsam). Following changes to be done in `CMakeLists.txt` of GTSAM.
   - **IMPORTANT**: Disable the flag `GTSAM_TANGENT_PREINTEGRATION` which is ON by default.
   - Enable the use of system Eigen (`GTSAM_USE_SYSTEM_EIGEN` should be ON).
+  - If you do not want to build tests, examples. Run cmake as follows: `cmake -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF ..`
+
+- If you are going for minimal ROS installation, following packages are required as well. Replace * in the below package names with `ros-melodic-` or whatever distro you have.
+  `*camera-manager *rqt-gui *rqt-gui-py python-catkin-tools`
 
 ### Build
 
@@ -184,3 +189,9 @@ export ROS_HOSTNAME=<local username>
 
 That's it. You should be able to stream on any device now!
 
+<a name="px4"></a>
+## Important PX4 parameters
+- For setting up offboard communication:
+  - `MAV_1_CONFIG=TELEM2`
+  - `MAV_1_MODE=Onboard`
+  - `SER_TEL2_BAUD = 921600`

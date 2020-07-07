@@ -24,10 +24,10 @@
     </include>
 
     <!-- start rviz -->
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+    <!-- <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" /> -->
 
     <!-- start cameras -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering_stereo.launch">
-        <arg name="expose_us" value="20000"/>
+        <arg name="expose_us" value="2000"/>
     </include>
 </launch>

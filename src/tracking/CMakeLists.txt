@@ -10,9 +10,6 @@ add_subdirectory(tracking_msg)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
-# SET(OpenCV_DIR /usr/share/OpenCV)
-
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
@@ -28,9 +25,9 @@ if (CATKIN_ENABLE_TESTING)
 endif()
 
 find_package(dlib REQUIRED)
-# find_package(OpenCV 3.2 EXACT REQUIRED)
 find_package(OpenCV 4.2.0 CONFIG REQUIRED)
-FIND_PACKAGE(Boost REQUIRED)
+find_package(Boost REQUIRED)
+find_package(benchmark REQUIRED)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -53,6 +50,7 @@ add_executable(${PROJECT_NAME}_node src/tracking_node.cpp)
 add_executable(image_pub_node src/image_pub_node.cpp)
 add_executable(tracking_bag_node src/tracking_bag.cpp)
 add_executable(bbox_test_node src/bbox_test.cpp)
+add_executable(perf_node perf/perf.cpp)
 
 
 
@@ -62,7 +60,9 @@ target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS} cv_bridg
 target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} cv_bridge)
 target_link_libraries(bbox_test_node bbox ${catkin_LIBRARIES}  ${OpenCV_LIBS} cv_bridge)
 
-add_subdirectory(test)
+# Perf Node #
+target_link_libraries(perf_node ${OpenCV_LIBS} ${PROJECT_NAME} bbox benchmark::benchmark)
+
 
 #############
 ## Testing ##

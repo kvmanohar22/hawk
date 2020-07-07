@@ -33,6 +33,7 @@ namespace tracking {
             int startTracker(cv::Mat& mat_img);
             int doTracking(cv::Mat& mat_img);
             void imgCallback(const sensor_msgs::ImageConstPtr& msg);
+            void imgCallback(cv::Mat cvMatImage); 
 
             cv::Rect getRect() { return this->rect; }
             cv::Point getCenter() { return this->center; }

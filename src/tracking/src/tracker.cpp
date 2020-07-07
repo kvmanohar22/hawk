@@ -87,3 +87,18 @@ void tracking::Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
     ROS_INFO_STREAM("One frame passed!!");
 }
 
+void tracking::Tracker::imgCallback(cv::Mat cvMatImage) {
+    // cv::imshow("view", cvMatImage);
+    // auto dlibImage = Utils::cvToDlib2d(cvMatImage);
+    if (this->is_started == false) {
+        int res = this->startTracker(cvMatImage);
+        if(res == 1) {
+            ROS_INFO_STREAM("Tracker Intialized successfully!!");
+        } else {
+            ROS_INFO_STREAM("Tracker Intialization Failed!!");
+        }
+        return;
+    }
+    this->doTracking(cvMatImage);
+    ROS_INFO_STREAM("One frame passed!!");
+}

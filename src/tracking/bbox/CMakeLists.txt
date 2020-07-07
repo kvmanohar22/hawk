@@ -12,13 +12,6 @@ add_library(bbox SHARED
   src/bbox.cpp
 )
 
-# target_include_directories(bbox PUBLIC include)
-
-# message(STATUS "    config: ${OpenCV_DIR}")
-# message(STATUS "    version: ${OpenCV_VERSION}")
-# message(STATUS "    libraries: ${OpenCV_LIBS}")
-# message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
-
 target_include_directories(bbox 
   PUBLIC 
     $<INSTALL_INTERFACE:include>
@@ -47,6 +40,7 @@ install(EXPORT bbox-targets
   DESTINATION
     lib/cmake/bbox
 )
+
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/include/bbox/bbox.h

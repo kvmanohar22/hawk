@@ -29,6 +29,8 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
       sudo usermod -a -G tty <username>
       sudo usermod -a -G dialout <username>
     ```
+  - Further, if this setup is on an embedded device, set `ARM_ARCHITECTURE=True` in `.bashrc`.
+  
 - Install geographic lib dataset using [this script](https://github.com/mavlink/mavros/blob/master/mavros/scripts/install_geographiclib_datasets.sh). (Requires sudo privileges)
 
 - All the ros dependencies can be installed using `wstool`. Just execute the following command;
@@ -51,7 +53,10 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
   - If you do not want to build tests, examples. Run cmake as follows: `cmake -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF ..`
 
 - If you are going for minimal ROS installation, following packages are required as well. Replace * in the below package names with `ros-melodic-` or whatever distro you have.
-  `*camera-manager *rqt-gui *rqt-gui-py python-catkin-tools`
+  `*camera-manager *rqt-gui *rqt-gui-py python-catkin-tools *cv-bridge`
+
+### Known issues
+- If running on Jetson devices, where opencv4 is installed by default, `cv_bridge` might have issues with finding it. To resolve this, edit `cv_bridgeConfig.cmake` and change the path to `opencv` include dirs.
 
 ### Build
 

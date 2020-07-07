@@ -24,7 +24,9 @@
     </include>
 
     <!-- start rviz -->
-    <!-- <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" /> -->
+    <group if="$(env ARM_ARCHITECTURE)">
+      <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
+    </group>
 
     <!-- start cameras -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering_stereo.launch">

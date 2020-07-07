@@ -62,6 +62,7 @@ target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS} cv_bridg
 target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} cv_bridge)
 target_link_libraries(bbox_test_node bbox ${catkin_LIBRARIES}  ${OpenCV_LIBS} cv_bridge)
 
+add_subdirectory(test)
 
 #############
 ## Testing ##

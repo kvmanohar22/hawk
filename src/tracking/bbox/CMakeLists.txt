@@ -11,26 +11,32 @@ find_package(OpenCV 4.2.0 CONFIG REQUIRED)
 add_library(bbox SHARED
   src/bbox.cpp
 )
-target_include_directories(bbox PUBLIC include)
+
+# target_include_directories(bbox PUBLIC include)
 
 # message(STATUS "    config: ${OpenCV_DIR}")
 # message(STATUS "    version: ${OpenCV_VERSION}")
 # message(STATUS "    libraries: ${OpenCV_LIBS}")
 # message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
 
+target_include_directories(bbox 
+  PUBLIC 
+    $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
 target_link_libraries(bbox PUBLIC
-      opencv_core opencv_dnn opencv_imgcodecs opencv_videoio opencv_highgui)
+     opencv_core opencv_dnn opencv_imgcodecs opencv_videoio opencv_highgui)
 
 #############
 ## Testing ##
 #############
 
 # Export
-include(GNUInstallDirs)
 install(TARGETS bbox
     EXPORT bbox-targets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
 )
 
 install(EXPORT bbox-targets
@@ -39,5 +45,18 @@ install(EXPORT bbox-targets
   NAMESPACE
     bbox::
   DESTINATION
-    ${CMAKE_INSTALL_LIBDIR}/cmake/bbox
+    lib/cmake/bbox
+)
+
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/bbox/bbox.h
+  DESTINATION "include/bbox")
+
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/bboxConfig.cmake
+  DESTINATION "lib/cmake/bbox" )
+
+set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake
 )

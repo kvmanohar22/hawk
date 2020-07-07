@@ -6,7 +6,7 @@
 #include <dlib/image_io.h>
 #include <dlib/opencv.h>
 
-// #include <bbox/bbox.h>
+#include <bbox/bbox.h>
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -20,12 +20,16 @@ namespace tracking {
             cv::Rect rect;
             cv::Point center;
             bool is_started;
+            bool use_bbox;
         public:
             dlib::correlation_tracker tracker;
             dlib::image_window win;
-            // Bbox box;
-            Tracker(cv::Rect rect) : confidence(0.0), is_started(false) { this->setRect(rect); this->setCenter(rect); }
-            Tracker(dlib::drectangle rect) : confidence(0.0), is_started(false) { this->setRect(rect); this->setCenter(rect); }
+            Bbox* bboxptr;
+
+            Tracker(Bbox* bboxptr) : confidence(0.0), is_started(false), use_bbox(true) { this->bboxptr = bboxptr; }
+            Tracker(cv::Rect rect) : confidence(0.0), is_started(false), bboxptr(nullptr), use_bbox(false) { this->setRect(rect); this->setCenter(rect); }
+            Tracker(dlib::drectangle rect) : confidence(0.0), is_started(false), bboxpter(nullptr), use_bbox(false) { this->setRect(rect); this->setCenter(rect); }
+            
             int startTracker(cv::Mat& mat_img);
             int doTracking(cv::Mat& mat_img);
             void imgCallback(const sensor_msgs::ImageConstPtr& msg);

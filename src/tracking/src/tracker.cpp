@@ -13,18 +13,30 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+#define PERSON_CLASS_ID 92
+
 int tracking::Tracker::startTracker(cv::Mat& mat_img) {
     if (mat_img.empty()) {
         std::cout << "Empty Image" << std::endl;
         return 0;
     }
-    // get bbox for this cv image
-    // std::vector<int> classIds;
-    // std::vector<float> confidences;
-    // std::vector<cv::Rect> boxes;
+    if(use_bbox) {
+        // get bbox for this cv image
+        std::vector<int> classIds;
+        std::vector<float> confidences;
+        std::vector<cv::Rect> boxes;
 
-    // std::tie (classIds, confidence, boxes) = this->box.predict(mat_img);
-
+        std::tie (classIds, confidences, boxes) = this->bboxpter->predict(mat_img, false);
+        //extract person bbox
+        for(size_t i = 0; i < classIds.size(); i++) {
+            if(classIds[i] == PERSON_CLASS_ID) {
+                this->rect = boxes[i];
+                this->confidence = confidences[i];
+                break;
+            }
+        }
+    }
+    //change cv_image and cv_rect to dlib_image and dlib_drectangle
     dlib::array2d<unsigned char> dlib_frame = Utils::cvToDlib2d(mat_img);
     dlib::drectangle dlib_rect = Utils::cvtRectToDrect(this->getRect());
     this->tracker.start_track(dlib_frame, dlib_rect);

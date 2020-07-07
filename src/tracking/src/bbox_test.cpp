@@ -20,7 +20,7 @@ void imgCallback(const sensor_msgs::ImageConstPtr& msg, Bbox& box) {
         return;
     }
     cout << "in callback " << endl;
-    box.predict(cvMatImage);
+    box.predict(cvMatImage, false);
 }
 
 int main(int argc, char** argv) try {

@@ -55,7 +55,7 @@ class Bbox {
                 swapRB = _swapRB;
                 kWinName = _kWinName;
         }
-        std::tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> predict(Mat frame, bool draw=false);
+        std::tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> predict(Mat frame, bool draw);
 
         void postprocess(Mat& frame, const vector<Mat>& out, Net& net, std::vector<int>& classIds,
                             std::vector<float>& confidences, std::vector<Rect>& boxes, vector<int>& indices, bool draw);

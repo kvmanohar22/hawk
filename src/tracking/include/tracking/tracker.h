@@ -28,7 +28,7 @@ namespace tracking {
 
             Tracker(Bbox* bboxptr) : confidence(0.0), is_started(false), use_bbox(true) { this->bboxptr = bboxptr; }
             Tracker(cv::Rect rect) : confidence(0.0), is_started(false), bboxptr(nullptr), use_bbox(false) { this->setRect(rect); this->setCenter(rect); }
-            Tracker(dlib::drectangle rect) : confidence(0.0), is_started(false), bboxpter(nullptr), use_bbox(false) { this->setRect(rect); this->setCenter(rect); }
+            Tracker(dlib::drectangle rect) : confidence(0.0), is_started(false), bboxptr(nullptr), use_bbox(false) { this->setRect(rect); this->setCenter(rect); }
             
             int startTracker(cv::Mat& mat_img);
             int doTracking(cv::Mat& mat_img);

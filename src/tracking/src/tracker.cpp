@@ -26,14 +26,20 @@ int tracking::Tracker::startTracker(cv::Mat& mat_img) {
         std::vector<float> confidences;
         std::vector<cv::Rect> boxes;
 
-        std::tie (classIds, confidences, boxes) = this->bboxpter->predict(mat_img, false);
+        std::tie (classIds, confidences, boxes) = this->bboxptr->predict(mat_img, false);
         //extract person bbox
+        bool initialized = false;
         for(size_t i = 0; i < classIds.size(); i++) {
             if(classIds[i] == PERSON_CLASS_ID) {
                 this->rect = boxes[i];
                 this->confidence = confidences[i];
+                initialized = true;
                 break;
             }
+        }
+        if(!initialized) {
+            std::cout << "BBOX Faild!!!!" << std::endl;
+            return 0;
         }
     }
     //change cv_image and cv_rect to dlib_image and dlib_drectangle
@@ -69,8 +75,12 @@ void tracking::Tracker::imgCallback(const sensor_msgs::ImageConstPtr& msg) {
     // cv::imshow("view", cvMatImage);
     // auto dlibImage = Utils::cvToDlib2d(cvMatImage);
     if (this->is_started == false) {
-        this->startTracker(cvMatImage);
-        ROS_INFO_STREAM("Tracker Intialized successfully!!");
+        int res = this->startTracker(cvMatImage);
+        if(res == 1) {
+            ROS_INFO_STREAM("Tracker Intialized successfully!!");
+        } else {
+            ROS_INFO_STREAM("Tracker Intialization Failed!!");
+        }
         return;
     }
     this->doTracking(cvMatImage);

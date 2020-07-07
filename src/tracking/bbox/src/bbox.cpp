@@ -16,7 +16,7 @@ using namespace cv;
 using namespace cv::dnn;
 
 
-tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat frame, bool draw=false) {
+tuple<std::vector<int>, std::vector<float>, std::vector<Rect>> Bbox::predict(Mat frame, bool draw) {
     Mat blob;
     // frame = imread(file_path, CV_LOAD_IMAGE_COLOR);
     Size inpSize(this->inpWidth > 0 ? this->inpWidth : frame.cols,

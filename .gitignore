@@ -20,4 +20,5 @@ bags/**
 src/CMakeLists.txt
 evaluations/**
 analysis/smart_factors/**
+analysis/EKF/log**
 

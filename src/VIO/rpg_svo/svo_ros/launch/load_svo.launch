@@ -36,7 +36,7 @@
         <rosparam file="$(find svo_ros)/param/hawk/isam2_params.yaml" />
 
         <!-- Initial camera orientation, make it point forward -->
-        <param name="init_rx" value="-1.57" />
+        <param name="init_rx" value="0.00" />
         <param name="init_ry" value="0.00" />
         <param name="init_rz" value="0.00" />
 

@@ -67,28 +67,11 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <layout class="QHBoxLayout" name="horizontalLayout_1">
      <item>
       <widget class="QPushButton" name="button_start">
        <property name="text">
         <string>Start</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="button_reset">
-       <property name="toolTip">
-        <string>Reset velocities to zero</string>
-       </property>
-       <property name="text">
-        <string>Reset</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="button_quit">
-       <property name="text">
-        <string>Quit</string>
        </property>
       </widget>
      </item>

@@ -34,8 +34,6 @@ class SvoWidget(QWidget):
     
     # set the functions that are called when a button is pressed
     self.button_start.pressed.connect(self.on_start_button_pressed)
-    self.button_reset.pressed.connect(self.on_reset_button_pressed)
-    self.button_quit.pressed.connect(self.on_quit_button_pressed)
     
     # set callback for changed topic
     self.topic_line_edit.setText(svo_namespace)

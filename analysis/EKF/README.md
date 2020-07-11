@@ -12,14 +12,32 @@
 - `log_8_2020-7-9-14-57-28.ulg` : [MMM corridor] Altitude testing continuous change. Height mode: barometer, yaw: magnetometer(auto)
 - `log_10_2020-7-9-15-30-26.ulg`: [MMM corridor] Height mode: barometer, yaw: magnetometer(3-axis). Yaw should be better here.
 # 10/07
-- `log_1_2020-7-10-16-53-52.ulg`: [MMM corridor] After ruling out every possibility. This was the most stable positional flight mode. This was perfect!!!
-- `log_2_2020-7-10-17-13-10.ulg`: [MMM corridor] 
-- `log_5_2020-7-10-17-17-56.ulg`: [MMM corridor]
-- `log_6_2020-7-10-17-20-56.ulg`: [MMM front]
-- `log_7_2020-7-10-17-29-02.ulg`: [MMM front]
-- `log_8_2020-7-10-17-30-34.ulg`: [MMM front]
+- `10_07/log_1_2020-7-10-16-53-52.ulg`: [MMM corridor] After ruling out every possibility. This was the most stable positional flight mode. This was perfect!!!
+- `10_07/log_2_2020-7-10-17-13-10.ulg`: [MMM corridor] 
+- `10_07/log_5_2020-7-10-17-17-56.ulg`: [MMM corridor]
+- `10_07/log_6_2020-7-10-17-20-56.ulg`: [MMM front]
+- `10_07/log_7_2020-7-10-17-29-02.ulg`: [MMM front]
+- `10_07/log_8_2020-7-10-17-30-34.ulg`: [MMM front]
+
+Things that we tried to resolve the issue of toiled-bowl effect?
+- Verifying frames. Was `/mavros/vision_pose/pose` fed with information in right frame? **YES**
+- Inteference for the magnetometer. Yaw estimation wasn't that accurate in the corridor compared to MMM front. So there was slight interference
+- But vision based yaw estimation was correct
+- There was drop in number of messages sent over the topic `/mavros/vision_pose/pose`. This issue was resolved by increasing bandwith allotment for the uorb topic `ODOMETRY`.
+- Hypothesis that worked was:
+  - Settings:
+    - Increase bandwidth of `ODOMETRY` uorb topic from 30Hz to 200Hz. Although this seems to be overkill
+    - Decrease number of features tracked from 500 to 200 in SVO frontend
+    - Disable debug messages. (Marginal gain in fps)
+  - Conclusions:
+    - There is still certain drop in number of messages but this is small
+    - With the above configuration, SVO frontend is capable of running `~80Hz` on Jetson!
+    - Above configuration was tested exhaustively on hardware with camera triggering at `40Hz`
+
 Some problems:
   1. fps drop might be due to imu container size
   2. sd card error while logging
   3. smart battery setup in pixhawk
   4. COG alignment of pixhawk which leads to drift in pixhawk
+  5. Could disable lot more messages over FTDI to allot higher bandwidth for pose communication
+  6. Use local frames instead of global ENU. This makes sending waypoints much easier in offboard mode

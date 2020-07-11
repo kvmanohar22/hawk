@@ -17,13 +17,13 @@ Offboard::Offboard(ros::NodeHandle& nh)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>(
-     "mavros/state", 10, &Offboard::mavros_state_cb, this); 
+     "/mavros/state", 10, &Offboard::mavros_state_cb, this); 
   home_sub_ = nh_.subscribe<mavros_msgs::HomePosition>(
-      "mavros/home_position/home", 10, &Offboard::mavros_set_home_cb, this);
+      "/mavros/home_position/home", 10, &Offboard::mavros_set_home_cb, this);
   alt_amsl_sub_ = nh_.subscribe<mavros_msgs::Altitude>(
-      "mavros/altitude", 1, &Offboard::mavros_amsl_altitude_cb, this);
+      "/mavros/altitude", 1, &Offboard::mavros_amsl_altitude_cb, this);
   local_pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(
-      "mavros/local_position/pose", 1, &Offboard::local_pose_cb, this);
+      "/mavros/local_position/pose", 1, &Offboard::local_pose_cb, this);
 
   /// TODO: make this local 
   setpoints_sub_ = nh_.subscribe<trajectory_msgs::MultiDOFJointTrajectory>(
@@ -31,21 +31,21 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   // publishers
   local_pos_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
-      "mavros/setpoint_position/local", 10);
+      "/mavros/setpoint_position/local", 10);
   local_pos_vel_pub_ = nh_.advertise<mavros_msgs::PositionTarget>(
-      "mavros/setpoint_raw/local", 10, true);
+      "/mavros/setpoint_raw/local", 10, true);
 
   // service clients
   arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
-      "mavros/cmd/arming");
+      "/mavros/cmd/arming");
   set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(
-      "mavros/set_mode");
+      "/mavros/set_mode");
   takeoff_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>(
-      "mavros/cmd/takeoff");
+      "/mavros/cmd/takeoff");
   land_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>(
-      "mavros/cmd/land");
+      "/mavros/cmd/land");
   param_set_client_ = nh_.serviceClient<mavros_msgs::ParamSet>(
-     "mavros/param/set"); 
+     "/mavros/param/set");
 
   // service servers
   trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this);
@@ -58,7 +58,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   reset_home();
 
   while (ros::ok() && !(home_set_ && home_alt_amsl_set_ && local_pose_set_)) {
-    ROS_WARN_STREAM_ONCE("Waiting for home to be set...");
+    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for home to be set...");
     ros::spinOnce();
     rate_.sleep();
   }

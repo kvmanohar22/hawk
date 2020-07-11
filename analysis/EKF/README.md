@@ -42,3 +42,5 @@ Some problems (that need to be resolved):
   5. Could disable lot more messages over FTDI to allot higher bandwidth for pose communication
   6. Use local frames instead of global ENU. This makes sending waypoints much easier in offboard mode
   7. Stable connection over ssh
+
+`working.params`: Parameters used for first succesfull visual inertial odometry flight.

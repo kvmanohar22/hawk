@@ -11,3 +11,15 @@
 - `log_7_2020-7-9-14-53-26.ulg` : [MMM front] ~~Altitude mode testing with yaw change. Height mode: barometer, yaw: magnetometer(auto). low altitude testing~~
 - `log_8_2020-7-9-14-57-28.ulg` : [MMM corridor] Altitude testing continuous change. Height mode: barometer, yaw: magnetometer(auto)
 - `log_10_2020-7-9-15-30-26.ulg`: [MMM corridor] Height mode: barometer, yaw: magnetometer(3-axis). Yaw should be better here.
+# 10/07
+- `log_1_2020-7-10-16-53-52.ulg`: [MMM corridor] After ruling out every possibility. This was the most stable positional flight mode. This was perfect!!!
+- `log_2_2020-7-10-17-13-10.ulg`: [MMM corridor] 
+- `log_5_2020-7-10-17-17-56.ulg`: [MMM corridor]
+- `log_6_2020-7-10-17-20-56.ulg`: [MMM front]
+- `log_7_2020-7-10-17-29-02.ulg`: [MMM front]
+- `log_8_2020-7-10-17-30-34.ulg`: [MMM front]
+Some problems:
+  1. fps drop might be due to imu container size
+  2. sd card error while logging
+  3. smart battery setup in pixhawk
+  4. COG alignment of pixhawk which leads to drift in pixhawk

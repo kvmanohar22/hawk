@@ -1,0 +1,3 @@
+mavlink stream -d /dev/ttyS2 -s HIGHRES_IMU -r 1200
+mavlink stream -d /dev/ttyS2 -s ATTITUDE -r 1200
+mavlink stream -d /dev/ttyS2 -s ODOMETRY -r 200

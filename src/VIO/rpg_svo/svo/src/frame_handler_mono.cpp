@@ -149,7 +149,7 @@ void FrameHandlerMono::initialize()
   prior_pose_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 
   // 5s of storage time. This will be emptied pretty quickly
-  imu_container_ = boost::make_shared<ImuContainer>(5.0);
+  imu_container_ = boost::make_shared<ImuContainer>(2.0);
 
   if(Config::lobaNumIter() > 0)
   {

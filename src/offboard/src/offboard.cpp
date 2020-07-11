@@ -386,12 +386,23 @@ bool Offboard::engage_offboard_trajectory() {
 
 bool Offboard::engage_offboard_vio()
 {
+  // arm
+  arm(); 
+
+  // takeoff to certain altitude
+  const double takeoff_alt = 3.0;
+  takeoff(takeoff_alt);
+  while (ros::ok()) { // ensure we have reached required altitude
+    if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
+      break;
+  }
+
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;
   pose.pose.position.x = 0;
   pose.pose.position.y = 0;
-  pose.pose.position.z = 2.5;
+  pose.pose.position.z = cur_rel_alt_;
   for (size_t i=100; ros::ok() && i > 0; --i)
   {
     local_pos_pub_.publish(pose); 
@@ -414,9 +425,8 @@ bool Offboard::engage_offboard_vio()
 
   while (ros::ok())
   {
-    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...");
+    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...\t mode = " << current_state_.mode);
     local_pos_pub_.publish(pose);
-    ROS_WARN_STREAM_THROTTLE(1.0, "Current mode = " << current_state_.mode);
     if (current_state_.mode == "OFFBOARD")
     {
       offboard_enabled_ = true;

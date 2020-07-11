@@ -8,11 +8,11 @@ int main(int argc, char** argv) {
   hawk::Offboard offboard(nh);
 
   // wait for everything to be ready
-  ROS_INFO_STREAM("Waiting for gazebo to start...");
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  ros::Duration(5.0).sleep();
 
   ROS_INFO_STREAM("Engaging offboard mode...");
-  if(!offboard.engage_offboard_trajectory()) {
+  if(!offboard.engage_offboard_trajectory())
+  {
     ROS_ERROR_STREAM("Offboard mode ended abruptly. Check logs.");
     offboard.land();
   }

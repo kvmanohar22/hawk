@@ -279,9 +279,10 @@ bool Offboard::engage_offboard() {
   arm(); 
   
   // takeoff to certain altitude
-  takeoff(5.0);
+  const double takeoff_alt = 3.0;
+  takeoff(takeoff_alt);
   while (ros::ok()) { // ensure we have reached required altitude
-    if (std::abs(cur_rel_alt_ - 5.0) < 0.5)
+    if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
   }
 
@@ -303,13 +304,15 @@ bool Offboard::engage_offboard() {
     ROS_ERROR_STREAM("Cannot execute OFFBOARD mode"); 
     return false; 
   }
+
   offboard_enabled_ = true;
-  pose.pose.position.x = 5; 
+  pose.pose.position.x = 1;
   ros::Time current_time = ros::Time::now(); 
-  while (ros::ok() && offboard_enabled_) {
+  while (ros::ok() && offboard_enabled_)
+  {
     local_pos_pub_.publish(pose); 
    
-    if (ros::Time::now() - current_time > ros::Duration(20))
+    if (ros::Time::now() - current_time > ros::Duration(10))
       break;
 
     ros::spinOnce();
@@ -329,30 +332,21 @@ bool Offboard::engage_offboard_trajectory() {
   arm(); 
 
   // takeoff to certain altitude
-  takeoff(5.0);
-
-  // ensure we have reached required altitude
-  // TODO: This is dangerous behaviour. Callbacks are not cnosidered
-  ros::Duration(20).sleep();
-
-/* TODO: Not sure this is correct way to do it?
-  
-  while (ros::ok()) { 
-    if (std::abs(cur_rel_alt_ - 5.0) < 0.5) {
+  const double takeoff_alt = 3.0;
+  takeoff(takeoff_alt);
+  while (ros::ok()) { // ensure we have reached required altitude
+    if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
-    }
-
-    ros::spinOnce();
-    rate_.sleep();
   }
-*/
+
   // hold there for sometime
   ROS_INFO_STREAM("Publishing some initial points..."); 
   geometry_msgs::PoseStamped pose;
   pose.pose.position.x = 0;
   pose.pose.position.y = 0;
-  pose.pose.position.z = 5;
-  for (size_t i=100; ros::ok() && i > 0; --i) {
+  pose.pose.position.z = cur_rel_alt_;
+  for (size_t i=100; ros::ok() && i > 0; --i)
+  {
     local_pos_pub_.publish(pose); 
     ros::spinOnce();
     rate_.sleep(); 
@@ -362,11 +356,13 @@ bool Offboard::engage_offboard_trajectory() {
   ROS_INFO_STREAM("Request sent to set the current pose in planner"); 
   set_current_pose_ = true;
 
-  while (ros::ok()) {
+  while (ros::ok())
+  {
     ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
     local_pos_pub_.publish(pose);
     ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
-    if (current_state_.mode == "OFFBOARD") {
+    if (current_state_.mode == "OFFBOARD")
+    {
       offboard_enabled_ = true;
       start_trajectory_ = true;
       ROS_WARN_STREAM("OFFBOARD switch detected...");

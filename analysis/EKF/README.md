@@ -34,10 +34,11 @@ Things that we tried to resolve the issue of toiled-bowl effect?
     - With the above configuration, SVO frontend is capable of running `~80Hz` on Jetson!
     - Above configuration was tested exhaustively on hardware with camera triggering at `40Hz`
 
-Some problems:
+Some problems (that need to be resolved):
   1. fps drop might be due to imu container size
   2. sd card error while logging
   3. smart battery setup in pixhawk
   4. COG alignment of pixhawk which leads to drift in pixhawk
   5. Could disable lot more messages over FTDI to allot higher bandwidth for pose communication
   6. Use local frames instead of global ENU. This makes sending waypoints much easier in offboard mode
+  7. Stable connection over ssh

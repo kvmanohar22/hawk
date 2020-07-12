@@ -6,7 +6,8 @@
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
 - [Run ROS over network](#network)
-- [Important PX4 PARAMS](px4)
+- [Important PX4 PARAMS](#px4)
+- [Coding Style](#coding)
 
 <a name="setup"></a>
 ## Setup
@@ -43,6 +44,10 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 - Install the following dependencies as well
   ```bash
     sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf libyaml-cpp-dev
+  ```
+- For autoformatting
+  ```bash
+    sudo apt-get install clang-format-3.9
   ```
 
 - Install MatrixVision driver. Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
@@ -200,3 +205,7 @@ That's it. You should be able to stream on any device now!
   - `MAV_1_CONFIG=TELEM2`
   - `MAV_1_MODE=Onboard`
   - `SER_TEL2_BAUD = 921600`
+
+<a name="coding"></a>
+## Coding Style
+We strictly follow the ROS C++ style guide http://wiki.ros.org/CppStyleGuide. You can use `.clang-format` in this workspace to auto format code. See the instructions [here](https://github.com/davetcoleman/roscpp_code_format) for details on how to format your code.

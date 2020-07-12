@@ -2,7 +2,8 @@
 
 #include <thread>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   ros::init(argc, argv, "offboard");
   ros::NodeHandle nh;
   hawk::Offboard offboard(nh);

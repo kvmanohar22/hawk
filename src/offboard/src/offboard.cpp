@@ -79,13 +79,15 @@ Offboard::Offboard(ros::NodeHandle& nh)
   ROS_WARN_STREAM("Current altitude lock acquired");
 }
 
-Offboard::~Offboard() {
+Offboard::~Offboard()
+{
   ROS_INFO_STREAM("Altitude thread stop invoked..."); 
   watch_alt_thread_->join();
   delete watch_alt_thread_;
 }
 
-void Offboard::reset_home() {
+void Offboard::reset_home()
+{
   home_set_ = false;
   home_.geo.altitude  = 0;
   home_.geo.latitude  = 0;
@@ -93,19 +95,23 @@ void Offboard::reset_home() {
   ROS_INFO_STREAM("Home reset...");
 }
 
-void Offboard::mavros_state_cb(const mavros_msgs::State::ConstPtr& msg) {
+void Offboard::mavros_state_cb(const mavros_msgs::State::ConstPtr& msg)
+{
   current_state_ = *msg;
 }
 
-void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg) {
+void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg)
+{
   home_ = *msg;
-  if (!home_set_) {
+  if (!home_set_)
+  {
     ROS_INFO_STREAM("Home lock acquired:\t" << home_.geo.latitude << " " << home_.geo.longitude << " " << home_.geo.altitude);
   }
   home_set_ = true;
 }
 
-void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg) {
+void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
+{
   tf::Quaternion q(msg->pose.orientation.x,
     msg->pose.orientation.y,
     msg->pose.orientation.z,
@@ -122,7 +128,8 @@ bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req,
     mavros_msgs::CommandBool::Response& res)
 {
   res.success = start_trajectory_;
-  if (start_trajectory_) {
+  if (start_trajectory_)
+  {
     ROS_WARN_STREAM("[Service callback] Publishing trajectory from planner");
   }
   return true;
@@ -132,33 +139,41 @@ bool Offboard::set_curr_pose_planner(mavros_msgs::CommandBool::Request& req,
     mavros_msgs::CommandBool::Response& res)
 {
   res.success = set_current_pose_;
-  if (set_current_pose_) {
+  if (set_current_pose_)
+  {
     ROS_WARN_STREAM("[Service callback] Current pose used as start of trajectory");
   }
   return true;
 }
 
-void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
+void Offboard::offboard_cb(const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg)
+{
   curr_seq_id_ = msg->header.seq;
-  if (offboard_enabled_ && start_trajectory_) {
+  if (offboard_enabled_ && start_trajectory_)
+  {
     mavros_msgs::PositionTarget target;
     MultiDOFJointTrajectory_to_posvel(msg, target);
     ROS_WARN_STREAM_ONCE("Started publising pos+vel setpoints"); 
     local_pos_vel_pub_.publish(target);
     ROS_WARN_STREAM("[offboard] pos+vel setpoints TS = " << ros::Time::now().toSec()); 
-  } else {
+  }
+  else
+  {
     ROS_WARN_STREAM_ONCE("Offboard not enabled but receiving setpoints from sampler");
   }
   last_seq_id_ = curr_seq_id_;
 }
 
-bool Offboard::arm() {
-  if(!home_set_) {
+bool Offboard::arm()
+{
+  if(!home_set_)
+  {
     ROS_ERROR_STREAM("Cannot arm. home position not set...");
     return false;
   }
 
-  if (current_state_.armed) {
+  if (current_state_.armed)
+  {
     ROS_INFO_STREAM("Vehicle already armed...");
     return true;
   }
@@ -166,17 +181,22 @@ bool Offboard::arm() {
   mavros_msgs::CommandBool arm_srv;
   arm_srv.request.value = true;
   last_request_time_ = ros::Time::now(); 
-  if(arming_client_.call(arm_srv) && arm_srv.response.success) {
+  if(arming_client_.call(arm_srv) && arm_srv.response.success)
+  {
     ROS_INFO_STREAM("Vehicle armed...");
     return true;
-  } else {
+  }
+  else
+  {
     ROS_INFO_STREAM("Vehicle not armed...");
     return false;
   }
 }
 
-bool Offboard::takeoff(double rel_altitude) {
-  if(!home_set_) {
+bool Offboard::takeoff(double rel_altitude)
+{
+  if(!home_set_)
+  {
     ROS_ERROR_STREAM("Cannot takoff. No GPS fix...");
     return false;
   }
@@ -191,23 +211,29 @@ bool Offboard::takeoff(double rel_altitude) {
   ROS_INFO_STREAM("Altitude thread started..."); 
   watch_alt_thread_ = new boost::thread(boost::bind(&Offboard::watch_rel_alt_thread, this));
 
-  if(takeoff_client_.call(takeoff_srv) && takeoff_srv.response.success) {
+  if(takeoff_client_.call(takeoff_srv) && takeoff_srv.response.success)
+  {
     ROS_INFO_STREAM("Takeoff in progress...\t Altitude = " << takeoff_srv.request.altitude);
     return true;
-  } else {
+  }
+  else
+  {
     ROS_WARN_STREAM("Takeoff request rejected...");
     return false;
   }
 }
 
-bool Offboard::land() {
-  if(!home_set_) {
+bool Offboard::land()
+{
+  if(!home_set_)
+  {
     ROS_ERROR_STREAM("Cannot land. No GPS fix...");
     return false;
   }
 
   mavros_msgs::CommandTOL land_srv;
-  if(land_client_.call(land_srv) && land_srv.response.success) {
+  if(land_client_.call(land_srv) && land_srv.response.success)
+  {
     ROS_INFO_STREAM("Landing in progress...");
     return true;
   } else {
@@ -216,35 +242,42 @@ bool Offboard::land() {
   }
 }
 
-void Offboard::watch_rel_alt_thread() {
+void Offboard::watch_rel_alt_thread()
+{
   alt_rel_sub_ = nh_.subscribe<std_msgs::Float64>(
       "mavros/global_position/rel_alt", 1, &Offboard::mavros_rel_altitude_cb, this);
 
   last_alt_print_ = ros::Time::now();
   print_interval_ = ros::Duration(5);
-  while (ros::ok()) {
+  while (ros::ok())
+  {
     ros::spinOnce();
     rate_.sleep();
   }
 }
 
-void Offboard::mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg) {
+void Offboard::mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg)
+{
   cur_rel_alt_ = msg->data;
-  if (ros::Time::now() - last_alt_print_ > print_interval_) {
+  if (ros::Time::now() - last_alt_print_ > print_interval_)
+  {
     ROS_INFO_STREAM("Relative Altitude = " << msg->data << " m");
     last_alt_print_ = ros::Time::now();
   }
 }
 
-void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg) {
+void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg)
+{
   if(!start_reading_alt_)
     return;
 
-  if (!home_alt_amsl_set_) {
+  if (!home_alt_amsl_set_)
+  {
     home_alt_amsl_ = msg->amsl;
     if (home_alt_amsl_ != home_alt_amsl_)
       return;
-    if (home_alt_count_ == 0) {
+    if (home_alt_count_ == 0)
+    {
       home_alt_amsl_set_ = true;
       ROS_INFO_STREAM("Home altitude AMSL acquired. Detaching from the topic = " << home_alt_amsl_);
       alt_amsl_sub_.shutdown();  // TODO: ok?
@@ -253,13 +286,15 @@ void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg)
   }
 }
 
-bool Offboard::switch_mode(std::string& target_mode) {
+bool Offboard::switch_mode(std::string& target_mode)
+{
   mavros_msgs::SetMode new_mode;
   new_mode.request.custom_mode = target_mode;
 
   std::string prev_mode = current_state_.mode;
 
-  if (set_mode_client_.call(new_mode) && new_mode.response.mode_sent) {
+  if (set_mode_client_.call(new_mode) && new_mode.response.mode_sent)
+  {
     ROS_INFO_STREAM("Mode switch from [" << prev_mode << "] to [" << target_mode << "] successfull");
     return true;
   }
@@ -284,21 +319,23 @@ bool Offboard::MultiDOFJointTrajectory_to_posvel(
   return true;
 }
 
-bool Offboard::setparam(mavros_msgs::ParamSet param) {
-  if(param_set_client_.call(param) && param.response.success) {
+bool Offboard::setparam(mavros_msgs::ParamSet param)
+{
+  if(param_set_client_.call(param) && param.response.success)
     return true;
-  }
   return false;
 }
 
-bool Offboard::engage_offboard() {
+bool Offboard::engage_offboard()
+{
   // arm
   arm(); 
   
   // takeoff to certain altitude
   const double takeoff_alt = 3.0;
   takeoff(takeoff_alt);
-  while (ros::ok()) { // ensure we have reached required altitude
+  while (ros::ok())
+  { // ensure we have reached required altitude
     if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
   }
@@ -309,7 +346,8 @@ bool Offboard::engage_offboard() {
   pose.pose.position.x = 0;
   pose.pose.position.y = 0;
   pose.pose.position.z = cur_rel_alt_;
-  for (size_t i=100; ros::ok() && i > 0; --i) {
+  for (size_t i=100; ros::ok() && i > 0; --i)
+  {
     local_pos_pub_.publish(pose); 
     ros::spinOnce();
     rate_.sleep(); 
@@ -317,7 +355,8 @@ bool Offboard::engage_offboard() {
 
   // switch to offboard
   std::string target_mode = "OFFBOARD";
-  if (!switch_mode(target_mode)) { 
+  if (!switch_mode(target_mode))
+  { 
     ROS_ERROR_STREAM("Cannot execute OFFBOARD mode"); 
     return false; 
   }
@@ -344,14 +383,16 @@ bool Offboard::engage_offboard() {
   return true;
 }
 
-bool Offboard::engage_offboard_trajectory() {
+bool Offboard::engage_offboard_trajectory()
+{
   // arm
   arm(); 
 
   // takeoff to certain altitude
   const double takeoff_alt = 3.0;
   takeoff(takeoff_alt);
-  while (ros::ok()) { // ensure we have reached required altitude
+  while (ros::ok())
+  { // ensure we have reached required altitude
     if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
   }
@@ -392,7 +433,8 @@ bool Offboard::engage_offboard_trajectory() {
   // arm if not already armed or disarmed by autopilot
   arm();
 
-  while (ros::ok() && offboard_enabled_) {
+  while (ros::ok() && offboard_enabled_)
+  {
     ros::spinOnce();
     rate_.sleep();
   }
@@ -409,7 +451,8 @@ bool Offboard::engage_offboard_vio()
   // takeoff to certain altitude
   const double takeoff_alt = 3.0;
   takeoff(takeoff_alt);
-  while (ros::ok()) { // ensure we have reached required altitude
+  while (ros::ok())
+  { // ensure we have reached required altitude
     if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
   }

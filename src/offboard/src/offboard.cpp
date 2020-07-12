@@ -13,6 +13,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
     home_alt_count_(50),
     start_trajectory_(false),
     set_current_pose_(false),
+    start_reading_alt_(false),
     local_pose_set_(false)
 {
   // subscribers
@@ -57,12 +58,25 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   reset_home();
 
-  while (ros::ok() && !(home_set_ && home_alt_amsl_set_ && local_pose_set_)) {
-    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for home to be set...");
+  while (ros::ok() && !(home_set_ && local_pose_set_))
+  {
+    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for home to be set");
     ros::spinOnce();
     rate_.sleep();
   }
-  ROS_WARN_STREAM("Home set...");
+  ROS_WARN_STREAM("Home lock acquired");
+
+  /// Separate this logic out because
+  /// 1. if home lock is not acquired, altitude is only from barometer
+  ///    but after GPS fusion there is drastic change in altitude
+  start_reading_alt_ = true;
+  while (ros::ok() && !home_alt_amsl_set_)
+  {
+    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for altitude AMSL to be set");
+    ros::spinOnce();
+    rate_.sleep();
+  }
+  ROS_WARN_STREAM("Current altitude lock acquired");
 }
 
 Offboard::~Offboard() {
@@ -223,6 +237,9 @@ void Offboard::mavros_rel_altitude_cb(const std_msgs::Float64ConstPtr& msg) {
 }
 
 void Offboard::mavros_amsl_altitude_cb(const mavros_msgs::AltitudeConstPtr& msg) {
+  if(!start_reading_alt_)
+    return;
+
   if (!home_alt_amsl_set_) {
     home_alt_amsl_ = msg->amsl;
     if (home_alt_amsl_ != home_alt_amsl_)

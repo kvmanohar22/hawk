@@ -119,7 +119,8 @@ private:
   bool                      home_set_;           /// true when home position is set
   mavros_msgs::HomePosition home_;               /// home position of quad 
   float                     home_alt_amsl_;      /// AMSL altitude of home position
-  bool                      home_alt_amsl_set_;  /// Is this parameter set?     
+  bool                      home_alt_amsl_set_;  /// Is this parameter set?
+  bool                      start_reading_alt_;  /// From here on altitude estimates are read
   size_t                    home_alt_count_;     /// #measurements before stopping
   double                    cur_rel_alt_;        /// current relative altitude of quad
 

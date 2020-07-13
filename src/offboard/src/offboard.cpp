@@ -295,7 +295,6 @@ bool Offboard::MultiDOFJointTrajectory_to_posvel(const trajectory_msgs::MultiDOF
                                                  mavros_msgs::PositionTarget& dst)
 {
   dst.header = src->header;
-  // TODO: set dst.coordinate_frame
   dst.position.x = src->points[0].transforms[0].translation.x;
   dst.position.y = src->points[0].transforms[0].translation.y;
   dst.position.z = src->points[0].transforms[0].translation.z;
@@ -379,10 +378,11 @@ bool Offboard::engage_offboard_trajectory()
   // takeoff to certain altitude
   const double takeoff_alt = 3.0;
   takeoff(takeoff_alt);
+    
   while (ros::ok())
   {  // ensure we have reached required altitude
     ROS_WARN_STREAM_THROTTLE(1.0, "Required altitude not reached"); 
-    if (std::abs(cur_rel_alt_ - takeoff_alt) < 1.0)
+    if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
       break;
   }
 
@@ -406,7 +406,7 @@ bool Offboard::engage_offboard_trajectory()
 
   while (ros::ok())
   {
-    ROS_WARN_STREAM_ONCE("Waiting for OFFBOARD switch from RC...");
+    ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...");
     local_pos_pub_.publish(pose);
     ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
     if (current_state_.mode == "OFFBOARD")

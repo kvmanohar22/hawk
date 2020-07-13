@@ -30,6 +30,6 @@
 
     <!-- start cameras -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering_stereo.launch">
-        <arg name="expose_us" value="2000"/>
+        <arg name="expose_us" value="800"/>
     </include>
 </launch>

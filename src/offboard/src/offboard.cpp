@@ -381,7 +381,8 @@ bool Offboard::engage_offboard_trajectory()
   takeoff(takeoff_alt);
   while (ros::ok())
   {  // ensure we have reached required altitude
-    if (std::abs(cur_rel_alt_ - takeoff_alt) < 0.5)
+    ROS_WARN_STREAM_THROTTLE(1.0, "Required altitude not reached"); 
+    if (std::abs(cur_rel_alt_ - takeoff_alt) < 1.0)
       break;
   }
 

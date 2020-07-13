@@ -9,7 +9,7 @@ RIG=stereo
 
 # Which parts of the system are to be started
 INERTIAL_ESTIMATOR=false
-MOTION_PRIORS=true
+MOTION_PRIORS=false
 
 CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/camchain.yaml
 IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/imu.yaml

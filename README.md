@@ -210,18 +210,19 @@ That's it. You should be able to stream on any device now!
 
 <a name="hitl"></a>
 ## HITL setup
-1. Configure pixhawk as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#px4-configuration)
-2. Build PX4-Firmware as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#gazebo).
+- Configure pixhawk as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#px4-configuration)
+- Build PX4-Firmware as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#gazebo).
   - This step should be done on a fairly powerful laptop. We have experienced issues when run on a not so powerful one.
   - `<serialDevice>` tag in `*.sdf` model file should be changed to `/dev/ttyPixhawk`. You need not search for the particular device. `/dev/ttyPixhawk` is a soft symbolic link for the usb connection from pixhawk board.
   - This serial port acts as the bridge between simulation in gazebo and computation on pixhawk board.
-3. (Optional) For setting up offboard mode, you can have yet another laptop connected from pixhawk's extended FTDI port for offboard communication through mavros.
+- (Optional) For setting up offboard mode, you can have yet another laptop connected from pixhawk's extended FTDI port for offboard communication through mavros.
   - This communication is over `/dev/ttyOffboard` device which is again a symbolic link for the FTDI port from pixhawk board.
+
 **IMPORTANT**
-1. Launch steps are important:
+- Launch steps are important:
   - Connect `/dev/ttyPixhawk` device and start gazebo
   - You can then launch QGC
-2. There is a problem in gazebo simulation of barometer. To resolve the issue, kill gazebo, QGC and unplug and replug `/dev/ttyPixhawk` device.
+- There is a problem in gazebo simulation of barometer. To resolve the issue, kill gazebo, QGC and unplug and replug `/dev/ttyPixhawk` device.
 
 <a name="coding"></a>
 ## Coding Style

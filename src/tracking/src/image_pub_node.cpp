@@ -5,7 +5,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   ros::init(argc, argv, "image_publisher");
   ros::NodeHandle nh;
   image_transport::ImageTransport it(nh);
@@ -18,12 +19,14 @@ int main(int argc, char** argv) {
   path_to_video_frames += "/*";
   cv::glob(path_to_video_frames, fn, false);
   std::sort(fn.begin(), fn.end());
-  if (fn.size() == 0) {
+  if (fn.size() == 0)
+  {
     std::cout << "No images found " << std::endl;
     return 1;
   }
   std::vector<cv::Mat> imgs;
-  for(int i = 0; i < (int) fn.size(); i++){
+  for (int i = 0; i < (int)fn.size(); i++)
+  {
     imgs.push_back(cv::imread(fn[i]));
   }
   int idx = 0;
@@ -31,10 +34,12 @@ int main(int argc, char** argv) {
   sensor_msgs::ImagePtr msg;
 
   ros::Rate loop_rate(5);
-  while (nh.ok()) {
+  while (nh.ok())
+  {
     frame = imgs[idx++];
     // Check if grabbed frame is actually full with some content
-    if(!frame.empty()) {
+    if (!frame.empty())
+    {
       msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
       pub.publish(msg);
       ROS_INFO("Image is getting published!!");
@@ -45,4 +50,3 @@ int main(int argc, char** argv) {
     loop_rate.sleep();
   }
 }
-

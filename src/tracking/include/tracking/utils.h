@@ -6,12 +6,13 @@
 
 #include <cv_bridge/cv_bridge.h>
 
-namespace tracking {
-    class Utils {
-        public:
-            static dlib::array2d<unsigned char> cvToDlib2d(cv::Mat mat_img);
-            static dlib::drectangle cvtRectToDrect(cv::Rect _rect);
-    };
+namespace tracking
+{
+class Utils
+{
+public:
+  static dlib::array2d<unsigned char> cvToDlib2d(cv::Mat mat_img);
+  static dlib::drectangle cvtRectToDrect(cv::Rect _rect);
+};
 }
-#endif // TRACKING_UTILS_H
-
+#endif  // TRACKING_UTILS_H

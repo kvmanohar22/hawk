@@ -2,36 +2,38 @@
 
 #include <thread>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   ros::init(argc, argv, "offboard");
   ros::NodeHandle nh;
   hawk::Offboard offboard(nh);
 
   // wait for everything to be ready
-  ROS_INFO_STREAM("Waiting for gazebo to start...");
-  // ros::Duration(5).sleep();
-  // std::this_thread::sleep_for(std::chrono::seconds(5));
-  ROS_INFO_STREAM("HERE");
+  ros::Duration(5).sleep();
 
   // arm
-  if (!offboard.arm()) {
+  ROS_INFO_STREAM("READY TO ARM");
+  if (!offboard.arm())
+  {
     ros::shutdown();
   }
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-  // ros::Duration(5).sleep();
+  ros::Duration(5).sleep();
 
   // takeoff
-  if (!offboard.takeoff(10)) {
+  ROS_INFO_STREAM("READY FOR TAKEOFF");
+  if (!offboard.takeoff(3))
+  {
     ros::shutdown();
   }
-  std::this_thread::sleep_for(std::chrono::seconds(50));
-  // ros::Duration(70).sleep();
+  ros::Duration(20).sleep();
 
   // land
-  if (!offboard.land()) {
+  ROS_INFO_STREAM("READY FOR LANDING");
+  if (!offboard.land())
+  {
     ros::shutdown();
   }
-  
+
   ros::shutdown();
   return 0;
 }

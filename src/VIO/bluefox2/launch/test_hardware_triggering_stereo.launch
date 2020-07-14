@@ -7,6 +7,11 @@
     <!-- Start mavros -->
     <include file="$(find bluefox2)/launch/mavros.launch"/>
 
+    <!-- Load camera time offset parameters -->
+    <group ns="hawk"> 
+      <rosparam file="$(find svo_ros)/param/hawk/camchain.yaml"/>
+    </group>
+
     <!-- Start camera driver -->
     <include file="$(find bluefox2)/launch/stereo_node.launch">
         <arg name="expose_us" value="$(arg expose_us)"/>

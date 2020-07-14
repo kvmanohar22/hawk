@@ -5,7 +5,7 @@ max_fts: 200
 triang_min_corner_score: 20.0
 quality_max_drop_fts: 80
 map_scale: 1.0
-kfselect_mindist: 0.12
+kfselect_mindist: 0.07
 publish_map_every_frame: false
 
 # Factor type to be used in local bundle adjustment

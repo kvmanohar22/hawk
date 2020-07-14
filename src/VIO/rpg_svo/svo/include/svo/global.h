@@ -41,6 +41,9 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector2d)
 
 #ifdef SVO_USE_ROS
   #include <ros/console.h>
+  #include <ros/assert.h>
+  #define SVO_ASSERT(x) ROS_ASSERT(x)
+  #define SVO_ASSERT_MSG(x, y) ROS_ASSERT_MSG(x, y)
   #define SVO_DEBUG_STREAM(x) ROS_DEBUG_STREAM(x)
   #define SVO_INFO_STREAM(x) ROS_INFO_STREAM(x)
   #define SVO_WARN_STREAM(x) ROS_WARN_STREAM(x)

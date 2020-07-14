@@ -3,11 +3,10 @@
 
 #include <ros/ros.h>
 
-namespace hawk {
-
+namespace hawk
+{
 constexpr double PI = 3.141592653589793;
 
-
-} // namespace hawk
+}  // namespace hawk
 
 #endif

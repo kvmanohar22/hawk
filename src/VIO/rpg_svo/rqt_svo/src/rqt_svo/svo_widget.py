@@ -8,14 +8,16 @@ from python_qt_binding.QtWidgets import QWidget
 from python_qt_binding.QtCore import QTimer, Slot
 from svo_msgs.msg import Info
 from std_msgs.msg import String
+from std_srvs.srv import Empty
 
 class SvoWidget(QWidget):
   _last_info_msg = Info()
   _publisher = None
+  _publisher_start_vo = None
   _subscriber = None
   _num_received_msgs = 0
   _svo_namespace = None
-  def __init__(self, svo_namespace='svo'):
+  def __init__(self, svo_namespace='/hawk/svo'):
     
     # Init QWidget
     super(SvoWidget, self).__init__()
@@ -32,8 +34,6 @@ class SvoWidget(QWidget):
     
     # set the functions that are called when a button is pressed
     self.button_start.pressed.connect(self.on_start_button_pressed)
-    self.button_reset.pressed.connect(self.on_reset_button_pressed)
-    self.button_quit.pressed.connect(self.on_quit_button_pressed)
     
     # set callback for changed topic
     self.topic_line_edit.setText(svo_namespace)
@@ -61,6 +61,7 @@ class SvoWidget(QWidget):
     
     # Initialize Publisher
     self._publisher = rospy.Publisher(svo_namespace+'/remote_key', String)
+    self._publisher_start_vo = rospy.Publisher(svo_namespace+'/start_vo', String)
   
   def unregister(self):
     if self._publisher is not None:
@@ -107,9 +108,14 @@ class SvoWidget(QWidget):
     self.num_tracked_bar.setValue(self._last_info_msg.num_matches)
     
   def on_start_button_pressed(self):
-    print('START SLAM')
-    self.send_command('s')
-    
+    print('START VO command sent')
+    rospy.wait_for_service('/hawk/start_vo')
+    try:
+        start_vo = rospy.ServiceProxy('/hawk/start_vo', Empty)
+        res = start_vo()
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
+
   def on_reset_button_pressed(self):
     print('RESET SLAM')
     self.send_command('r')

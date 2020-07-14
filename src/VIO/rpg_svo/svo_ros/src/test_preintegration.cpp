@@ -30,7 +30,7 @@ public:
   gtsam::NavState              curr_state_;            //!< current state used for Imu state prediction
   gtsam::Pose3                 curr_pose_;             //!< optimized pose
   gtsam::Vector3               curr_velocity_;         //!< Velocity vector
-  VisualInertialEstimator::PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
+  VisualInertialEstimator::PreintegrationPtr imu_preintegrated_; //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
@@ -48,7 +48,7 @@ ImuPreintegrationTest::ImuPreintegrationTest() :
   inertial_init_done_(false)
 {
   imu_helper_ = new ImuHelper();
-  inertial_init_ = new InertialInitialization(1.0, 4.0, Vector3d(0.0, 0.0, -9.807166));
+  inertial_init_ = new InertialInitialization(1.0, 0.03, Vector3d(0.0, 0.0, -9.807166));
   imu_preintegrated_ = boost::make_shared<gtsam::PreintegratedCombinedMeasurements>(
     imu_helper_->params_, imu_helper_->curr_imu_bias_);
   assert(imu_preintegrated_);
@@ -65,8 +65,8 @@ void ImuPreintegrationTest::setPriors()
   curr_velocity_ = gtsam::Vector3(gtsam::Vector3::Zero());
   curr_state_    = gtsam::NavState(curr_pose_, curr_velocity_);
 
-  imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
-      (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
+  // imu_helper_->curr_imu_bias_ = gtsam::imuBias::ConstantBias(
+  //     (gtsam::Vector(6) << inertial_init_->bias_a_, inertial_init_->bias_g_).finished());
   initial_values_.clear();
   initial_values_.insert(Symbol::X(0), curr_pose_);
   initial_values_.insert(Symbol::V(0), curr_velocity_);

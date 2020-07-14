@@ -5,13 +5,13 @@ namespace bluefox2 {
 
 SingleNode::SingleNode(const ros::NodeHandle& pnh, ros::NodeHandle& nh)
     : CameraNodeBase(pnh),
-      bluefox2_ros_(boost::make_shared<Bluefox2Ros>(pnh)),
+      bluefox2_ros_(boost::make_shared<Bluefox2Ros>(pnh, std::string(), 3)),
       outOfSyncCounter(0),
       nextTriggerCounter(0),
       fifoReadPos(0),
       fifoWritePos(0)
 {
-  ros::param::get("/hawk/stereo/offset_imu_cam", offset_from_kalibr_imu_cam_);
+  ros::param::get("/hawk/cam0/timeshift_cam_imu", offset_from_kalibr_imu_cam_);
   pnh.param("ctm", ctm, 1);
 
   if (ctm == 3) { // hardware triggering

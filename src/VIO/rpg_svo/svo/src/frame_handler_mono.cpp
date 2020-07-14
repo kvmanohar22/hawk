@@ -47,7 +47,7 @@ FrameHandlerMono::FrameHandlerMono(
   cam1_(nullptr),
   reprojector_(cam_, map_),
   klt_homography_init_(init_type),
-  depth_filter_(NULL),
+  depth_filter_(nullptr),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
   imu_helper_(nullptr),
@@ -58,15 +58,7 @@ FrameHandlerMono::FrameHandlerMono(
   stop_requested_(false),
   is_stopped_(false)
 {
-  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
-    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
-  else
-    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
-
   initialize();
-
-  // load extrinsic calibration parameters
-  loadCalibration();
 }
 
 FrameHandlerMono::FrameHandlerMono(
@@ -78,7 +70,7 @@ FrameHandlerMono::FrameHandlerMono(
   cam1_(cam1),
   reprojector_(cam_, map_),
   klt_homography_init_(init_type),
-  depth_filter_(NULL),
+  depth_filter_(nullptr),
   inertial_estimator_(nullptr),
   new_bias_arrived_(false),
   imu_helper_(nullptr),
@@ -89,15 +81,7 @@ FrameHandlerMono::FrameHandlerMono(
   stop_requested_(false),
   is_stopped_(false)
 {
-  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
-    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
-  else
-    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
-
   initialize();
-
-  // load extrinsic calibration parameters
-  loadCalibration();
 }
 
 void FrameHandlerMono::loadCalibration()
@@ -114,6 +98,14 @@ void FrameHandlerMono::loadCalibration()
 
 void FrameHandlerMono::initialize()
 {
+  // load extrinsic calibration parameters
+  loadCalibration();
+
+  if(init_type_ == FrameHandlerBase::InitType::MONOCULAR)
+    SVO_INFO_STREAM("Using monocular initialization to bootstrap the map");
+  else
+    SVO_INFO_STREAM("Using stereo initialization to bootstrap the map");
+
   init_ba_done_ = false;
   feature_detection::DetectorPtr feature_detector(
       new feature_detection::FastDetector(
@@ -157,7 +149,7 @@ void FrameHandlerMono::initialize()
   prior_pose_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
 
   // 5s of storage time. This will be emptied pretty quickly
-  imu_container_ = boost::make_shared<ImuContainer>(5.0);
+  imu_container_ = boost::make_shared<ImuContainer>(2.0);
 
   if(Config::lobaNumIter() > 0)
   {
@@ -166,7 +158,8 @@ void FrameHandlerMono::initialize()
       SVO_INFO_STREAM("Local BA using generic projection factors");
     else if(Config::lobaType() == 1)
       SVO_INFO_STREAM("Local BA using smart projection factors");
-    else {
+    else
+    {
       SVO_INFO_STREAM("Incremental Local BA using smart projection factors");
       iba_ = new ba::IncrementalBA(cam_, map_);
     }
@@ -261,7 +254,8 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 {
   handleInterrupt();
 
-  if(init_type_ != FrameHandlerBase::InitType::STEREO) {
+  if(init_type_ != FrameHandlerBase::InitType::STEREO)
+  {
     SVO_ERROR_STREAM("Initilization step not set to STEREO");
     return;
   }
@@ -273,9 +267,9 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
   core_kfs_.clear();
   overlap_kfs_.clear();
 
-  // create new frame
+  // create new frame (we use left image by default and it's camera)
   SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), ts.toSec()));
+  new_frame_.reset(new Frame(cam_, imgl.clone(), ts.toSec()));
   SVO_STOP_TIMER("pyramid_creation");
 
   // process frame
@@ -311,7 +305,13 @@ void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const 
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  // process the first image
+  if(!prior_pose_set_) {
+    SVO_ERROR_STREAM("Prior pose not set!");
+    return RESULT_FAILURE;
+  }
+  new_frame_->T_f_w_ = prior_pose_.inverse();
+
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -371,7 +371,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
                            loba_err_init_avg, loba_err_fin_avg,
                            true);    
   }
-
   return RESULT_IS_KEYFRAME;
 }
 
@@ -383,6 +382,13 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
     SVO_ERROR_STREAM("Prior pose not set!");
     return RESULT_FAILURE;
   }
+
+  // FIXME: Need to fix this. when using stereo initialization, adding
+  //        right image as keyframe or as world frame doesn't seem to work
+  //        Make sure initialization.cpp is changed appropriately as well.
+  // we want the right camera to be world
+  // const double timestamp = new_frame_->timestamp_;
+  // new_frame_.reset(new Frame(cam1_, imgr.clone(), timestamp));
   new_frame_->T_f_w_ = prior_pose_.inverse();
 
   klt_homography_init_.verbose_ = false;
@@ -391,7 +397,13 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
 
   // Reset the frames
   last_frame_ = new_frame_;
-  new_frame_.reset(new Frame(cam_, cam1_, imgl.clone(), imgr.clone(), last_frame_->timestamp_));
+
+  // last_frame_->setKeyframe();
+  // map_.addKeyframe(last_frame_);
+
+  // we are inverting the images. add left image
+  new_frame_.reset(new Frame(cam1_, imgr.clone(), last_frame_->timestamp_));
+  new_frame_->T_f_w_ = FrameHandlerMono::T_c1_c0_ * last_frame_->T_f_w_;
 
   // set baseline for computing map
   klt_homography_init_.setBaseline(FrameHandlerMono::T_c0_c1_);
@@ -400,15 +412,17 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   initialization::InitResult res = klt_homography_init_.addSecondFrame(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
 
-  // Now, the map is initialized and set the keyframe
-  last_frame_->setKeyframe();
-  map_.addKeyframe(last_frame_);
-
   // revert back the frames
   new_frame_.reset();
   new_frame_ = last_frame_;
+  last_frame_.reset();
 
-  if (Config::runInertialEstimator()) {
+  // Now, the map is initialized and set the keyframe
+  new_frame_->setKeyframe();
+  map_.addKeyframe(new_frame_);
+
+  if(Config::runInertialEstimator())
+  {
     inertial_estimator_->addKeyFrame(new_frame_);
   }
 
@@ -459,7 +473,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
     // reset and start the integration
     integrator_->resetIntegration();
-    SVO_DEBUG_STREAM("IMU integration reset. Integrated " << n_integrated_measurements_ << " measurements");
+    SVO_DEBUG_STREAM("Img Align:\t Integrated = " << n_integrated_measurements_);
     n_integrated_measurements_ = 0;
 
     // check if we need to update integrator with new bias
@@ -487,8 +501,6 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
     img_align.setPriors(delta_R_, delta_t_);
   }
   size_t img_align_n_tracked = img_align.run(last_frame_, new_frame_);
-  // size_t img_align_n_tracked = img_align.run(map_.getClosestKeyframe(new_frame_), new_frame_);
-  // size_t img_align_n_tracked = img_align.run(map_.lastKeyframe(), new_frame_);
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);
@@ -550,7 +562,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 
   // new keyframe selected
   for(Features::iterator it=new_frame_->fts_.begin(); it!=new_frame_->fts_.end(); ++it)
-    if((*it)->point != NULL)
+    if((*it)->point != nullptr)
       (*it)->point->addFrameRef(*it);
   map_.point_candidates_.addCandidatePointToFrame(new_frame_);
 

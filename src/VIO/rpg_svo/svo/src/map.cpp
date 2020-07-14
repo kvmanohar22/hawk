@@ -63,27 +63,28 @@ bool Map::safeDeleteFrame(FramePtr frame)
   return false;
 }
 
-void Map::removePtFrameRef(Frame* frame, Feature* ftr)
+bool Map::removePtFrameRef(Frame* frame, Feature* ftr)
 {
-  if(ftr->point == NULL)
-    return; // mappoint may have been deleted in a previous ref. removal
+  if(ftr->point == nullptr)
+    return false; // mappoint may have been deleted in a previous ref. removal
   Point* pt = ftr->point;
-  ftr->point = NULL;
+  ftr->point = nullptr;
   if(pt->obs_.size() <= 2)
   {
     // If the references list of mappoint has only size=2, delete mappoint
     safeDeletePoint(pt);
-    return;
+    return true;
   }
-  pt->deleteFrameRef(frame);  // Remove reference from map_point
-  frame->removeKeyPoint(ftr); // Check if mp was keyMp in keyframe
+  bool status = pt->deleteFrameRef(frame);  // Remove reference from map_point
+  frame->removeKeyPoint(ftr);               // Check if mp was keyMp in keyframe
+  return status;
 }
 
 void Map::safeDeletePoint(Point* pt)
 {
   // Delete references to mappoints in all keyframes
   std::for_each(pt->obs_.begin(), pt->obs_.end(), [&](Feature* ftr){
-    ftr->point=NULL;
+    ftr->point=nullptr;
     ftr->frame->removeKeyPoint(ftr);
   });
   pt->obs_.clear();
@@ -187,7 +188,7 @@ void Map::transform(const Matrix3d& R, const Vector3d& t, const double& s)
     (*it)->T_f_w_ = SE3(rot, pos).inverse();
     for(auto ftr=(*it)->fts_.begin(); ftr!=(*it)->fts_.end(); ++ftr)
     {
-      if((*ftr)->point == NULL)
+      if((*ftr)->point == nullptr)
         continue;
       if((*ftr)->point->last_published_ts_ == -1000)
         continue;
@@ -201,7 +202,7 @@ void Map::emptyTrash()
 {
   std::for_each(trash_points_.begin(), trash_points_.end(), [&](Point*& pt){
     delete pt;
-    pt=NULL;
+    pt=nullptr;
   });
   trash_points_.clear();
   point_candidates_.emptyTrash();
@@ -286,7 +287,7 @@ void MapPointCandidates::deleteCandidate(PointCandidate& c)
 {
   // camera-rig: another frame might still be pointing to the candidate point
   // therefore, we can't delete it right now.
-  delete c.second; c.second=NULL;
+  delete c.second; c.second=nullptr;
   c.first->type_ = Point::TYPE_DELETED;
   trash_points_.push_back(c.first);
 }
@@ -294,7 +295,7 @@ void MapPointCandidates::deleteCandidate(PointCandidate& c)
 void MapPointCandidates::emptyTrash()
 {
   std::for_each(trash_points_.begin(), trash_points_.end(), [&](Point*& p){
-    delete p; p=NULL;
+    delete p; p=nullptr;
   });
   trash_points_.clear();
 }
@@ -311,7 +312,7 @@ void frameValidation(Frame* frame, int id)
 {
   for(auto it = frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
-    if((*it)->point==NULL)
+    if((*it)->point==nullptr)
       continue;
 
     if((*it)->point->type_ == Point::TYPE_DELETED)
@@ -323,8 +324,8 @@ void frameValidation(Frame* frame, int id)
     pointValidation((*it)->point, id);
   }
   for(auto it=frame->key_pts_.begin(); it!=frame->key_pts_.end(); ++it)
-    if(*it != NULL)
-      if((*it)->point == NULL)
+    if(*it != nullptr)
+      if((*it)->point == nullptr)
         printf("ERROR DataValidation %i: KeyPoints not correct!\n", id);
 }
 
@@ -358,7 +359,7 @@ void mapStatistics(Map* map)
   {
     for(auto ftr=(*it)->fts_.begin(); ftr!=(*it)->fts_.end(); ++ftr)
     {
-      if((*ftr)->point == NULL)
+      if((*ftr)->point == nullptr)
         continue;
       if(points.insert((*ftr)->point).second) {
         ++n_pts;

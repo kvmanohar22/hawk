@@ -1,8 +1,6 @@
 <launch>
   <!-- Start mavros -->
-  <include file="$(find mavros)/launch/px4.launch">
-    <arg name="fcu_url" value="/dev/ttyOffboard:921600"/>
-  </include>
+  <include file="$(find bluefox2)/launch/mavros.launch"/>
 
   <!-- Offboard node to communicate with autopilot -->
   <node pkg="offboard" type="test_offboard_basic_02" name="offboard" output="screen" />

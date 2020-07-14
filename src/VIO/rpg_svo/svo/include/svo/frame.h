@@ -47,11 +47,9 @@ public:
   int                           correction_id_;         //!< Used in estimator thread 
   double                        timestamp_;             //!< Timestamp of when the image was recorded.
   vk::AbstractCamera*           cam_;                   //!< Camera model. (left stereo)
-  vk::AbstractCamera*           camR_;                  //!< Camera model (right stereo).
   Sophus::SE3                   T_f_w_;                 //!< Transform (f)rame from (w)orld.
   Matrix<double, 6, 6>          Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.
-  ImgPyr                        img_pyr_right_;         //!< Image Pyramid of right image in case of stereo
   Features                      fts_;                   //!< List of features in the image.
   vector<Feature*>              key_pts_;               //!< Five features and associated 3D points which are used to detect if two frames have overlapping field of view.
   bool                          is_keyframe_;           //!< Was this frames selected as keyframe?
@@ -61,7 +59,6 @@ public:
   int                           n_inertial_updates_;    //!< Number of times optimization was performed in inertial estimator thread
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
-  Frame(vk::AbstractCamera* cam, vk::AbstractCamera* cam1, const cv::Mat& imgl, const cv::Mat& imgr, double timestamp);
   ~Frame();
 
   /// Initialize new frame and create image pyramid.
@@ -93,9 +90,6 @@ public:
   /// Full resolution image stored in the frame.
   inline const cv::Mat& img() const { return img_pyr_[0]; }
 
-  /// Full resolution image stored in the frame.
-  inline const cv::Mat& imgRight() const { return img_pyr_right_[0]; }
-
   /// Was this frame selected as keyframe?
   inline bool isKeyframe() const { return is_keyframe_; }
 
@@ -107,9 +101,6 @@ public:
 
   /// Transforms pixel coordinates (c) to frame unit sphere coordinates (f).
   inline Vector3d c2f(const double x, const double y) const { return cam_->cam2world(x, y); }
-
-  /// Transforms pixel coordinates (c) to frame unit sphere coordinates (f).
-  inline Vector3d c2f_stereo(const double x, const double y) const { return camR_->cam2world(x, y); }
 
   /// Transforms point coordinates in world-frame (w) to camera-frams (f).
   inline Vector3d w2f(const Vector3d& xyz_w) const { return T_f_w_ * xyz_w; }

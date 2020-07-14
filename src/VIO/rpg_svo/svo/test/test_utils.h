@@ -32,7 +32,7 @@ std::string getDatasetDir()
   const char* env_dir = std::getenv("SVO_DATASET_DIR");
 #ifdef SVO_USE_ROS
   std::string dataset_dir(ros::package::getPath("svo")+"/test/data");
-  if(env_dir != NULL)
+  if(env_dir != nullptr)
     dataset_dir = std::string(env_dir);
   return dataset_dir;
 #else

@@ -102,7 +102,7 @@ public:
 
   static SE3 T_c1_c0_; // camera0 -> camera1
   static SE3 T_c0_c1_; // camera1 -> camera0
-  
+
 protected:
   vk::AbstractCamera* cam_;                     //!< Camera model, can be ATAN, Pinhole or Ocam (see vikit).
   vk::AbstractCamera* cam1_;                    //!< Second camera when using stereo initialization
@@ -120,7 +120,7 @@ public:
   Matrix3d  delta_R_; // Change in rotation in the IMU frame. used for motion priors
   Vector3d  delta_t_; // Change in translation in IMU frame
 
-  VisualInertialEstimator::PreintegrationTypePtr integrator_;
+  VisualInertialEstimator::PreintegrationPtr integrator_;
   ImuHelper::CombinedParamsPtr     integration_params_;
   gtsam::imuBias::ConstantBias imu_bias_;
   bool new_bias_arrived_;                      //!< Flag to be set if a new bias has arrived

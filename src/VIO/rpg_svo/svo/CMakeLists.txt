@@ -5,7 +5,7 @@ SET(TRACE TRUE)
 SET(USE_EDGELETS FALSE) # Set TRUE if you want to use edgelet features
 SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
 SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
-SET(SVO_BUILD_TESTS TRUE) # Enable this to build tests
+SET(SVO_BUILD_TESTS FALSE) # Enable this to build tests
 ################################################################################
 
 SET(PROJECT_NAME svo)
@@ -114,7 +114,6 @@ LIST(APPEND SOURCEFILES
   src/sparse_img_align.cpp
   src/imu.cpp
   src/visual_inertial_estimator.cpp
-  src/stereo.cpp
   src/inertial_initialization.cpp
   src/bundle_adjustment.cpp)
 
@@ -124,7 +123,7 @@ TARGET_LINK_LIBRARIES(svo ${LINK_LIBS})
 
 ################################################################################
 # TESTS
-IF(SVO_BUILD_TESTS)
+IF(NOT $ENV{ARM_ARCHITECTURE})
   ADD_EXECUTABLE(test_feature_align test/test_feature_alignment.cpp)
   TARGET_LINK_LIBRARIES(test_feature_align svo)
 
@@ -145,4 +144,4 @@ IF(SVO_BUILD_TESTS)
 
   ADD_EXECUTABLE(test_imu_container test/test_imu_container.cpp)
   TARGET_LINK_LIBRARIES(test_imu_container svo)
-ENDIF(SVO_BUILD_TESTS)
+ENDIF(NOT $ENV{ARM_ARCHITECTURE})

@@ -50,7 +50,7 @@ DepthFilter::DepthFilter(feature_detection::DetectorPtr feature_detector, callba
     feature_detector_(feature_detector),
     seed_converged_cb_(seed_converged_cb),
     seeds_updating_halt_(false),
-    thread_(NULL),
+    thread_(nullptr),
     new_keyframe_set_(false),
     new_keyframe_min_depth_(0.0),
     new_keyframe_mean_depth_(0.0),
@@ -72,19 +72,19 @@ void DepthFilter::startThread()
 void DepthFilter::stopThread()
 {
   SVO_INFO_STREAM("DepthFilter stop thread invoked.");
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     SVO_INFO_STREAM("DepthFilter interrupt and join thread... ");
     seeds_updating_halt_ = true;
     thread_->interrupt();
     thread_->join();
-    thread_ = NULL;
+    thread_ = nullptr;
   }
 }
 
 void DepthFilter::addFrame(FramePtr frame)
 {
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     {
       lock_t lock(frame_queue_mut_);
@@ -103,7 +103,7 @@ void DepthFilter::addKeyframe(FramePtr frame, double depth_mean, double depth_mi
 {
   new_keyframe_min_depth_ = depth_min;
   new_keyframe_mean_depth_ = depth_mean;
-  if(thread_ != NULL)
+  if(thread_ != nullptr)
   {
     new_keyframe_ = frame;
     new_keyframe_set_ = true;
@@ -238,7 +238,8 @@ void DepthFilter::updateSeeds(FramePtr frame)
   while( it!=seeds_.end())
   {
     // thread safe check to see if a stop interuption is requested
-    if(stopRequested()) {
+    if(stopRequested())
+    {
       handleInterrupt();
     }
 
@@ -294,7 +295,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
     // if the seed has converged, we initialize a new candidate point and remove the seed
     if(sqrt(it->sigma2) < it->z_range/options_.seed_convergence_sigma2_thresh)
     {
-      assert(it->ftr->point == NULL); // TODO this should not happen anymore
+      assert(it->ftr->point == nullptr); // TODO this should not happen anymore
       Vector3d xyz_world(it->ftr->frame->T_f_w_.inverse() * (it->ftr->f * (1.0/it->mu)));
       Point* point = new Point(xyz_world, it->ftr);
       it->ftr->point = point;

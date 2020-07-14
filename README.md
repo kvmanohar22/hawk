@@ -5,6 +5,10 @@
 - [Transformations](#transforms)
 - [Naming conventions](#conventions)
 - [Launch files](#launch)
+- [Run ROS over network](#network)
+- [Important PX4 PARAMS](#px4)
+- [HITL setup](#hitl)
+- [Coding Style](#coding)
 
 <a name="setup"></a>
 ## Setup
@@ -21,12 +25,14 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 - Ubuntu setup
   - Set the environment variable `HAWK_PX4_FIRMWARE` to the source of `px4/Firmware` in `scripts/load_px4_firmware`.
   - Copy the file `99-pixhawk.rules` to the following directory `/etc/udev/rules.d/`.
-  - Add yourself to the following groups (reboot required to take effect)
+  - Add yourself to the following groups (reboot required to take effect). This is for enabling offboard communication through serial port.
 
     ```bash
       sudo usermod -a -G tty <username>
       sudo usermod -a -G dialout <username>
     ```
+  - Further, if this setup is on an embedded device, set `ARM_ARCHITECTURE=True` in `.bashrc`.
+  
 - Install geographic lib dataset using [this script](https://github.com/mavlink/mavros/blob/master/mavros/scripts/install_geographiclib_datasets.sh). (Requires sudo privileges)
 
 - All the ros dependencies can be installed using `wstool`. Just execute the following command;
@@ -38,7 +44,11 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 
 - Install the following dependencies as well
   ```bash
-    sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf
+    sudo apt-get install libgoogle-glog-dev libtbb-dev autoconf libyaml-cpp-dev
+  ```
+- For autoformatting
+  ```bash
+    sudo apt-get install clang-format-3.9
   ```
 
 - Install MatrixVision driver. Follow the instructions from [here](https://www.matrix-vision.com/manuals/mvBlueFOX/mvBF_page_quickstart.html#mvBF_section_quickstart_linux)
@@ -46,6 +56,13 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
 - Install GTSAM as outlined [here](https://github.com/borglab/gtsam). Following changes to be done in `CMakeLists.txt` of GTSAM.
   - **IMPORTANT**: Disable the flag `GTSAM_TANGENT_PREINTEGRATION` which is ON by default.
   - Enable the use of system Eigen (`GTSAM_USE_SYSTEM_EIGEN` should be ON).
+  - If you do not want to build tests, examples. Run cmake as follows: `cmake -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF ..`
+
+- If you are going for minimal ROS installation, following packages are required as well. Replace * in the below package names with `ros-melodic-` or whatever distro you have.
+  `*camera-manager *rqt-gui *rqt-gui-py python-catkin-tools *cv-bridge`
+
+### Known issues
+- If running on Jetson devices, where opencv4 is installed by default, `cv_bridge` might have issues with finding it. To resolve this, edit `cv_bridgeConfig.cmake` and change the path to `opencv` include dirs.
 
 ### Build
 
@@ -163,3 +180,50 @@ This sections briefly describes the naming conventions for ROS nodes, topics and
   - Change the exposure in the above launch file
   - **WARNING**: Pass in the right calibration file (`calibration:=/path/to/calibration`)
   - **WARNING**: Set the proper device. Defaults to `camera_1` (`device:=<serial number>`)
+
+<a name="network"></a>
+## Run ROS over network
+Super useful when you want to run rviz over PC and other stuff over drone.
+1. Edit `/etc/hosts` file on both drone and local PC and add ip addresses as follows
+```bash
+<ip of onboard device> <username of onboard device>
+<ip of local PC 1> <username of local PC 1>
+<ip of local PC 2> <username of local PC 2>
+...
+<ip of local PC N> <username of local PC N>
+```
+2. change `ROS_MASTER_URI` to the ip address where you want ROS master to run. eg:
+```bash
+export ROS_MASTER_URI=http://<ip address of host>:11311
+export ROS_HOSTNAME=<local username>
+```
+
+That's it. You should be able to stream on any device now!
+
+<a name="px4"></a>
+## Important PX4 parameters
+- For setting up offboard communication:
+  - `MAV_1_CONFIG=TELEM2`
+  - `MAV_1_MODE=Onboard`
+  - `SER_TEL2_BAUD = 921600`
+
+
+<a name="hitl"></a>
+## HITL setup
+- Configure pixhawk as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#px4-configuration)
+- Build PX4-Firmware as outlined [here](https://dev.px4.io/v1.9.0/en/simulation/hitl.html#gazebo).
+  - This step should be done on a fairly powerful laptop. We have experienced issues when run on a not so powerful one.
+  - `<serialDevice>` tag in `*.sdf` model file should be changed to `/dev/ttyPixhawk`. You need not search for the particular device. `/dev/ttyPixhawk` is a soft symbolic link for the usb connection from pixhawk board.
+  - This serial port acts as the bridge between simulation in gazebo and computation on pixhawk board.
+- (Optional) For setting up offboard mode, you can have yet another laptop connected from pixhawk's extended FTDI port for offboard communication through mavros.
+  - This communication is over `/dev/ttyOffboard` device which is again a symbolic link for the FTDI port from pixhawk board.
+
+**IMPORTANT**
+- Launch steps are important:
+  - Connect `/dev/ttyPixhawk` device and start gazebo
+  - You can then launch QGC
+- There is a problem in gazebo simulation of barometer. To resolve the issue, kill gazebo, QGC and unplug and replug `/dev/ttyPixhawk` device.
+
+<a name="coding"></a>
+## Coding Style
+We strictly follow the ROS C++ style guide http://wiki.ros.org/CppStyleGuide. You can use `.clang-format` in this workspace to auto format code. See the instructions [here](https://github.com/davetcoleman/roscpp_code_format) for details on how to format your code.

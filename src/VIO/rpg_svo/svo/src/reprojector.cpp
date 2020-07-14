@@ -92,7 +92,7 @@ void Reprojector::reprojectMap(
         it_ftr!=ite_ftr; ++it_ftr)
     {
       // check if the feature has a mappoint assigned
-      if((*it_ftr)->point == NULL)
+      if((*it_ftr)->point == nullptr)
         continue;
 
       // make sure we project a point only once
@@ -130,6 +130,7 @@ void Reprojector::reprojectMap(
     }
   } // unlock the mutex when out of scope
   SVO_STOP_TIMER("reproject_candidates");
+  SVO_DEBUG_STREAM("Reprojection:\t nPoints = " << tot_mapoints << "\t nCandidates = " << n_candidates);
 
   // Now we go through each grid cell and select one point to match.
   // At the end, we should have at maximum one reprojected point per cell.

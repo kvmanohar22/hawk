@@ -1,4 +1,5 @@
 #include "svo/imu.h"
+#include "svo/config.h"
 
 namespace svo {
 
@@ -63,7 +64,7 @@ void ImuContainer::add(const::sensor_msgs::Imu::ConstPtr& msg)
 list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
 {
   list<ImuDataPtr> data;
-  if (empty())
+  if(empty())
   {
     SVO_ERROR_STREAM("Reading from empty IMU stream!");
     return data;
@@ -81,7 +82,7 @@ list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
     return data;
   }
 
-  if(t1 > imu_stream_.back()->ts_)
+  if(std::abs(t1 - imu_stream_.back()->ts_) > 15.0 * Config::dt())
   {
     SVO_WARN_STREAM("Requesting messages that are in the future!");
   }

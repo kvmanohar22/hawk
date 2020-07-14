@@ -1,20 +1,27 @@
 <launch>
-    <!-- TODO: Set this parameter -->
+    <!-- Bag settings -->
     <arg name="bag_path" default=""/>
     <arg name="start" default="0"/>
-    <arg name="calibration" default="$(find svo_ros)/param/hawk/camchain.yaml"/>
-    <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
+
+    <!-- calibration file paths -->
+    <arg name="camera_calibration_file" default=""/>
+    <arg name="imu_calibration_file" default=""/>
+    <arg name="svo_params_file" default=""/>
     <arg name="rig" default="monocular"/>
-    <arg name="save_trajectory" default="false"/>
-    <arg name="run_inertial_estimator" default="true"/>
+
+    <!-- which parts of the pipeline to run -->
+    <arg name="run_inertial_estimator" default="false"/>
+    <arg name="use_motion_priors" default="false"/>
 
     <!-- start svo hawk pipeline -->
     <include file="$(find svo_ros)/launch/load_svo.launch">
-      <arg name="calibration" value="$(arg calibration)"/>
-      <arg name="image_topic" value="$(arg image_topic)"/>
+      <arg name="camera_calibration_file" value="$(arg camera_calibration_file)"/>
+      <arg name="imu_calibration_file" value="$(arg imu_calibration_file)"/>
+      <arg name="svo_params_file" value="$(arg svo_params_file)"/>
       <arg name="rig" value="$(arg rig)"/>
-      <arg name="save_trajectory" value="$(arg save_trajectory)"/>
+
       <arg name="run_inertial_estimator" value="$(arg run_inertial_estimator)"/>
+      <arg name="use_motion_priors" value="$(arg use_motion_priors)"/>
     </include>
 
     <!-- start rviz -->
@@ -22,5 +29,4 @@
 
     <!-- start rosbag -->
     <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start) --keep-alive --rate=1"/>
-
 </launch>

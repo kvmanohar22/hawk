@@ -13,6 +13,8 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3DS2_Base.h>
+#include <unordered_map>
+#include <queue>
 
 namespace svo {
 
@@ -48,12 +50,12 @@ public:
   typedef boost::unique_lock<boost::mutex> lock_t;
   typedef boost::function<void (gtsam::imuBias::ConstantBias)> callback_t;
   typedef gtsam::noiseModel::Diagonal Noise;
-  typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationTypePtr;
+  typedef boost::shared_ptr<gtsam::PreintegrationType> PreintegrationPtr;
   typedef gtsam::SmartProjectionPoseFactor<gtsam::Cal3DS2> SmartFactor;
   typedef SmartFactor::shared_ptr SmartFactorPtr;
   typedef boost::shared_ptr<gtsam::Cal3_S2> Cal3_S2Ptr;
   typedef boost::shared_ptr<gtsam::Cal3DS2> Cal3DS2Ptr;
-
+  typedef list<pair<FramePtr, PreintegrationPtr>> PreintegrationPtrList;
   VisualInertialEstimator(vk::AbstractCamera* camera, callback_t update_bias_cb, Map& map);
   virtual ~VisualInertialEstimator();
 
@@ -88,22 +90,31 @@ public:
   void cleanUp();
 
   /// Integrate a single measurement
-  void integrateSingleMeasurement(const ImuDataPtr& msg);
+  void integrateSingleMeasurement(PreintegrationPtr imu_preintegrated, const ImuDataPtr& msg);
 
   /// Integrate multiple measurements
-  void integrateMultipleMeasurements(list<ImuDataPtr>& stream);
+  void integrateMultipleMeasurements(PreintegrationPtr imu_preintegrated, list<ImuDataPtr>& stream);
 
   /// Add a single factor to graph (imu and vision)
   void addFactorsToGraph();
 
-  /// Adds imu factor to graph
-  void addImuFactorToGraph();
+  /// Generates an imu factor
+  PreintegrationPtr generateImuFactor(
+    const double& t0, const double& t1);
+
+  /// Adds a single imu factor to graph
+  PreintegrationPtr addSingleImuFactorToGraph(
+    const double& t0, const int&  idx0,
+    const double& t1, const int&  idx1);
+
+  /// Adds multiple imu factors to graph
+  int addImuFactorsToGraph();
 
   /// After updating with latest values, do outlier rejection
   void rejectOutliers();
 
   /// Adds visual factor to graph
-  virtual void addVisionFactorsToGraph() =0;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) =0;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) =0;
@@ -111,6 +122,8 @@ public:
   /// initialize values for new variables in the optimization
   /// Namely, (X, V, B) of the latest keyframe's pose
   void initializeNewVariables();
+
+  void initializeNewPose(const FramePtr& frame);
 
   /// Initializes structure
   virtual void initializeStructure() =0;
@@ -125,9 +138,6 @@ public:
   inline ImuHelper* getImuHelper() { return imu_helper_; }
 
 private:
-  /// creates a camera with the specified pose
-  gtsam::PinholePose<gtsam::Cal3DS2> createCamera(const SE3& T_w_f);
-
   /// Stops other threads for pose and structure updation
   void stopOtherThreads();
 
@@ -146,10 +156,11 @@ protected:
   boost::condition_variable    kf_queue_cond_;         //!< Check if new kf arrived
   bool                         new_kf_arrived_;        //!< If new kf arrived
   bool                         quit_;                  //!< Stop optimizing and quit
+  bool                         use_imu_;               //!< Whether to use inertial terms
   int                          n_iters_;               //!< Number of optimization iterations
   gtsam::ISAM2Params           isam2_params_;          //!< Params to initialize isam2
   gtsam::ISAM2                 isam2_;                 //!< Optimization
-  PreintegrationTypePtr        imu_preintegrated_;     //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
+  PreintegrationPtrList        imu_preintegrated_lst_; //!< PreIntegrated values of IMU. Either Manifold or Tangent Space integration
   gtsam::NonlinearFactorGraph* graph_;                 //!< Graph
   const double                 dt_;                    //!< IMU sampling rate
   callback_t                   update_bias_cb_;        //!< Callback to update the imu biases
@@ -196,7 +207,7 @@ public:
   virtual ~SmartInertialEstimator() {}
 
   /// Creates or updates smart factors
-  virtual void addVisionFactorsToGraph() override;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) override;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) override;
@@ -230,7 +241,7 @@ public:
   virtual ~GenericInertialEstimator() {}
 
   /// Creates or updates generic factors
-  virtual void addVisionFactorsToGraph() override;
+  virtual void addVisionFactorsToGraph(const list<FramePtr>& kfs) override;
 
   /// updates structure after optimization
   virtual void updateStructure(const gtsam::Values& result) override;

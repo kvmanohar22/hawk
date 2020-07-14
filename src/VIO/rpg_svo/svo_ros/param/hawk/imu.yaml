@@ -12,5 +12,6 @@ imu0:
   model: calibrated
   rostopic: /mavros/imu/data_raw
   time_offset: 0.0
+  sensor: pixhawk
   update_rate: 220
 

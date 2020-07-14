@@ -1,0 +1,22 @@
+<launch>
+  <!-- Start mavros -->
+  <include file="$(find bluefox2)/launch/mavros.launch"/>
+
+  <!-- Offboard node to communicate with autopilot -->
+  <node pkg="offboard" type="test_offboard_basic_04" name="offboard" output="screen" />
+
+  <!-- Trajectory planner -->
+  <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example_from_path" output="screen" >
+      <rosparam command="load" file="$(find mav_trajectory_generation_example)/cfg/hawk_params_slow.yaml"/>
+      <rosparam command="load" file="$(find offboard)/paths/square_enu.yaml"/>
+  </node>
+
+  <!-- Trajectory sampler -->
+  <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
+      <remap from="path_segments_4D" to="trajectory"/>
+  </node>
+
+  <!-- RVIZ to visualize trajectory and execution of drone -->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find mav_trajectory_generation_example)/cfg/rviz_view_hawk.rviz" />
+
+</launch>

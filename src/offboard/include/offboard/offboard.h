@@ -74,6 +74,7 @@ public:
   /// engage offboard mode [arm, takeoff, pos+vel setpoints from trajectory
   /// node]
   bool engage_offboard_trajectory();
+  bool engage_offboard_trajectory_auto();
 
   /// engage offboard mode
   /*

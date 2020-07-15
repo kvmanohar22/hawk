@@ -303,6 +303,8 @@ bool Offboard::MultiDOFJointTrajectory_to_posvel(const trajectory_msgs::MultiDOF
   dst.velocity.y = src->points[0].velocities[0].linear.y;
   dst.velocity.z = src->points[0].velocities[0].linear.z;
 
+  dst.yaw = -initial_yaw_ + hawk::PI/2;
+
   return true;
 }
 

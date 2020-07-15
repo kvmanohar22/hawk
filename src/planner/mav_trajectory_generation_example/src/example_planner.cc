@@ -12,7 +12,7 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private)
     current_velocity_(Eigen::Vector3d::Zero()),
     current_pose_(Eigen::Affine3d::Identity()),
     current_pose_set_(false),
-    intermediate_pose_separation_(3.0 )
+    intermediate_pose_separation_(0.5 )
  {
 
   // Load params

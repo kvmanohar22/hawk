@@ -111,6 +111,9 @@ void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
   initial_yaw_ = -Y + hawk::PI / 2;
   ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
   local_pose_set_ = true;
+
+  // update current pose of drone
+  curr_pose_ = *msg;
 }
 
 bool Offboard::engage_trajectory(mavros_msgs::CommandBool::Request& req, mavros_msgs::CommandBool::Response& res)
@@ -442,11 +445,10 @@ bool Offboard::engage_offboard_trajectory_auto()
 
   ROS_INFO_STREAM("Publishing some initial points...");
   geometry_msgs::PoseStamped pose;
-  pose.pose.position.x = 0;
-  pose.pose.position.y = 0;
-  pose.pose.position.z = 0;
   for (size_t i = 100; ros::ok() && i > 0; --i)
   {
+    pose.pose.position = curr_pose_.pose.position;
+    pose.pose.orientation = curr_pose_.pose.orientation;
     local_pos_pub_.publish(pose);
     ros::spinOnce();
     rate_.sleep();
@@ -460,6 +462,8 @@ bool Offboard::engage_offboard_trajectory_auto()
   while (ros::ok())
   {
     ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...");
+    pose.pose.position = curr_pose_.pose.position;
+    pose.pose.orientation = curr_pose_.pose.orientation;
     local_pos_pub_.publish(pose);
     ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
     if (current_state_.mode == "OFFBOARD")

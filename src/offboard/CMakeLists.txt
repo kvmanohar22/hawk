@@ -36,5 +36,8 @@ target_link_libraries(test_offboard_basic_01 ${catkin_LIBRARIES} ${PROJECT_NAME}
 add_executable(test_offboard_basic_02 test/test_offboard_basic_02.cpp)
 target_link_libraries(test_offboard_basic_02 ${catkin_LIBRARIES} ${PROJECT_NAME})
 
+add_executable(test_offboard_basic_04 test/test_offboard_basic_04.cpp)
+target_link_libraries(test_offboard_basic_04 ${catkin_LIBRARIES} ${PROJECT_NAME})
+
 add_executable(test_offboard_vio_00 test/test_offboard_vio_00.cpp)
 target_link_libraries(test_offboard_vio_00 ${catkin_LIBRARIES} ${PROJECT_NAME})

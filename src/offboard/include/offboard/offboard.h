@@ -74,6 +74,7 @@ public:
   /// engage offboard mode [arm, takeoff, pos+vel setpoints from trajectory
   /// node]
   bool engage_offboard_trajectory();
+  bool engage_offboard_trajectory_auto();
 
   /// engage offboard mode
   /*
@@ -98,6 +99,7 @@ private:
   bool set_current_pose_;                 /// if `True`, planner starts planning from current
                                           /// pose
   bool start_trajectory_;                 /// once offboard is ready, trajectory gets published
+  geometry_msgs::PoseStamped curr_pose_;  /// current pose of drone
 
   ros::ServiceClient arming_client_;
   ros::ServiceClient set_mode_client_;

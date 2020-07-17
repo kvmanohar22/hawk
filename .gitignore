@@ -6,6 +6,7 @@ src/offboard/compile_commands.json
 src/VIO/rpg_svo/svo/compile_commands.json
 src/VIO/rpg_svo/svo_ros/compile_commands.json
 src/VIO/rpg_svo/svo_ros/benchmark/**
+src/.vscode/**
 scripts/frames*
 misc/**
 .catkin_tools

@@ -59,7 +59,7 @@ target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boo
 target_link_libraries(bbox_test_node bbox ${catkin_LIBRARIES}  ${OpenCV_LIBS} cv_bridge)
 
 # Perf Node #
-target_link_libraries(perf_node ${PROJECT_NAME} benchmark::benchmark)
+target_link_libraries(perf_node dlib::dlib benchmark::benchmark opencv_core opencv_dnn opencv_imgcodecs opencv_videoio opencv_highgui)
 
 
 #############

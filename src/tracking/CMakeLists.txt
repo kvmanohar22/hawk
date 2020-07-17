@@ -52,8 +52,6 @@ add_executable(tracking_bag_node src/tracking_bag.cpp)
 add_executable(bbox_test_node src/bbox_test.cpp)
 add_executable(perf_node perf/perf.cpp)
 
-
-
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} dlib::dlib bbox cv_bridge)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 target_link_libraries(image_pub_node ${catkin_LIBRARIES} ${OpenCV_LIBS} cv_bridge)
@@ -61,7 +59,7 @@ target_link_libraries(tracking_bag_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${Boo
 target_link_libraries(bbox_test_node bbox ${catkin_LIBRARIES}  ${OpenCV_LIBS} cv_bridge)
 
 # Perf Node #
-target_link_libraries(perf_node ${OpenCV_LIBS} ${PROJECT_NAME} bbox benchmark::benchmark)
+target_link_libraries(perf_node ${PROJECT_NAME} benchmark::benchmark)
 
 
 #############

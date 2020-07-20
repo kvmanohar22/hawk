@@ -1,0 +1,27 @@
+<launch>
+    <arg name="fpath" />
+    <arg name="img_topic" />
+    <arg name="bag_path" />
+    <arg name="start" default="0"/>
+
+    <!-- Publish images from given path -->
+    <!-- <node pkg="tracking" name="image_pub_node" type="image_pub_node" output="screen">
+        <param name="fpath" value="$(arg fpath)" type="string" />
+    </node> -->
+
+    <!-- Run tracking node -->
+    <node pkg="tracking" name="tracking_node" type="tracking_node" output="screen">
+        <param name="img_topic" value="$(arg img_topic)" type="string" />
+    </node>
+
+    <!-- Run bbox test node -->
+    <node pkg="tracking" name="bbox_test_node" type="bbox_test_node" output="screen">
+        <param name="img_topic" value="$(arg img_topic)" type="string" />
+    </node>
+
+    <!-- publish images from rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start)"/>
+
+</launch>
+
+

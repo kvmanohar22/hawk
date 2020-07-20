@@ -5,7 +5,7 @@ add_compile_options(-std=c++11)
 
 # SET(OpenCV_DIR /usr/local/lib/cmake/opencv4)
 
-find_package(OpenCV 4.2.0 CONFIG REQUIRED)
+find_package(OpenCV 4.0.0 CONFIG REQUIRED)
 
 ## Declare a C++ library
 add_library(bbox SHARED

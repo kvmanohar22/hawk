@@ -25,7 +25,7 @@ if (CATKIN_ENABLE_TESTING)
 endif()
 
 find_package(dlib REQUIRED)
-find_package(OpenCV 4.2.0 CONFIG REQUIRED)
+find_package(OpenCV 4.0.0 CONFIG REQUIRED)
 find_package(Boost REQUIRED)
 find_package(benchmark REQUIRED)
 

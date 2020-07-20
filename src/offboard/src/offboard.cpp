@@ -14,7 +14,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
     start_trajectory_(false),
     set_current_pose_(false),
     start_reading_alt_(false),
-    local_pose_set_(false)
+    local_pose_set_(false),
+    count_(0)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &Offboard::mavros_state_cb, this);
@@ -104,14 +105,17 @@ void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg)
 
 void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
 {
+  if(!local_pose_set_)  {
   tf::Quaternion q(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
   tf::Matrix3x3 m(q);
   double R, P, Y;
   m.getRPY(R, P, Y);
   initial_yaw_ = -Y + hawk::PI / 2;
   ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
-  local_pose_set_ = true;
-
+  if(count_ == 100)
+    local_pose_set_ = true;
+  ++count_; 
+  }
   // update current pose of drone
   curr_pose_ = *msg;
 }

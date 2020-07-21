@@ -140,6 +140,7 @@ private:
 
   size_t last_seq_id_;  /// Last sequence id from trajectory
   size_t curr_seq_id_;  /// Current sequence id from trajectory
+  size_t count_;
 };
 
 }  // namespace hawk

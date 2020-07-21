@@ -48,6 +48,10 @@ class ExamplePlanner {
 
   void addIntermediateWaypoints(std::vector<Eigen::Vector3d>& coarse_waypoints);
 
+  // this server manages trajectory generation status
+  bool pathGenerationCb(mavros_msgs::CommandBool::Request& req,
+    mavros_msgs::CommandBool::Response& res);
+
  private:
   ros::Publisher pub_markers_;
   ros::Publisher pub_trajectory_;
@@ -55,6 +59,7 @@ class ExamplePlanner {
 
   ros::ServiceClient start_publishing_trajectory_client_;
   ros::ServiceClient set_current_pose_client_;
+  ros::ServiceServer path_generated_server_;
 
   ros::NodeHandle& nh_;
   ros::NodeHandle  nh_private_;
@@ -64,6 +69,7 @@ class ExamplePlanner {
 
   ros::Rate rate_;
   bool current_pose_set_;
+  bool path_generation_complete_;
 
   double max_v_; // m/s
   double max_a_; // m/s^2

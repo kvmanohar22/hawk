@@ -39,6 +39,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   takeoff_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
   land_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
   param_set_client_ = nh_.serviceClient<mavros_msgs::ParamSet>("/mavros/param/set");
+  path_generation_status_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/path_generation_status"); 
 
   // service servers
   trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this);
@@ -447,33 +448,42 @@ bool Offboard::engage_offboard_trajectory()
 
 bool Offboard::engage_offboard_trajectory_auto()
 {
-  // arm
-  arm();
-
-  ROS_INFO_STREAM("Publishing some initial points...");
-  geometry_msgs::PoseStamped pose;
-  for (size_t i = 100; ros::ok() && i > 0; --i)
-  {
-    pose.pose.position = curr_pose_.pose.position;
-    pose.pose.orientation = curr_pose_.pose.orientation;
-    local_pos_pub_.publish(pose);
-    ros::spinOnce();
-    rate_.sleep();
-  }
-
   // set the pose at this location to be the starting point for trajectory
   // planning
   ROS_INFO_STREAM("Request sent to set the current pose in planner");
   set_current_pose_ = true;
 
-  while (ros::ok())
+  // ensure trajectory is planned within this timeframe
+  const auto start_time = ros::Time::now();
+  mavros_msgs::CommandBool srv;
+  srv.request.value = true; 
+  while(ros::ok())
+  {
+    const auto sec_elapsed = (ros::Time::now()-start_time).toSec();
+    ROS_WARN_STREAM_THROTTLE(1.0, "Sleeping until trajectory is generated. Elapsed time: " << sec_elapsed << " sec.");
+    if(path_generation_status_client_.call(srv) && srv.response.success)
+    {
+      ROS_INFO_STREAM("[offboard]: Ready to engage offboard");
+      break;
+    }
+    ros::Duration(0.5).sleep();
+    ros::spinOnce();
+  }
+
+  // arm
+  arm();
+
+  // publish some initial points
+  geometry_msgs::PoseStamped pose;
+  ROS_INFO_STREAM("Publishing some initial points...");
+  while(ros::ok())
   {
     ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...");
     pose.pose.position = curr_pose_.pose.position;
     pose.pose.orientation = curr_pose_.pose.orientation;
     local_pos_pub_.publish(pose);
     ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
-    if (current_state_.mode == "OFFBOARD")
+    if(current_state_.mode == "OFFBOARD")
     {
       offboard_enabled_ = true;
       start_trajectory_ = true;
@@ -484,10 +494,10 @@ bool Offboard::engage_offboard_trajectory_auto()
     rate_.sleep();
   }
 
-  // arm if not already armed or disarmed by autopilot
+  // arm if already disarmed by autopilot
   arm();
 
-  while (ros::ok() && offboard_enabled_)
+  while(ros::ok() && offboard_enabled_)
   {
     ros::spinOnce();
     rate_.sleep();

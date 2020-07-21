@@ -8,7 +8,7 @@
   <!-- Trajectory planner -->
   <node name="planner" pkg="mav_trajectory_generation_example" type="trajectory_generation_example_from_path" output="screen" >
       <rosparam command="load" file="$(find mav_trajectory_generation_example)/cfg/hawk_params_slow.yaml"/>
-      <rosparam command="load" file="$(find offboard)/paths/square_enu.yaml"/>
+      <rosparam command="load" file="$(find offboard)/paths/height.yaml"/>
   </node>
 
   <!-- Trajectory sampler -->

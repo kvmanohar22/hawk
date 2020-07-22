@@ -14,7 +14,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
     start_trajectory_(false),
     set_current_pose_(false),
     start_reading_alt_(false),
-    local_pose_set_(false)
+    local_pose_set_(false),
+    count_(0)
 {
   // subscribers
   state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &Offboard::mavros_state_cb, this);
@@ -38,6 +39,7 @@ Offboard::Offboard(ros::NodeHandle& nh)
   takeoff_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
   land_client_ = nh_.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
   param_set_client_ = nh_.serviceClient<mavros_msgs::ParamSet>("/mavros/param/set");
+  path_generation_status_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/path_generation_status"); 
 
   // service servers
   trajectory_server_ = nh_.advertiseService("engage_planner", &Offboard::engage_trajectory, this);
@@ -104,13 +106,19 @@ void Offboard::mavros_set_home_cb(const mavros_msgs::HomePositionConstPtr& msg)
 
 void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
 {
-  tf::Quaternion q(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  double R, P, Y;
-  m.getRPY(R, P, Y);
-  initial_yaw_ = -Y + hawk::PI / 2;
-  ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
-  local_pose_set_ = true;
+  if(!local_pose_set_)
+  {
+    // update initial yaw only once
+    tf::Quaternion q(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double R, P, Y;
+    m.getRPY(R, P, Y);
+    initial_yaw_ = -Y + hawk::PI / 2;
+    ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
+    if(count_ == 100)
+      local_pose_set_ = true;
+    ++count_; 
+  }
 
   // update current pose of drone
   curr_pose_ = *msg;
@@ -306,6 +314,8 @@ bool Offboard::MultiDOFJointTrajectory_to_posvel(const trajectory_msgs::MultiDOF
   dst.velocity.y = src->points[0].velocities[0].linear.y;
   dst.velocity.z = src->points[0].velocities[0].linear.z;
 
+  dst.yaw = -initial_yaw_ + hawk::PI/2;
+
   return true;
 }
 
@@ -438,33 +448,42 @@ bool Offboard::engage_offboard_trajectory()
 
 bool Offboard::engage_offboard_trajectory_auto()
 {
-  // arm
-  arm();
-
-  ROS_INFO_STREAM("Publishing some initial points...");
-  geometry_msgs::PoseStamped pose;
-  for (size_t i = 100; ros::ok() && i > 0; --i)
-  {
-    pose.pose.position = curr_pose_.pose.position;
-    pose.pose.orientation = curr_pose_.pose.orientation;
-    local_pos_pub_.publish(pose);
-    ros::spinOnce();
-    rate_.sleep();
-  }
-
   // set the pose at this location to be the starting point for trajectory
   // planning
   ROS_INFO_STREAM("Request sent to set the current pose in planner");
   set_current_pose_ = true;
 
-  while (ros::ok())
+  // ensure trajectory is planned within this timeframe
+  const auto start_time = ros::Time::now();
+  mavros_msgs::CommandBool srv;
+  srv.request.value = true; 
+  while(ros::ok())
+  {
+    const auto sec_elapsed = (ros::Time::now()-start_time).toSec();
+    ROS_WARN_STREAM_THROTTLE(1.0, "Sleeping until trajectory is generated. Elapsed time: " << sec_elapsed << " sec.");
+    if(path_generation_status_client_.call(srv) && srv.response.success)
+    {
+      ROS_INFO_STREAM("[offboard]: Ready to engage offboard");
+      break;
+    }
+    ros::Duration(0.5).sleep();
+    ros::spinOnce();
+  }
+
+  // arm
+  arm();
+
+  // publish some initial points
+  geometry_msgs::PoseStamped pose;
+  ROS_INFO_STREAM("Publishing some initial points...");
+  while(ros::ok())
   {
     ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for OFFBOARD switch from RC...");
     pose.pose.position = curr_pose_.pose.position;
     pose.pose.orientation = curr_pose_.pose.orientation;
     local_pos_pub_.publish(pose);
     ROS_WARN_STREAM_ONCE("Current mode = " << current_state_.mode);
-    if (current_state_.mode == "OFFBOARD")
+    if(current_state_.mode == "OFFBOARD")
     {
       offboard_enabled_ = true;
       start_trajectory_ = true;
@@ -475,10 +494,10 @@ bool Offboard::engage_offboard_trajectory_auto()
     rate_.sleep();
   }
 
-  // arm if not already armed or disarmed by autopilot
+  // arm if already disarmed by autopilot
   arm();
 
-  while (ros::ok() && offboard_enabled_)
+  while(ros::ok() && offboard_enabled_)
   {
     ros::spinOnce();
     rate_.sleep();

@@ -41,7 +41,7 @@ SpacesInParentheses: false
 SpacesInAngles:  false
 SpaceInEmptyParentheses: false
 SpacesInCStyleCastParentheses: false
-SpaceAfterControlStatementKeyword: true
+SpaceAfterControlStatementKeyword: false
 SpaceBeforeAssignmentOperators: true
 ContinuationIndentWidth: 4
 SortIncludes: false

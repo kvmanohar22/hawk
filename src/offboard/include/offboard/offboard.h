@@ -106,6 +106,7 @@ private:
   ros::ServiceClient takeoff_client_;
   ros::ServiceClient land_client_;
   ros::ServiceClient param_set_client_;
+  ros::ServiceClient path_generation_status_client_; /// To know the status of trajectory
 
   ros::Subscriber local_pose_sub_;    /// Local pose of autopilot
   ros::Subscriber alt_rel_sub_;       /// Relative altitude subscriber
@@ -140,6 +141,7 @@ private:
 
   size_t last_seq_id_;  /// Last sequence id from trajectory
   size_t curr_seq_id_;  /// Current sequence id from trajectory
+  size_t count_;
 };
 
 }  // namespace hawk

@@ -12,7 +12,8 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private)
     current_velocity_(Eigen::Vector3d::Zero()),
     current_pose_(Eigen::Affine3d::Identity()),
     current_pose_set_(false),
-    intermediate_pose_separation_(3.0 )
+    intermediate_pose_separation_(0.5),
+    path_generation_complete_(false)
  {
 
   // Load params
@@ -36,9 +37,23 @@ ExamplePlanner::ExamplePlanner(ros::NodeHandle& nh, ros::NodeHandle& nh_private)
   set_current_pose_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(
       "/set_curr_pose");
 
+  // service servers 
+  path_generated_server_ = nh_.advertiseService("path_generation_status", &ExamplePlanner::pathGenerationCb, this);
+
   // subscriber for Odometry
   sub_odom_ =
       nh.subscribe("/mavros/local_position/pose", 1, &ExamplePlanner::hawkPoseCallback, this);
+}
+
+bool ExamplePlanner::pathGenerationCb(mavros_msgs::CommandBool::Request& req,
+  mavros_msgs::CommandBool::Response& res)
+{
+  res.success = path_generation_complete_;
+  if(path_generation_complete_)
+  {
+    ROS_INFO_STREAM("[planner]: Path generation complete response sent");
+  }
+  return true;
 }
 
 // Callback to get current Pose of UAV
@@ -286,6 +301,9 @@ bool ExamplePlanner::planTrajectory(const std::vector<Eigen::Vector3d>& setpoint
 
   // get trajectory as polynomial parameters
   opt.getTrajectory(&(*trajectory));
+
+  // this will be used by service callback
+  path_generation_complete_ = true;
 
   return true;
 }

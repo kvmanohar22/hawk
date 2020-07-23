@@ -9,13 +9,13 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "tf_broadcaster");
   ros::NodeHandle nh;
 
-  if (argc != 9)
+  if(argc != 9)
   {
     ROS_ERROR("Invalid number of params\nUsage: parent_name child_name x y z R P Y");
     return -1;
   }
 
-  if (strcmp(argv[2], "world") == 0)
+  if(strcmp(argv[2], "world") == 0)
   {
     ROS_ERROR("Child name cannot be \"world\"");
     return -1;

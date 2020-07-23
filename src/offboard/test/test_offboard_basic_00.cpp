@@ -13,7 +13,7 @@ int main(int argc, char** argv)
 
   // arm
   ROS_INFO_STREAM("READY TO ARM");
-  if (!offboard.arm())
+  if(!offboard.arm())
   {
     ros::shutdown();
   }
@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 
   // takeoff
   ROS_INFO_STREAM("READY FOR TAKEOFF");
-  if (!offboard.takeoff(3))
+  if(!offboard.takeoff(3))
   {
     ros::shutdown();
   }
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 
   // land
   ROS_INFO_STREAM("READY FOR LANDING");
-  if (!offboard.land())
+  if(!offboard.land())
   {
     ros::shutdown();
   }

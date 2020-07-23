@@ -459,15 +459,16 @@ bool Offboard::engage_offboard_trajectory_auto()
   srv.request.value = true; 
   while(ros::ok())
   {
+    ros::spinOnce();
     const auto sec_elapsed = (ros::Time::now()-start_time).toSec();
     ROS_WARN_STREAM_THROTTLE(1.0, "Sleeping until trajectory is generated. Elapsed time: " << sec_elapsed << " sec.");
-    if(path_generation_status_client_.call(srv) && srv.response.success)
+    // if(path_generation_status_client_.call(srv) && srv.response.success)
+    if(sec_elapsed > 10)
     {
       ROS_INFO_STREAM("[offboard]: Ready to engage offboard");
       break;
     }
-    ros::Duration(0.5).sleep();
-    ros::spinOnce();
+    // ros::Duration(0.5).sleep();
   }
 
   // arm

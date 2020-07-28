@@ -62,7 +62,19 @@ git clone git@github.com:kvmanohar22/hawk.git hawk_ws
   `*camera-manager *rqt-gui *rqt-gui-py python-catkin-tools *cv-bridge`
 
 ### Known issues
-- If running on Jetson devices, where opencv4 is installed by default, `cv_bridge` might have issues with finding it. To resolve this, edit `cv_bridgeConfig.cmake` and change the path to `opencv` include dirs.
+- If running on Jetson devices, where opencv4 is installed by default, `cv_bridge` might have issues with finding it. To resolve this, edit `cv_bridgeConfig.cmake` and change the path to `opencv` include dirs. Somewhere in the above `.cmake` file, the variable `_include_dirs` is defined as:
+
+```cmake
+set(_include_dirs "include;/usr/include;/usr/include/opencv")
+```
+
+the above needs to be changed to:
+
+```cmake
+set(_include_dirs "/path/to/include/of/opencv4")
+```
+
+i.e, remove all the junk include dirs and replace them to the correct include for opencv4.
 
 ### Build
 

@@ -60,7 +60,7 @@ Config::Config() :
     use_motion_priors(vk::getParam<bool>("/hawk/svo/use_motion_priors", false)),
     isam2_n_iters(vk::getParam<int>("/hawk/svo/isam2_n_iters", 5)),
     isam2_imu_factor_type(vk::getParam<int>("/hawk/svo/isam2_imu_factor_type", 1)),
-    isam2_dt(1.0/vk::getParam<double>("/hawk/svo/imu0/update_rate", 0.005)),
+    isam2_dt(1.0/vk::getParam<double>("/hawk/svo/imu0/update_rate", 0.00450450)),
     save_trajectory(vk::getParam<bool>("/hawk/svo/save_trajectory", false)),
     vision_factor_type(vk::getParam<int>("/hawk/svo/vision_factor_type", 0))
 #else

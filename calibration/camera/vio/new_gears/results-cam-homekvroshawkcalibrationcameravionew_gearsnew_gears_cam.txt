@@ -1,0 +1,30 @@
+Calibration results 
+====================
+Camera-system parameters:
+	cam0 (/hawk/stereo/left/image_raw):
+	 type: <class 'aslam_cv.libaslam_cv_python.DistortedPinholeCameraGeometry'>
+	 distortion: [-0.28482427  0.07164017  0.00031349 -0.00025262] +- [ 0.00059038  0.00043533  0.00009299  0.0000727 ]
+	 projection: [ 410.1761779   412.47513607  360.34804386  245.90871344] +- [ 0.26139721  0.2352485   0.31932693  0.33329276]
+	 reprojection error: [-0.000021, 0.000000] +- [0.286173, 0.244002]
+
+	cam1 (/hawk/stereo/right/image_raw):
+	 type: <class 'aslam_cv.libaslam_cv_python.DistortedPinholeCameraGeometry'>
+	 distortion: [-0.28166558  0.06772361  0.00079499 -0.00021677] +- [ 0.00054743  0.00036864  0.00008902  0.00006862]
+	 projection: [ 409.68764995  412.16569708  382.01864978  250.78769636] +- [ 0.27469475  0.24815124  0.30176065  0.32394775]
+	 reprojection error: [0.000019, 0.000001] +- [0.328157, 0.272644]
+
+	baseline T_1_0:
+	 q: [-0.01884417 -0.00915792  0.0197194   0.999586  ] +- [ 0.00053185  0.00082446  0.00008689]
+	 t: [-0.09509581  0.00024788 -0.00010805] +- [ 0.00012011  0.00010777  0.00026693]
+
+
+
+Target configuration
+====================
+
+  Type: aprilgrid
+  Tags: 
+    Rows: 6
+    Cols: 6
+    Size: 0.088 [m]
+    Spacing 0.0264 [m]

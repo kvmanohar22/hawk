@@ -13,7 +13,7 @@ MOTION_PRIORS=false
 
 CAMERA_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/camchain.yaml
 IMU_CALIBRATION_PATH=${HAWK_ROOT}/src/VIO/rpg_svo/svo_ros/param/hawk/imu.yaml
-SVO_PARAMS_PATH=${SVO_PARAMS_PATH}/vo_accurate.yaml
+SVO_PARAMS_PATH=${SVO_PARAMS_PATH}/vo_fast.yaml
 
 roslaunch svo_ros \
   test_interface_drone.launch \

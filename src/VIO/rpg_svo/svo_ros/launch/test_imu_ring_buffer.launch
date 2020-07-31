@@ -1,0 +1,9 @@
+<launch>
+    <arg name="bag_path" default=""/>
+    <arg name="start" default="0"/>
+
+    <node pkg="svo_ros" type="ring_buffered_imu" name="svo"/>
+
+    <!-- start rosbag -->
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_path) --start=$(arg start) --keep-alive --rate=1"/>
+</launch>

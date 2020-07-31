@@ -45,83 +45,40 @@ ImuData::ImuData(const sensor_msgs::Imu::ConstPtr& msg)
   omg_ = ros2eigen(msg->angular_velocity);
 }
 
+ImuContainer::ImuContainer() :
+  ring_buffer_(500)    
+{}
+
+ImuContainer::ImuContainer(double _delta_t) :
+  ring_buffer_(500)    
+{}
+
 void ImuContainer::add(const::sensor_msgs::Imu::ConstPtr& msg)
 {
   ImuDataPtr new_imu_data = boost::make_shared<ImuData>(msg);
-  imu_stream_.push_back(new_imu_data);
-
-  // remove messages that are older than delta_t from present
-  const double curr_ts = new_imu_data->ts_;
-  for(list<ImuDataPtr>::const_iterator it=imu_stream_.begin(); it!=imu_stream_.end();)
-  {
-    if(curr_ts - (*it)->ts_ > delta_t_)
-      it = imu_stream_.erase(it);
-    else
-      break;
-  }
+  ring_buffer_.push_back(new_imu_data);
 }
 
 list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
 {
-  list<ImuDataPtr> data;
-  if(empty())
+  list<ImuDataPtr> data = ring_buffer_.read(t0, t1);
+  if(data.size() < 2)
   {
-    SVO_ERROR_STREAM("Reading from empty IMU stream!");
+    SVO_WARN_STREAM("Very few messages received. Ignoring");
+    data.resize(0);
     return data;
   }
 
-  if(t1 < t0)
-  {
-    SVO_ERROR_STREAM("Your time stamps are messed up! t1 < t0");
-    return data;
-  }
+  ImuDataPtr first = data.front();
+  data.pop_front();
+  ImuDataPtr last = data.back();
+  data.pop_back();
 
-  if(t0 < imu_stream_.front()->ts_)
-  {
-    SVO_WARN_STREAM("Requesting messages that have already been cleared. Increase storage size!");
-    return data;
-  }
-
-  if(std::abs(t1 - imu_stream_.back()->ts_) > 30.0 * Config::dt())
-  {
-    SVO_WARN_STREAM("Requesting messages that are in the future!");
-  }
-
-  const auto it_end = std::prev(imu_stream_.end());
-  for(list<ImuDataPtr>::iterator it=imu_stream_.begin(); it!=it_end; ++it)
-  {
-    const ImuDataPtr curr_data = *it;
-    const ImuDataPtr next_data = *std::next(it);
-
-    // select the first measurement
-    if(curr_data->ts_ < t0 && next_data->ts_ > t0)
-    {
-      ImuDataPtr interpolated = interpolate(curr_data, next_data, t0);
-      data.push_back(interpolated);
-      continue;
-    }
-
-    // in between t0 and t1
-    if(curr_data->ts_ >= t0 && next_data->ts_ <= t1)
-    {
-      data.push_back(curr_data);
-      continue;
-    }
-
-    // select the last measurement
-    if(next_data->ts_ > t1)
-    {
-      if(curr_data->ts_ > t1)
-      {
-        ImuDataPtr interpolated = interpolate(*std::prev(it), curr_data, t1);
-        data.push_back(interpolated);
-      } else {
-        ImuDataPtr interpolated = interpolate(curr_data, next_data, t1);
-        data.push_back(interpolated);
-      }
-      break;
-    }
-  }
+  // interpolate messages at the first and last
+  ImuDataPtr interpolated_first = interpolate(first, data.front(), t0);
+  data.push_back(interpolated_first);
+  ImuDataPtr interpolated_back = interpolate(data.back(), last, t1);
+  data.push_back(interpolated_back);
 
   if(data.empty())
   {

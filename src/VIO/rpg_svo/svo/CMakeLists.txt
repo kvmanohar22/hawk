@@ -113,6 +113,7 @@ LIST(APPEND SOURCEFILES
   src/config.cpp
   src/sparse_img_align.cpp
   src/imu.cpp
+  src/ring_buffer_imu.cpp
   src/visual_inertial_estimator.cpp
   src/inertial_initialization.cpp
   src/bundle_adjustment.cpp)

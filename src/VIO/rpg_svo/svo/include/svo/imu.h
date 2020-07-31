@@ -2,6 +2,7 @@
 #define SVO_IMU_H_
 
 #include <svo/global.h>
+#include "svo/ring_buffer_imu.h"
 #include <vikit/params_helper.h>
 
 #include <gtsam/navigation/CombinedImuFactor.h>
@@ -72,56 +73,18 @@ public:
   gtsam::imuBias::ConstantBias curr_imu_bias_;
 };
 
-/// Container for single imu data
-struct ImuData {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  double    ts_;   //!< time stamp
-  Vector3d  acc_;  //!< linear acceleration
-  Vector3d  omg_;  //!< angular velocity
-
-  ImuData()
-  {
-    ts_ = 0.0;
-    acc_.setZero();
-    omg_.setZero();
-  }
-
-  ImuData(double ts, Vector3d acc, Vector3d omg)
-    : ts_(ts),
-      acc_(acc),
-      omg_(omg)
-    {}
-
-  /// Initialize from rostopic message
-  ImuData(const sensor_msgs::Imu::ConstPtr& msg);
-
-  /// copy constructor
-  ImuData(const ImuData& other)
-    : ts_(other.ts_),
-      acc_(other.acc_),
-      omg_(other.omg_)
-    {}
-};
-typedef boost::shared_ptr<ImuData> ImuDataPtr;
-
 /// Container for stream of IMU data 
 class ImuContainer {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 private:
-  list<ImuDataPtr> imu_stream_; //!< stream of IMU data
   double           delta_t_;    //!< message older than this will be removed
+  RingBufferImu    ring_buffer_;//!< imu messages are stored in a ring buffer
 
 public:
-  ImuContainer() :
-    delta_t_(20.0)
-  {}
-
-  ImuContainer(double _delta_t) :
-    delta_t_(_delta_t)
-  {}
+  ImuContainer();
+  ImuContainer(double _delta_t);
 
  ~ImuContainer() =default;
  
@@ -131,13 +94,13 @@ public:
   list<ImuDataPtr> read(const double& t0, const double& t1); 
 
   /// How many messages are present?
-  inline size_t size() const { return imu_stream_.size(); }
+  inline size_t size() const { return ring_buffer_.size(); }
 
   /// Is the list empty?
-  inline bool empty() const { return imu_stream_.empty(); }
+  inline bool empty() const { return ring_buffer_.empty(); }
 
-  inline double oldestTimestamp() const { return imu_stream_.front()->ts_; }
-  inline double newestTimestamp() const { return imu_stream_.back()->ts_;  }
+  inline double oldestTimestamp() const { return ring_buffer_.tMin(); }
+  inline double newestTimestamp() const { return ring_buffer_.tMax(); }
 
   /// interpolate two messages
   ImuDataPtr interpolate(const ImuDataPtr& left, const ImuDataPtr& right, const double t);

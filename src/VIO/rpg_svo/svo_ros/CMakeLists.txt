@@ -97,6 +97,6 @@ IF(NOT DEFINED ENV{ARM_ARCHITECTURE})
   ADD_EXECUTABLE(test_pose src/test_pose.cpp)
   TARGET_LINK_LIBRARIES(test_pose svo_visualizer)
 
-  ADD_EXECUTABLE(test_pose src/test_pose.cpp)
-  TARGET_LINK_LIBRARIES(test_pose svo_visualizer)
+  ADD_EXECUTABLE(test_ring_buffer_imu src/test_ring_buffer_imu.cpp)
+  TARGET_LINK_LIBRARIES(test_ring_buffer_imu svo_visualizer)
 ENDIF()

@@ -1,6 +1,7 @@
-<launch>
-  <!-- Start mavros -->
+launch>
+  <!-- Start mavros
   <include file="$(find bluefox2)/launch/mavros.launch"/>
+  -->
 
   <!-- Offboard node to communicate with autopilot -->
   <node pkg="offboard" type="test_offboard_vio_00" name="offboard" output="screen" />

@@ -56,11 +56,13 @@ public:
   vk::AbstractCamera* cam1_;
   bool quit_;
   ros::Rate rate_;
+  ros::Rate imu_rate_;
   InertialInitialization* inertial_init_;
   bool inertial_init_done_;
   ros::NodeHandle nh_;
   ros::Publisher mavros_pose_pub_; //!< Publishes pose estimates to mavros
   ros::Subscriber local_pose_sub_; //!< Subscriber of local pose of drone
+  ros::Subscriber imu_subscriber_; //!< Subscriber of local pose of drone
   bool publish_pose_estimates_;    //!< should we publish pose estimates to hawk
   bool start_vo_;                  //!< Set this to start vo
   ros::ServiceServer start_vo_server_; //!< create a service server
@@ -69,6 +71,8 @@ public:
   bool lock_local_pose_; //!< Set this to true to lock estimate received from px4
   ros::Time vo_start_time_;
   bool first_msg_;
+  boost::thread* imu_stream_thread_;
+
 
   VoNode(ros::NodeHandle& nh);
   ~VoNode();
@@ -92,6 +96,9 @@ public:
   // call this server to start vo
   bool startVoServer(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
   bool initializeGravity();
+
+  //
+  void imuCallbackThread();
 };
 
 VoNode::VoNode(ros::NodeHandle& nh) :
@@ -100,7 +107,8 @@ VoNode::VoNode(ros::NodeHandle& nh) :
   publish_dense_input_(vk::getParam<bool>("/hawk/svo/publish_dense_input", true)),
   cam_(nullptr),
   quit_(false),
-  rate_(300),
+  rate_(100),
+  imu_rate_(500),
   inertial_init_done_(false),
   nh_(nh),
   publish_pose_estimates_(true),
@@ -140,12 +148,27 @@ VoNode::VoNode(ros::NodeHandle& nh) :
     vo_ = new svo::FrameHandlerMono(cam_, cam1_, FrameHandlerBase::InitType::STEREO);
   else
     vo_ = new svo::FrameHandlerMono(cam_, cam1_);
+
+  // imu stream thread
+  imu_stream_thread_ = new boost::thread(boost::bind(&VoNode::imuCallbackThread, this));
 }
 
 VoNode::~VoNode()
 {
+  imu_stream_thread_->join();
   delete vo_;
   delete cam_;
+}
+
+void VoNode::imuCallbackThread()
+{
+  SVO_INFO_STREAM("IMU Callback thread started"); 
+  imu_subscriber_ = nh_.subscribe("/mavros/imu/data_raw", 1000, &svo::VoNode::imuCb, this);
+  while(ros::ok())
+  {
+    ros::spinOnce();
+    imu_rate_.sleep();
+  }
 }
 
 void VoNode::localPoseCb(const geometry_msgs::PoseStampedConstPtr& msg)
@@ -236,7 +259,10 @@ bool VoNode::initializeGravity()
 
 void VoNode::imuCb(const sensor_msgs::Imu::ConstPtr& msg)
 {
-  if(!inertial_init_done_)
+  if(!start_vo_)
+    return; 
+
+ if(!inertial_init_done_)
   {
     inertial_init_->feedImu(msg);
   }
@@ -377,10 +403,10 @@ int main(int argc, char **argv)
   ros::Subscriber imu_subscriber;
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())
   {
-    imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
+    //imu_subscriber = nh.subscribe(imu_topic, 1000, &svo::VoNode::imuCb, &vo_node);
   } else {
-    vo_node.inertial_init_done_ = true;
-    vo_node.vo_->prior_pose_set_ = true;
+    vo_node.inertial_init_done_ = false;
+    vo_node.vo_->prior_pose_set_ = false;
   }
   vo_node.vo_start_time_ = ros::Time::now();
 

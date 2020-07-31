@@ -295,8 +295,11 @@ void VoNode::imgCb(const sensor_msgs::ImageConstPtr& msg)
   
   if(!start_vo_)
     return;
+
+/*
   if((msg->header.stamp-vo_start_time_).toSec() < 5.0)
     return;
+*/
 
   // Initialize gravity vector first
   if(!inertial_init_done_)
@@ -344,8 +347,11 @@ void VoNode::imgStereoCb(
   
   if(!start_vo_)
     return;
+
+/*
   if((l_msg->header.stamp-vo_start_time_).toSec() < 5.0)
     return;
+*/
 
   // Initialize gravity vector first
   if(!inertial_init_done_)
@@ -384,8 +390,8 @@ int main(int argc, char **argv)
   std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic", "camera0/image_raw"));
   std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/cam1/rostopic", "camera1/image_raw"));
 
-  message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 50);
-  message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 50);
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 500);
+  message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 500);
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_policy;
   message_filters::Synchronizer<sync_policy> sync(sync_policy(5), subscriber_left, subscriber_right);
 

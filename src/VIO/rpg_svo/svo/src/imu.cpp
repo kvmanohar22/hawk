@@ -62,7 +62,7 @@ void ImuContainer::add(const::sensor_msgs::Imu::ConstPtr& msg)
 list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
 {
   list<ImuDataPtr> data = ring_buffer_.read(t0, t1);
-  if(data.size() < 2)
+  if(data.size() < 4)
   {
     SVO_WARN_STREAM("Very few messages received. Ignoring");
     data.resize(0);
@@ -76,7 +76,7 @@ list<ImuDataPtr> ImuContainer::read(const double& t0, const double& t1)
 
   // interpolate messages at the first and last
   ImuDataPtr interpolated_first = interpolate(first, data.front(), t0);
-  data.push_back(interpolated_first);
+  data.push_front(interpolated_first);
   ImuDataPtr interpolated_back = interpolate(data.back(), last, t1);
   data.push_back(interpolated_back);
 

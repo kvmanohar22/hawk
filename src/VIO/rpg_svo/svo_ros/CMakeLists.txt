@@ -78,7 +78,7 @@ TARGET_LINK_LIBRARIES(svo_visualizer ${LINK_LIBS})
 ADD_EXECUTABLE(vo src/vo_node.cpp)
 TARGET_LINK_LIBRARIES(vo svo_visualizer)
 
-IF(NOT $ENV{ARM_ARCHITECTURE})
+IF(NOT DEFINED ENV{ARM_ARCHITECTURE})
   ADD_EXECUTABLE(benchmark src/benchmark_node.cpp)
   TARGET_LINK_LIBRARIES(benchmark svo_visualizer)
 
@@ -96,4 +96,7 @@ IF(NOT $ENV{ARM_ARCHITECTURE})
 
   ADD_EXECUTABLE(test_pose src/test_pose.cpp)
   TARGET_LINK_LIBRARIES(test_pose svo_visualizer)
-ENDIF(NOT $ENV{ARM_ARCHITECTURE})
+
+  ADD_EXECUTABLE(test_pose src/test_pose.cpp)
+  TARGET_LINK_LIBRARIES(test_pose svo_visualizer)
+ENDIF()

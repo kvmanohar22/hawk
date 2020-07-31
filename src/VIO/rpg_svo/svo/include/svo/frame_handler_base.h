@@ -90,20 +90,39 @@ public:
   /// Get the processing time of the previous iteration.
   double lastProcessingTime() const { return timer_.getTime(); }
 
+  /// Get the processing time of the previous iteration.
+  double lastProcessingMeanTime() const { return acc_frame_timings_.getMean(); }
+
   /// Get the number of feature observations of the last frame.
   size_t lastNumObservations() const { return num_obs_last_; }
 
+  /// Number of tracked features in the first step of SVO.
+  inline size_t imgAlignNTracked() const { return img_align_n_tracked_; }
+
+  /// Number of trials that were used in feature alignment.
+  inline size_t reprNTrials()      const { return repr_n_trials_; }
+
+  /// Total number of features that were aligned succesfully.
+  inline size_t reprNMatches()     const { return repr_n_matches_; }
+
+  /// These are the number of retained tracked features after all steps of front-end.
+  inline size_t nTracked()         const { return n_tracked_; }
+
 protected:
-  Stage stage_;                 //!< Current stage of the algorithm.
-  bool set_reset_;              //!< Flag that the user can set. Will reset the system before the next iteration.
-  bool set_start_;              //!< Flag the user can set to start the system when the next image is received.
-  Map map_;                     //!< Map of keyframes created by the slam system.
-  vk::Timer timer_;             //!< Stopwatch to measure time to process frame.
+  Stage stage_;                                 //!< Current stage of the algorithm.
+  bool set_reset_;                              //!< Flag that the user can set. Will reset the system before the next iteration.
+  bool set_start_;                              //!< Flag the user can set to start the system when the next image is received.
+  Map map_;                                     //!< Map of keyframes created by the slam system.
+  vk::Timer timer_;                             //!< Stopwatch to measure time to process frame.
   vk::RingBuffer<double> acc_frame_timings_;    //!< Total processing time of the last 10 frames, used to give some user feedback on the performance.
   vk::RingBuffer<size_t> acc_num_obs_;          //!< Number of observed features of the last 10 frames, used to give some user feedback on the tracking performance.
   size_t num_obs_last_;                         //!< Number of observations in the previous frame.
   TrackingQuality tracking_quality_;            //!< An estimate of the tracking quality based on the number of tracked features.
   InitType init_type_;                          //!< Initialization type
+  size_t img_align_n_tracked_;                  //!< Num features tracked in the first step
+  size_t repr_n_trials_;                        //!< Num trials in the reprojection step
+  size_t repr_n_matches_;                       //!< Num matches (this is capped to some value prior
+  size_t n_tracked_;                            //!< Total features tracked in the current frame after all the steps
 
   /// Before a frame is processed, this function is called.
   bool startFrameProcessingCommon(const double timestamp);

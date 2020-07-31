@@ -504,6 +504,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_STOP_TIMER("sparse_img_align");
   SVO_LOG(img_align_n_tracked);
   SVO_DEBUG_STREAM("Img Align:\t Tracked = " << img_align_n_tracked);
+  img_align_n_tracked_ = img_align_n_tracked;
 
   // map reprojection & feature alignment
   SVO_START_TIMER("reproject");
@@ -513,6 +514,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   const size_t repr_n_mps = reprojector_.n_trials_;
   SVO_LOG2(repr_n_mps, repr_n_new_references);
   SVO_DEBUG_STREAM("Reprojection:\t nPoints = "<<repr_n_mps<<"\t \t nMatches = "<<repr_n_new_references << "\t \t #close kfs = " << overlap_kfs_.size());
+  repr_n_trials_ = repr_n_mps;
+  repr_n_matches_ = repr_n_new_references;
   if(repr_n_new_references < Config::qualityMinFts())
   {
     SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
@@ -532,6 +535,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_LOG4(sfba_thresh, sfba_error_init, sfba_error_final, sfba_n_edges_final);
   SVO_DEBUG_STREAM("PoseOptimizer:\t ErrInit = "<<sfba_error_init<<"px\t thresh = "<<sfba_thresh);
   SVO_DEBUG_STREAM("PoseOptimizer:\t ErrFin. = "<<sfba_error_final<<"px\t nObsFin. = "<<sfba_n_edges_final);
+  n_tracked_ = sfba_n_edges_final;
   if(sfba_n_edges_final < 20)
     return RESULT_FAILURE;
 

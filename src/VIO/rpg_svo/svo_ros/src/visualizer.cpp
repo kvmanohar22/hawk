@@ -89,6 +89,12 @@ void Visualizer::publishMinimal(
       msg_info.num_matches = slam.lastNumObservations();
     else
       msg_info.num_matches = 0;
+    msg_info.fps_avg = 1.0/slam.lastProcessingMeanTime();
+    msg_info.img_align_n_tracked = slam.imgAlignNTracked();
+    msg_info.repr_n_trials = slam.reprNTrials();
+    msg_info.repr_n_matches = slam.reprNMatches();
+    msg_info.n_tracked = slam.nTracked();
+
     pub_info_.publish(msg_info);
   }
 

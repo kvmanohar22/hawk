@@ -4,3 +4,8 @@ int32[]     keyframes
 int32       num_matches
 int32       tracking_quality
 int32       stage
+int32       fps_avg
+int32       img_align_n_tracked
+int32       repr_n_trials
+int32       repr_n_matches
+int32       n_tracked

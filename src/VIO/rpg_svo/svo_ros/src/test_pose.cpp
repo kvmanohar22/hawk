@@ -39,9 +39,10 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "svo");
   ros::NodeHandle nh;
 
-  SE3 T_c0_b = vk::camera_loader::loadT("/hawk/svo/cam0/T_cam_imu");
-  SE3 T_c1_b = vk::camera_loader::loadT("/hawk/svo/cam1/T_cam_imu");
-
+  SE3 T_c0_b  = vk::camera_loader::loadT("/hawk/svo/cam0/T_cam_imu");
+  SE3 T_c1_b  = vk::camera_loader::loadT("/hawk/svo/cam1/T_cam_imu");
+  SE3 T_c1_c0 = vk::camera_loader::loadT("/hawk/svo/cam1/T_c1_c0");
+/*
   cout << "T_c0_b:\n";
   cout << T_c0_b.rotation_matrix() << endl;  
   cout << T_c0_b.translation().transpose() << endl;  
@@ -50,8 +51,12 @@ int main(int argc, char **argv)
   cout << T_c1_b.rotation_matrix() << endl;  
   cout << T_c1_b.translation().transpose() << endl;  
 
-  cout << "T_c1_c0:\n";
-  SE3 T_c1_c0 = T_c1_b * T_c0_b.inverse();
-  cout << T_c1_c0.rotation_matrix() << endl;  
-  cout << T_c1_c0.translation().transpose() << endl;  
+  cout << "T_c1_c0 (via imus):\n";
+  SE3 T_c1_c0_ = T_c1_b * T_c0_b.inverse();
+  cout << T_c1_c0_.rotation_matrix() << endl;  
+  cout << T_c1_c0_.translation().transpose() << endl;  
+*/
+  cout << "T_c1_c0 (via cameras):\n";
+  cout << "roll pitch yaw = " << vk::dcm2rpy(T_c1_c0.rotation_matrix()).transpose()*180/PI << endl;  
+  cout << "translation = " << T_c1_c0.translation().transpose() << endl;  
 }

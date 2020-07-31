@@ -23,13 +23,14 @@
       <arg name="use_motion_priors" value="$(arg use_motion_priors)"/>
     </include>
 
-    <!-- start rviz -->
+    <!-- start rviz
     <group if="$(env ARM_ARCHITECTURE)">
       <node type="rviz" name="rviz" pkg="rviz" args="-d $(find svo_ros)/rviz_config_hawk.rviz" />
     </group>
+    -->
 
     <!-- start cameras -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering_stereo.launch">
-        <arg name="expose_us" value="800"/>
+        <arg name="expose_us" value="400"/>
     </include>
 </launch>

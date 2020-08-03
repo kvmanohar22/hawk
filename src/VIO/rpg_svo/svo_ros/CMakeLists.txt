@@ -88,9 +88,6 @@ IF(NOT DEFINED ENV{ARM_ARCHITECTURE})
   ADD_EXECUTABLE(initialization src/test_initialization.cpp)
   TARGET_LINK_LIBRARIES(initialization svo_visualizer)
 
-  ADD_EXECUTABLE(stereo_initialization src/test_stereo_initialization.cpp)
-  TARGET_LINK_LIBRARIES(stereo_initialization svo_visualizer)
-
   ADD_EXECUTABLE(preintegration src/test_preintegration.cpp)
   TARGET_LINK_LIBRARIES(preintegration svo_visualizer)
 

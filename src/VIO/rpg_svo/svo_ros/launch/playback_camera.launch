@@ -1,6 +1,7 @@
 <launch>
   <arg name="bag_path" default=""/>
   <arg name="output" default="screen"/>
+  <arg name="start" default="0"/>
   <arg name="image_topic" default="/hawk/camera_0/image_raw"/>
  
   <arg name="left_image_topic" default="/hawk/stereo/left/image_raw"/>
@@ -13,7 +14,7 @@
   <arg name="stereo" default="false"/>
 
   <!-- play rosbag -->
-  <node pkg="rosbag" type="play" name="player" args="$(arg bag_path)" output="screen"/>
+  <node pkg="rosbag" type="play" name="player" args="$(arg bag_path) --start=$(arg start)" output="screen"/>
 
   <!-- stereo image viewer -->
   <group if="$(arg stereo)">

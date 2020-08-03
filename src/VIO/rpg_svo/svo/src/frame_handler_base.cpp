@@ -115,18 +115,12 @@ int FrameHandlerBase::finishFrameProcessingCommon(
     const size_t num_observations)
 {
   SVO_INFO_STREAM("Frame: "<<update_id<<"\t fps-avg = "<< 1.0/acc_frame_timings_.getMean()<<"\t nObs = "<<acc_num_obs_.getMean());
-   
+
   SVO_DEBUG_STREAM("------------------------------------------");
   SVO_LOG(dropout);
 
   // save processing time to calculate fps
   acc_frame_timings_.push_back(timer_.stop());
-  
-/*
-  ofstream ofs; 
-  ofs.open("/home/hawk/fps.txt", std::ios::app);
-  ofs << 1.0/lastProcessingTime() << "\n"; 
-*/
   if(stage_ == STAGE_DEFAULT_FRAME)
     acc_num_obs_.push_back(num_observations);
   num_obs_last_ = num_observations;

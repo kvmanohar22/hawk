@@ -94,7 +94,6 @@ public:
   size_t lastNumObservations() const { return num_obs_last_; }
 
 protected:
-  ofstream ofs_; 
   Stage stage_;                 //!< Current stage of the algorithm.
   bool set_reset_;              //!< Flag that the user can set. Will reset the system before the next iteration.
   bool set_start_;              //!< Flag the user can set to start the system when the next image is received.

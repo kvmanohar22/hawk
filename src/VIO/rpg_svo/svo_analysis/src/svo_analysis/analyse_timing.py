@@ -15,7 +15,7 @@ def analyse_timing(D, trace_dir):
 
   # ----------------------------------------------------------------------------
   # plot total time for frame processing
-  avg_time = np.mean(D['tot_time'][is_frame])*1000;
+  avg_time = np.mean(D['tot_time'][is_frame])*1000
   fig = plt.figure(figsize=(8, 3))
   ax = fig.add_subplot(111, ylabel='processing time [ms]', xlabel='time [s]')
   ax.plot(D['timestamp'][is_frame], D['tot_time'][is_frame]*1000, 'g-', label='total time [ms]')
@@ -25,39 +25,61 @@ def analyse_timing(D, trace_dir):
   fig.savefig(os.path.join(trace_dir,'timing.pdf'), bbox_inches="tight")
   
   # ----------------------------------------------------------------------------
-  # plot boxplot
+  # plot time processing for 2nd step of svo
+  avg_time = np.mean(D['tot_time'][is_frame])*1000
+  fig = plt.figure(figsize=(8, 3))
+  ax = fig.add_subplot(111, ylabel='processing time for feature alignment [ms]', xlabel='time [s]')
+  ax.plot(D['timestamp'][is_frame], D['feature_align'][is_frame]*1000, 'g-', label='feature align [ms]')
+  ax.plot(D['timestamp'][is_frame], D['reproject_candidates'][is_frame]*1000, 'r-', label='reproject candidates [ms]')
+  ax.plot(D['timestamp'][is_frame], D['reproject_kfs'][is_frame]*1000, 'b-', label='reproject kfs [ms]')
+
+  ax.legend()
+  fig.tight_layout()
+  fig.savefig(os.path.join(trace_dir,'timing_alignment.pdf'), bbox_inches="tight")
+
+  # ----------------------------------------------------------------------------
+  # detailed plots of 2nd step
+  print(D['repr_n_new_references'].shape)
+  fig = plt.figure(figsize=(8, 3))
+  ax = fig.add_subplot(111, ylabel='n candidates', xlabel='time [s]')
+  ax.plot(D['timestamp'][is_frame], D['repr_n_new_references'][is_frame], 'g-', label='matches')
+  ax.plot(D['timestamp'][is_frame], D['repr_n_mps'][is_frame], 'r-', label='trials')
+
+  ax.legend()
+  fig.tight_layout()
+  fig.savefig(os.path.join(trace_dir,'reprojection_analysis.pdf'), bbox_inches="tight")
+
+  # ----------------------------------------------------------------------------
+  # plot boxplot for all steps of svo
   fig = plt.figure(figsize=(6,2))
   ax = fig.add_subplot(111, xlabel='Processing time [ms]')
-  ax.boxplot([ 
-                D['tot_time'][is_frame]*1000,
-#                D['t_local_ba'][is_kf]*1000,
-                D['pose_optimizer'][is_frame]*1000 + D['point_optimizer'][is_frame]*1000,
-                D['reproject'][is_frame]*1000,
-                D['sparse_img_align'][is_frame]*1000,
-                D['pyramid_creation'][is_frame]*1000
-              ], 0,'', vert=0) 
-               
+  ax.boxplot([D['tot_time'][is_frame][:, 0]*1000,
+              D['pose_optimizer'][is_frame][:, 0]*1000 + D['point_optimizer'][is_frame][:, 0]*1000,
+              D['reproject'][is_frame][:, 0]*1000,
+              D['sparse_img_align'][is_frame][:, 0]*1000,
+              D['pyramid_creation'][is_frame][:, 0]*1000
+             ], 0,'', vert=0) 
   boxplot_labels = [
                     r'\textbf{Total Motion Estimation: %2.2fms}' % np.median(D['tot_time'][is_frame]*1000),
-#                    'Local BA (KF only): %.2fms ' % np.median(D['local_ba'][is_kf]*1000),
                     'Refinement: %2.2fms' % np.median(D['pose_optimizer'][is_frame]*1000 + D['point_optimizer'][is_frame]*1000),
                     'Feature Alignment: %2.2fms' % np.median(D['reproject'][is_frame]*1000),
                     'Sparse Image Alignment: %2.2fms' % np.median(D['sparse_img_align'][is_frame]*1000),
-                    'Pyramid Creation: %2.2fms' % np.median(D['pyramid_creation'][is_frame]*1000) ]
-                   
+                    'Pyramid Creation: %2.2fms' % np.median(D['pyramid_creation'][is_frame]*1000)
+                   ]
   ax.set_yticks(np.arange(len(boxplot_labels))+1)
   ax.set_yticklabels(boxplot_labels)
   fig.tight_layout()
   fig.savefig(os.path.join(trace_dir,'timing_boxplot.pdf'), bbox_inches="tight")
   
   # ----------------------------------------------------------------------------
-  # plot boxplot reprojection
+  # plot boxplot for reprojection step
   fig = plt.figure(figsize=(6,2))
   ax = fig.add_subplot(111, xlabel='Processing time [ms]')
-  ax.boxplot([ D['reproject'][is_frame]*1000,
-               D['feature_align'][is_frame]*1000,
-               D['reproject_candidates'][is_frame]*1000,
-               D['reproject_kfs'][is_frame]*1000 ], 0, '', vert=0) 
+  ax.boxplot([D['reproject'][is_frame][:, 0]*1000,
+              D['feature_align'][is_frame][:, 0]*1000,
+              D['reproject_candidates'][is_frame][:, 0]*1000,
+              D['reproject_kfs'][is_frame][:, 0]*1000
+             ], 0, '', vert=0) 
   boxplot_labels = [r'\textbf{Total Reprojection: %2.2fms}' % np.median(D['reproject'][is_frame]*1000),
                      'Feature Alignment: %2.2fms' % np.median(D['feature_align'][is_frame]*1000),
                      'Reproject Candidates: %2.2fms' % np.median(D['reproject_candidates'][is_frame]*1000),

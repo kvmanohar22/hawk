@@ -1,0 +1,215 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root version="2.3.8">
+ <tabbed_widget name="Main Window" parent="main_window">
+  <plotmatrix tab_name="hawk" columns="2" rows="3">
+   <plot col="0" style="Lines" row="0">
+    <range bottom="-0.006974" right="8.869517" left="0.028517" top="0.000625"/>
+    <limitY/>
+    <curve custom_transform="noTransform" R="241" name="/mavros/local_position/pose/position/x" G="76" B="193"/>
+    <curve custom_transform="noTransform" R="148" name="/mavros/vision_pose/pose/position/x" G="103" B="189"/>
+    <transform value="noTransform"/>
+   </plot>
+   <plot col="0" style="Lines" row="1">
+    <range bottom="-0.013464" right="8.869517" left="0.028517" top="0.000740"/>
+    <limitY/>
+    <curve custom_transform="noTransform" R="188" name="/mavros/local_position/pose/position/y" G="189" B="34"/>
+    <curve custom_transform="noTransform" R="23" name="/mavros/vision_pose/pose/position/y" G="190" B="207"/>
+    <transform value="noTransform"/>
+   </plot>
+   <plot col="0" style="Lines" row="2">
+    <range bottom="-0.003673" right="8.869517" left="0.028517" top="0.002993"/>
+    <limitY/>
+    <curve custom_transform="noTransform" R="214" name="/mavros/local_position/pose/position/z" G="39" B="40"/>
+    <curve custom_transform="noTransform" R="31" name="/mavros/vision_pose/pose/position/z" G="119" B="180"/>
+    <transform value="noTransform"/>
+   </plot>
+   <plot col="1" style="Lines" row="0">
+    <range bottom="0.000000" right="8.881290" left="0.000000" top="0.100000"/>
+    <limitY max="0.1" min="0"/>
+    <curve custom_transform="noTransform" R="237" name="/hawk/svo/info/processing_time" G="71" B="71"/>
+    <transform value="noTransform"/>
+   </plot>
+   <plot col="1" style="Lines" row="1">
+    <range bottom="100.900000" right="8.881290" left="0.000000" top="101.100000"/>
+    <limitY/>
+    <curve custom_transform="noTransform" R="26" name="/hawk/svo/info/img_align_n_tracked" G="201" B="56"/>
+    <curve custom_transform="noTransform" R="214" name="/hawk/svo/info/n_tracked" G="39" B="40"/>
+    <transform value="noTransform"/>
+   </plot>
+   <plot col="1" style="Lines" row="2">
+    <range bottom="122.725000" right="8.881290" left="0.000000" top="134.275000"/>
+    <limitY/>
+    <curve custom_transform="noTransform" R="31" name="/hawk/svo/info/fps_avg" G="119" B="180"/>
+    <transform value="noTransform"/>
+   </plot>
+  </plotmatrix>
+  <currentPlotMatrix index="0"/>
+ </tabbed_widget>
+ <use_relative_time_offset enabled="1"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <!-- - - - - - - - - - - - - - - -->
+ <Plugins>
+  <plugin ID="DataLoad CSV">
+   <default time_axis=""/>
+  </plugin>
+  <plugin ID="DataLoad ROS bags">
+   <use_header_stamp value="false"/>
+   <use_renaming_rules value="true"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+  </plugin>
+  <plugin ID="DataLoad ULog"/>
+  <plugin ID="ROS Topic Subscriber">
+   <use_header_stamp value="false"/>
+   <use_renaming_rules value="true"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+  </plugin>
+  <plugin status="idle" ID="ROS /rosout Visualization"/>
+  <plugin status="idle" ID="ROS Topic Re-Publisher"/>
+ </Plugins>
+ <!-- - - - - - - - - - - - - - - -->
+ <previouslyLoaded_Datafiles/>
+ <previouslyLoaded_Streamer name="ROS Topic Subscriber"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <customMathEquations>
+  <snippet language="JS" name="vision_yaw">
+   <linkedPlot>/mavros/vision_pose/pose/pose/orientation/w</linkedPlot>
+   <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+
+function quaternionToYaw(x, y, z, w)
+{
+  // yaw (z-axis rotation)
+  t1 = 2.0 * (w * z + x * y);
+  t2 = 1.0 - 2.0 * (y * y + z * z);
+  yaw = Math.atan2(t1, t2);
+
+  return yaw
+}</global>
+   <equation>V1 = $$/mavros/vision_pose/pose/pose/orientation/w$$
+V2 = $$/mavros/vision_pose/pose/pose/orientation/x$$
+V3 = $$/mavros/vision_pose/pose/pose/orientation/y$$
+V4 = $$/mavros/vision_pose/pose/pose/orientation/z$$
+
+return quaternionToYaw(V2, V3, V4, V1)*180/3.1417;</equation>
+  </snippet>
+  <snippet language="JS" name="Quat to RPY">
+   <linkedPlot>/mavros/local_position/pose/pose/orientation/w</linkedPlot>
+   <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+
+function quaternionToYaw(x, y, z, w)
+{
+  // yaw (z-axis rotation)
+  t1 = 2.0 * (w * z + x * y);
+  t2 = 1.0 - 2.0 * (y * y + z * z);
+  yaw = Math.atan2(t1, t2);
+
+  return yaw
+}</global>
+   <equation>V1 = $$/mavros/local_position/pose/pose/orientation/w$$
+V2 = $$/mavros/local_position/pose/pose/orientation/x$$
+V3 = $$/mavros/local_position/pose/pose/orientation/y$$
+V4 = $$/mavros/local_position/pose/pose/orientation/z$$
+
+return quaternionToYaw(V1, V2, V3, V4)*180/3.1417;</equation>
+  </snippet>
+  <snippet language="JS" name="local_yaw">
+   <linkedPlot>Quat to RPY</linkedPlot>
+   <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+
+function quaternionToYaw(x, y, z, w)
+{
+  // yaw (z-axis rotation)
+  t1 = 2.0 * (w * z + x * y);
+  t2 = 1.0 - 2.0 * (y * y + z * z);
+  yaw = Math.atan2(t1, t2);
+
+  return yaw
+}</global>
+   <equation>V1 = $$/mavros/local_position/pose/pose/orientation/w$$
+V2 = $$/mavros/local_position/pose/pose/orientation/x$$
+V3 = $$/mavros/local_position/pose/pose/orientation/y$$
+V4 = $$/mavros/local_position/pose/pose/orientation/z$$
+
+return quaternionToYaw(V2, V3, V4, V1)*180/3.1417;</equation>
+  </snippet>
+ </customMathEquations>
+ <snippets>
+  <snippet language="JS" name="1st_derivative">
+   <global>var prevX = 0
+var prevY = 0</global>
+   <equation>dx = time - prevX
+dy = value - prevY
+prevX = time
+prevY = value
+
+return dy/dx</equation>
+  </snippet>
+  <snippet language="JS" name="1st_order_lowpass">
+   <global>var prevY = 0
+var alpha = 0.1</global>
+   <equation>prevY = alpha * value + (1.-alpha) * prevY
+
+return prevY</equation>
+  </snippet>
+  <snippet language="JS" name="2D_velocity">
+   <global>var prev_x = 0
+var prev_y = 0
+var prev_t = 0</global>
+   <equation>X = $$your_odometry/position/x$$
+Y = $$your_odometry/position/y$$
+
+var dist = sqrt( (X-prev_x)*(X-prev_x) + (Y-prev_y)*(Y-prev_y) )
+var dT = time - prev_t
+
+prev_x = X
+prev_y = Y
+prev_t = time
+
+return dist / dT</equation>
+  </snippet>
+  <snippet language="JS" name="average_two_curves">
+   <global></global>
+   <equation>a = $$PLOT_A$$
+b = $$PLOT_B$$
+
+return (a+b)/2</equation>
+  </snippet>
+  <snippet language="JS" name="integral">
+   <global>var integral = 0</global>
+   <equation>integral += value
+return integral</equation>
+  </snippet>
+  <snippet language="JS" name="rad_to_deg">
+   <global></global>
+   <equation>return value*180/3.1417</equation>
+  </snippet>
+  <snippet language="JS" name="remove_offset">
+   <global>var is_first = true
+var first_value = 0</global>
+   <equation>if (is_first)
+{
+  is_first = false
+  first_value = value
+}
+
+return value - first_value</equation>
+  </snippet>
+  <snippet language="JS" name="yaw_from_quaternion">
+   <global>// source: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+
+function quaternionToYaw(x, y, z, w)
+{
+  // yaw (z-axis rotation)
+  t1 = 2.0 * (w * z + x * y);
+  t2 = 1.0 - 2.0 * (y * y + z * z);
+  yaw = Math.atan2(t1, t2);
+
+  return yaw
+}</global>
+   <equation>return quaternionToYaw(x, y, z, w);</equation>
+  </snippet>
+ </snippets>
+ <!-- - - - - - - - - - - - - - - -->
+</root>
+

@@ -1,5 +1,9 @@
-# Square trajectory
+# Rectangle trajectory
 
-easting: [0.0, 3.0, 3.0, 0.0, 0]
-northing: [0.0, 0.0, 3.0, 3.0, 0]
-height: [3.0, 3.0, 3.0, 3.0, 3.0]
+# 1. Takeoff to 1.5m altitude
+# 2. Execute rectangle and come back to origin
+# 3. Land
+
+easting: [  0.0,  0.0,  0.0,  1.0,  2.0,  3.0,  3.0, 3.0, 2.0, 1.0, 0.0, 0.0]
+northing: [ 0.0, -1.0, -2.0, -2.0, -2.0, -2.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+height: [   1.5,  1.5,  1.5,  1.5,  1.5,  1.5,  1.5, 1.5, 1.5, 1.5, 1.5, 0.0]

@@ -31,11 +31,11 @@
 
     <!-- start cameras -->
     <include file="$(find bluefox2)/launch/test_hardware_triggering_stereo.launch">
-        <arg name="expose_us" value="1000"/>
+        <arg name="expose_us" value="30000"/>
     </include>
 
     <!-- record following topics for later debug -->
-    <node pkg="rosbag" type="record" name="rosbag" args="record -o /home/hawk/ /mavros/local_position/pose /mavros/vision_pose/pose /hawk/svo/info">
+    <node pkg="rosbag" type="record" name="rosbag" args="record -o /home/hawk/ /mavros/local_position/pose /mavros/vision_pose/pose /hawk/svo/info /hawk/stereo/left/image_raw /mavros/setpoint_raw/local /mavros/setpoint_position/local">
     </node>
 
 </launch>

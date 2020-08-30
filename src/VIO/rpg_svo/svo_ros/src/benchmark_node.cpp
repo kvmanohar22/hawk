@@ -155,7 +155,8 @@ void BenchmarkNode::runBenchmark(const std::string& dataset_dir)
       SVO_ERROR_STREAM("Reading image "<<img_filename<<" failed.");
       return;
     }
-    vo_->addImage(img, it->timestamp_);
+    ros::Time ts; ts.fromSec(it->timestamp_);
+    vo_->addImage(img, ts);
     visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, it->timestamp_);
     visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
     if(vo_->stage() == svo::FrameHandlerMono::STAGE_DEFAULT_FRAME)
@@ -236,7 +237,8 @@ void BenchmarkNode::runBlenderBenchmark(const std::string& dataset_dir)
     else
     {
       SVO_DEBUG_STREAM("Processing image "<<it->image_name_<<".");
-      vo_->addImage(img, it->timestamp_);
+      ros::Time ts; ts.fromSec(it->timestamp_);
+      vo_->addImage(img, ts);
       visualizer_.publishMinimal(img, vo_->lastFrame(), *vo_, it->timestamp_);
       visualizer_.visualizeMarkers(vo_->lastFrame(), vo_->coreKeyframes(), vo_->map());
     }

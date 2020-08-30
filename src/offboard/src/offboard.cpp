@@ -5,7 +5,7 @@ namespace hawk
 Offboard::Offboard(ros::NodeHandle& nh)
   : nh_(nh)
   , rate_(120.0)
-  , home_set_(false)
+  , home_set_(true)
   , last_request_time_(ros::Time::now())
   , request_interval_(ros::Duration(5.0))
   , offboard_enabled_(false)
@@ -51,6 +51,8 @@ Offboard::Offboard(ros::NodeHandle& nh)
 
   reset_home();
 
+  // since we are not using GPS, we set home to be origin
+  home_set_ = true; 
   while(ros::ok() && !(home_set_ && local_pose_set_))
   {
     ROS_WARN_STREAM_THROTTLE(1.0, "Waiting for home to be set");
@@ -108,7 +110,10 @@ void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
 {
   if(!local_pose_set_)
   {
-    // update initial yaw only once
+    ++count_; 
+    if(count_ < 100)
+      return;
+    //  update initial yaw only once
     tf::Quaternion q(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z,
                      msg->pose.orientation.w);
     tf::Matrix3x3 m(q);
@@ -116,9 +121,8 @@ void Offboard::local_pose_cb(const geometry_msgs::PoseStampedConstPtr& msg)
     m.getRPY(R, P, Y);
     initial_yaw_ = -Y + hawk::PI / 2;
     ROS_INFO_STREAM_ONCE("Local pose is set, yaw = " << initial_yaw_);
-    if(count_ == 100)
+    if(count_ >= 100)
       local_pose_set_ = true;
-    ++count_;
   }
 
   // update current pose of drone
@@ -464,7 +468,7 @@ bool Offboard::engage_offboard_trajectory_auto()
     const auto sec_elapsed = (ros::Time::now()-start_time).toSec();
     ROS_WARN_STREAM_THROTTLE(1.0, "Sleeping until trajectory is generated. Elapsed time: " << sec_elapsed << " sec.");
     // if(path_generation_status_client_.call(srv) && srv.response.success)
-    if(sec_elapsed > 10)
+    if(sec_elapsed > 25)
     {
       ROS_INFO_STREAM("[offboard]: Ready to engage offboard");
       break;

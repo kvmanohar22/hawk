@@ -1,0 +1,24 @@
+# Euroc data specific svo parameters
+
+grid_size: 7
+max_n_kfs: 0
+loba_num_iter: 0
+max_fts: 500
+triang_min_corner_score: 20.0
+quality_max_drop_fts: 100
+map_scale: 1.0
+kfselect_mindist: 0.05
+publish_map_every_frame: false
+
+# Factor type to be used in local bundle adjustment
+# 0: Generic projection factors
+# 1: Smart factors
+# 2: Incremental Smart Factors Local BA
+loba_type: 2
+
+# Optimizer type for Local bundle adjustment
+# 0: LM
+# 1: ISAM2
+loba_opt_type: 0
+
+poseoptim_thresh: 2.0

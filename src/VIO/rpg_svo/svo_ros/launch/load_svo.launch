@@ -7,14 +7,14 @@
     <arg name="run_inertial_estimator" default="false"/>
 
     <!-- typically used when interfacing with drone. we do not want to start right away -->
-    <arg name="start_vo" default="true"/>
+    <arg name="start_vo" default="false"/>
 
     <!-- flag to choose the camera rig type: choose between monocular and stereo -->
     <arg name="rig" default="monocular"/>
 
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find svo_ros)/cfg/rosconsole.conf"/>
     <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen" ns="hawk">
-        <param name="trace_dir" value="/home/hawk" type="str"/>
+        <param name="trace_dir" value="/home/hakunamatata/mvp_ws/companion_stack" type="str"/>
         <!-- camera rig type -->
         <param name="rig" value="$(arg rig)" type="str" />
 

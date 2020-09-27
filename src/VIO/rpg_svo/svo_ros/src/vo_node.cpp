@@ -124,6 +124,7 @@ VoNode::VoNode(ros::NodeHandle& nh) :
   if(!vk::camera_loader::loadFromRosNs("svo", "cam1", cam1_))
     throw std::runtime_error("Camera model not correctly specified.");
 
+
   // Get initial position and orientation
   visualizer_.T_world_from_vision_ = Sophus::SE3(
       vk::rpy2dcm(Vector3d(vk::getParam<double>("/hawk/svo/init_rx", 0.0),
@@ -228,6 +229,8 @@ bool VoNode::startVoServer(std_srvs::Empty::Request& request, std_srvs::Empty::R
 
 bool VoNode::initializeGravity()
 {
+
+
   inertial_init_done_ = inertial_init_->initializeFast();
   if(inertial_init_done_)
   {
@@ -246,6 +249,8 @@ bool VoNode::initializeGravity()
    
     // At this point we lock the position estimate from px4
     lock_local_pose_ = true;
+
+
 
     if(Config::runInertialEstimator())
     {
@@ -327,6 +332,7 @@ void VoNode::imgStereoCb(
     const sensor_msgs::ImageConstPtr& l_msg,
     const sensor_msgs::ImageConstPtr& r_msg)
 {
+
   if(first_msg_)
   {
     vo_start_time_ = l_msg->header.stamp;
@@ -359,6 +365,7 @@ void VoNode::imgStereoCb(
     if(!initializeGravity())
       return;
   }
+
   // estimate motion
   vo_->addImage(l_img, r_img, l_msg->header.stamp);
 
@@ -384,16 +391,19 @@ int main(int argc, char **argv)
   std::cout << "create vo_node" << std::endl;
   svo::VoNode vo_node(nh);
 
+
   // subscribe to message topics
   std::string imu_topic(vk::getParam<std::string>("/hawk/svo/imu0/rostopic", "imu/data"));
   std::string cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic", "camera/image_raw"));
   std::string left_cam_topic(vk::getParam<std::string>("/hawk/svo/cam0/rostopic", "camera0/image_raw"));
   std::string right_cam_topic(vk::getParam<std::string>("/hawk/svo/cam1/rostopic", "camera1/image_raw"));
 
+
   message_filters::Subscriber<sensor_msgs::Image> subscriber_left(nh, left_cam_topic.c_str(), 500);
   message_filters::Subscriber<sensor_msgs::Image> subscriber_right(nh, right_cam_topic.c_str(), 500);
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_policy;
   message_filters::Synchronizer<sync_policy> sync(sync_policy(5), subscriber_left, subscriber_right);
+
 
   image_transport::ImageTransport it(nh);
   image_transport::Subscriber it_sub;
@@ -405,6 +415,7 @@ int main(int argc, char **argv)
   } else {
     SVO_ERROR_STREAM("Camera rig type not understood");
   }
+
 
   ros::Subscriber imu_subscriber;
   if(svo::Config::runInertialEstimator() || svo::Config::useMotionPriors())

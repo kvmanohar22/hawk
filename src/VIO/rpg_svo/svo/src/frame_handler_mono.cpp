@@ -252,6 +252,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const ros::Time ts)
 
 void FrameHandlerMono::addImage(const cv::Mat& imgl, const cv::Mat& imgr, const ros::Time ts)
 {
+
   handleInterrupt();
 
   if(init_type_ != FrameHandlerBase::InitType::STEREO)
@@ -377,6 +378,8 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFirstAndSecondFrame(
   const cv::Mat& imgl, const cv::Mat& imgr)
 {
+
+
   // process the first image
   if(!prior_pose_set_) {
     SVO_ERROR_STREAM("Prior pose not set!");

@@ -26,4 +26,4 @@ analysis/EKF/log**
 analysis/EKF/10_07/**
 analysis/VIO/*.ulg
 analysis/VIO/offboard_gps/*.ulg
-
+*.swp
